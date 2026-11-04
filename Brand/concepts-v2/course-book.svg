@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Syllapace — course book</title>
+  <desc id="desc">An open syllabus becomes a calendar on the right page, with one highlighted day.</desc>
+  <path fill="#26786e" fill-rule="evenodd" d="M232 306C310 276 394 282 480 330V748C394 700 310 694 232 722V306ZM288 410H424V450H288V410ZM288 506H384V546H288V506Z"/>
+  <path fill="#26786e" fill-rule="evenodd" d="M544 330C624 286 708 272 792 306V722C710 694 626 700 544 748V330ZM602 418H630Q642 418 642 430V458Q642 470 630 470H602Q590 470 590 458V430Q590 418 602 418ZM702 418H730Q742 418 742 430V458Q742 470 730 470H702Q690 470 690 458V430Q690 418 702 418ZM602 522H630Q642 522 642 534V562Q642 574 630 574H602Q590 574 590 562V534Q590 522 602 522ZM766 548A50 50 0 1 1 666 548A50 50 0 1 1 766 548Z"/>
+  <circle cx="716" cy="548" r="38" fill="#e8ae72"/>
+</svg>

@@ -186,9 +186,11 @@ Empty content uses `ContentUnavailableView` with a nearby next action. Filtered 
 
 ### Brand mark
 
-The user selected Codex, Slack and Linear as references for a simple abstract geometric identity. Syllapace uses two original, thick arc modules related by a half-turn; their negative space creates a forward rhythm. It does not depict a book or calendar and uses no font glyphs, SF Symbols or borrowed brand paths. This updates the identity while preserving the native study-desk interface direction.
+The mark combines stacked course pages, a selected date and a separated turning corner. Its recognizable page-and-calendar meaning follows the user's revised direction, while the restrained geometry reflects the requested Codex, Slack and Linear style references. The drawing is original and uses no font glyphs, SF Symbols or borrowed brand paths. The native study-desk interface direction is unchanged.
 
-[Brand/README.md](Brand/README.md) documents the transparent teal, near-black and white SVG masters and their clear space. The Icon Composer assets use the same two paths in separate layers; macOS supplies their icon materials. The flat logo has no built-in background, gradients or shadows.
+The date cells share 96 × 96 bounds and centers at x/y 480 and 640, giving a 160-unit center step. The 256-unit-wide header aligns with the date grid's outer x edges, 432 and 688. The selected date's 48-unit outer radius matches a date cell's bounds; its 24-unit inner radius leaves a readable negative-space ring. A 24-unit gap at the corresponding horizontal and vertical anchors separates the turning corner from the page.
+
+[Brand/README.md](Brand/README.md) documents the transparent two-color, teal, near-black and white SVG variants. Each retains the same compound paths and circular date marker, with a `160 160 704 704` viewBox. The native icon's materials and appearance adaptations are supplied by Icon Composer / macOS; the standalone SVGs contain no background, gradients or shadows.
 
 ## Do's and Don'ts
 

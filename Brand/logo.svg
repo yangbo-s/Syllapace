@@ -1,6 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="576" height="576" viewBox="224 224 576 576" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="704" height="704" viewBox="160 160 704 704" role="img" aria-labelledby="title desc">
   <title id="title">Syllapace</title>
-  <desc id="desc">Two rotating arcs form an abstract forward rhythm through negative space.</desc>
-  <path fill="#26786e" d="M704 256H448C342 256 256 342 256 448C256 554 342 640 448 640H480V512H448C412 512 384 484 384 448C384 412 412 384 448 384H704Z"/>
-  <path fill="#26786e" d="M320 768H576C682 768 768 682 768 576C768 470 682 384 576 384H544V512H576C612 512 640 540 640 576C640 612 612 640 576 640H320Z"/>
+  <desc id="desc">Course pages with an aligned two-by-two date grid and a separate turning corner. Date cells share 96-unit bounds and 160-unit center spacing.</desc>
+  <g id="back-page"><path fill="#e8ae72" d="M264 208H664Q704 208 704 248V256H360Q288 256 288 328V736H264Q224 736 224 696V248Q224 208 264 208Z"/></g>
+  <g id="schedule-page">
+    <path fill="#26786e" fill-rule="evenodd" d="M360 288H760Q800 288 800 328V704H752Q680 704 680 776V816H360Q320 816 320 776V328Q320 288 360 288Z
+    M448 352H672Q688 352 688 368Q688 384 672 384H448Q432 384 432 368Q432 352 448 352Z
+    M448 432H512Q528 432 528 448V512Q528 528 512 528H448Q432 528 432 512V448Q432 432 448 432Z
+    M608 432H672Q688 432 688 448V512Q688 528 672 528H608Q592 528 592 512V448Q592 432 608 432Z
+    M448 592H512Q528 592 528 608V672Q528 688 512 688H448Q432 688 432 672V608Q432 592 448 592Z
+    M688 640A48 48 0 1 1 592 640A48 48 0 1 1 688 640Z"/>
+  </g>
+  <g id="selected-date"><circle cx="640" cy="640" r="24" fill="#e8ae72"/></g>
+  <g id="turned-corner"><path fill="#e8ae72" d="M704 816V776Q704 728 752 728H800C784 772 748 804 704 816Z"/></g>
 </svg>

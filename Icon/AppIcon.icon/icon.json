@@ -4,13 +4,18 @@
       "layers": [
         {
           "glass": true,
-          "image-name": "pace-upper.svg",
-          "name": "Gather"
+          "image-name": "date-corner.svg",
+          "name": "Date and turning corner"
         },
         {
           "glass": true,
-          "image-name": "pace-lower.svg",
-          "name": "Continue"
+          "image-name": "schedule-page.svg",
+          "name": "Schedule page"
+        },
+        {
+          "glass": true,
+          "image-name": "course-back.svg",
+          "name": "Course materials"
         }
       ],
       "shadow": {
@@ -19,7 +24,7 @@
       },
       "translucency": {
         "enabled": true,
-        "value": 0.3
+        "value": 0.2
       }
     }
   ],

@@ -128,7 +128,7 @@ The tests use synthetic PDFs/DOCX documents, mocked network responses, and calen
 
 ## Logo
 
-The original geometric mark is available as transparent [SVG files](Brand/README.md) in teal, near-black, and white. The native app icon uses the same paths in `Icon/AppIcon.icon`; macOS supplies its material and appearance variants.
+The course-page and date mark is available as transparent [SVG files](Brand/README.md) in two-color, teal, near-black, and white versions. Its [construction diagram](Brand/concepts-v2/alignment.png) records the alignment grid. The native app icon uses the same paths in `Icon/AppIcon.icon`; macOS supplies its material and appearance variants.
 
 ## Project layout
 

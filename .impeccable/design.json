@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-04T21:36:45Z",
+  "generatedAt": "2026-11-04T22:02:52Z",
   "title": "Design System: Syllapace",
   "extensions": {
     "colorMeta": {
@@ -199,7 +199,7 @@
       "Spacious rows with compact, purposeful metadata.",
       "Adaptive teal with explicit foreground contrast.",
       "Evidence and uncertainty visible at the point of review.",
-      "An original two-arc geometric mark, shared by the SVG logo and native app icon."
+      "An original course-page mark with an aligned date grid and a separated turning corner, shared by the SVG logo and native app icon."
     ],
     "rules": [
       {

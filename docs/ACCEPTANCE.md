@@ -72,7 +72,7 @@
 - CUA 实际操作：搜索无结果与清空、⌘N 新建、回车保存、完成/未完成切换、⌘O 打开及 Esc 取消、课程过滤、候选批准使待审计数从 3 减至 2、来源原文阅读及 Esc 关闭、桌面卡片置顶切换、关闭主窗口后通过卡片事件重开对应详情。全部使用明确标记的临时演示空间。
 - `.impeccable/review/settings-dark.png` 是旧轮次遗留，已删除；证据采用 `settings-{0,1,2}-{light,dark}.png`。截图与编译资源属于可重新生成的本地产物，不提交至 Git。
 - 运行时布局探针按实际 NSWindow 坐标记录，仅测可见自定义内容，防止主窗口、sheet 与桌面窗口坐标混用；对齐、内边距、边界、间距及重叠断言通过。系统 Form/Sidebar/Toolbar 不重复测量。
-- 最终抽象几何图标已检查 default/dark/tinted/clear 及 16/32pt 小尺寸，修正了深色底色；已在实际安装应用的 About 窗口核验新图标。纯 SVG 母版、三色变体和使用说明见 `Brand/`，原生分层源见 `Icon/AppIcon.icon/`。未进行完整 VoiceOver、窗口拖拽、多显示器/Spaces、长时间性能与真实权限交互验收。
+- 用户选定 C「课程卡片」后，按统一网格重画日期与翻角。四种原生外观及32pt预览已核验；单色下翻角和日期标记可辨，真正16px下仅以叠页主轮廓为通过依据。透明 SVG 母版、四色变体和网格说明见 `Brand/`，对齐结构见 `Brand/concepts-v2/alignment.png`，原生分层源见 `Icon/AppIcon.icon/`。本轮 Release 构建和签名验证通过，并已在安装应用的 About 窗口核验新图标。未进行完整 VoiceOver、窗口拖拽、多显示器/Spaces、长时间性能与真实权限交互验收。
 
 ## 仍待真实环境验证
 
