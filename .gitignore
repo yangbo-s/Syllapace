@@ -1,0 +1,12 @@
+.build/
+.build-*/
+build/
+.DS_Store
+*.xcuserstate
+.impeccable/mocks/
+.impeccable/review/
+.impeccable/questions/
+.codex/
+Resources/Assets.car
+Resources/AppIcon.icns
+Resources/icon-info.plist

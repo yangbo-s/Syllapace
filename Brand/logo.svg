@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="576" height="576" viewBox="224 224 576 576" role="img" aria-labelledby="title desc">
+  <title id="title">Syllapace</title>
+  <desc id="desc">Two rotating arcs form an abstract forward rhythm through negative space.</desc>
+  <path fill="#26786e" d="M704 256H448C342 256 256 342 256 448C256 554 342 640 448 640H480V512H448C412 512 384 484 384 448C384 412 412 384 448 384H704Z"/>
+  <path fill="#26786e" d="M320 768H576C682 768 768 682 768 576C768 470 682 384 576 384H544V512H576C612 512 640 540 640 576C640 612 612 640 576 640H320Z"/>
+</svg>
