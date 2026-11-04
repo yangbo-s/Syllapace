@@ -4,7 +4,19 @@ A native Mac workspace for assignments, syllabus deadlines, and the changes that
 
 Syllapace runs on your Mac. Connect your own Canvas account, optionally configure your own model API key, review extracted dates with their source text, and keep confirmed events in Apple Calendar. A compact desktop card puts upcoming work within reach.
 
-This is an early implementation. Automated tests and local application checks are available; a real Canvas account, model provider, and authorized Apple Calendar connection have not yet been exercised in this development run. See [acceptance evidence](docs/ACCEPTANCE.md) for the exact verification status.
+This is an early release. Automated tests and local application checks are available; a real Canvas account, model provider, and authorized Apple Calendar connection have not yet been exercised in this development run. See [acceptance evidence](docs/ACCEPTANCE.md) for the exact verification status.
+
+## Install
+
+Download the **DMG** from [GitHub Releases](https://github.com/yangbo-s/Syllapace/releases), drag Syllapace to Applications, and open it there. The first release supports **Apple Silicon and macOS 26+**. A ZIP and SHA-256 checksums are also provided.
+
+The package is ad hoc signed and **not notarized by Apple**. If macOS blocks the first launch, use Apple's per-app **System Settings → Privacy & Security → Open Anyway** flow after checking the source and checksum; see the [release notes](docs/releases/0.1.0.md). An update signature protects subsequent downloads, but does not replace Apple notarization.
+
+## Language and updates
+
+Open **Settings → General** to choose **Follow system**, **English**, or **简体中文**. The app interface changes immediately and remembers the preference. Native system menus and Sparkle update windows adopt the language after reopening. Canvas, OpenAI, API, PDF, DOCX, ICS and other product/protocol names retain their spelling. Course names and original evidence are never translated; changing the interface language does not expand the document parser's language support.
+
+Choose **Syllapace → Check for Updates…** or use the button in General settings. Sparkle checks the GitHub-hosted feed, verifies update archives with the public key embedded in the app, and installs after confirmation. Automatic checks can be turned off in General. Update checks send no course content or credentials; system profile submission is disabled.
 
 ## Build and run
 
@@ -12,7 +24,7 @@ Requirements:
 
 - macOS 26 or later.
 - Xcode 26 or later with a Swift 6.2+ toolchain and Apple asset compilation tools. Command Line Tools alone may select an older Swift version.
-- No third-party package dependencies or hosted Syllapace service.
+- Swift Package Manager downloads the pinned Sparkle 2.10.1 dependency. No hosted Syllapace service is required.
 
 From the repository root:
 
@@ -20,7 +32,7 @@ From the repository root:
 ./build.sh --open
 ```
 
-The script creates `build/Syllapace.app`, compiles the icon, and signs the bundle ad hoc by default. Use `./build.sh --debug --open` for a faster development build. It defaults to the toolchain in `/Applications/Xcode.app`; set `DEVELOPER_DIR` if Xcode is installed elsewhere. Set `SIGN_IDENTITY` to a suitable local signing identity if desired. This build is not a notarized distribution release.
+The script creates `build/Syllapace.app`, embeds Sparkle and localization resources, compiles the icon, and signs the bundle ad hoc by default. Use `./build.sh --debug --open` for a faster development build. It defaults to the toolchain in `/Applications/Xcode.app`; set `DEVELOPER_DIR` if Xcode is installed elsewhere. Set `SIGN_IDENTITY` to a suitable local signing identity if desired. This build is not notarized. See [release maintenance](docs/RELEASING.md) for archive signing, packaging and publishing. Fork maintainers must use their own feed and update-signing key.
 
 To inspect the interface with fictional courses and deadlines:
 
@@ -28,7 +40,7 @@ To inspect the interface with fictional courses and deadlines:
 ./tools/demo.sh
 ```
 
-Demo events are generated in memory and are not saved to your real library. Canvas, model extraction, and EventKit access are disabled in demo mode. Quit the demo and open the app normally to configure your own workspace.
+Demo events are generated in memory and are not saved to your real library. Canvas, model extraction, EventKit access and update checks are disabled in demo mode. Quit the demo and open the app normally to configure your own workspace.
 
 ## Start with a syllabus
 

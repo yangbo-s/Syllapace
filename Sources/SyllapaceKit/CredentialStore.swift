@@ -37,5 +37,5 @@ public enum CredentialStore {
 }
 public struct KeychainError: Error, LocalizedError, Sendable {
     public var status: OSStatus
-    public var errorDescription: String? { "Keychain access failed (\(status)). Unlock your keychain and try again." }
+    public var errorDescription: String? { L10n.format("Keychain access failed (%d). Unlock your keychain and try again.", status) }
 }

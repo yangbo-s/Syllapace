@@ -184,6 +184,12 @@ The compact native panel shows up to three upcoming events, a pin action and a r
 
 Empty content uses `ContentUnavailableView` with a nearby next action. Filtered emptiness says “No matching events” and offers “Clear filters”; a finished review queue says “All caught up.” Work in progress has a small native progress indicator. Notices are inline and dismissible; errors use a native alert. Demo data is always visibly labeled.
 
+### Language and updates
+
+Settings begins with a General tab using the same native grouped Form. Language is a single picker with Follow system, English and 简体中文. Product and protocol names such as Canvas, OpenAI, API and ICS retain their original spelling; source evidence and course names are user content. The interface changes immediately without recreating the archive or connection model. A short note explains that native system menus and Sparkle windows adopt the language on reopening.
+
+The Updates group shows the current version, automatic-check preference, a Check for Updates button and a release-notes link. The same check action appears in the application menu after About. Sparkle supplies the standard progress, no-update, error and install windows. Download verification and user confirmation precede installation. Demo and automated capture sessions keep updates disabled.
+
 ### Brand mark
 
 The mark combines stacked course pages, a selected date and a separated turning corner. Its recognizable page-and-calendar meaning follows the user's revised direction, while the restrained geometry reflects the requested Codex, Slack and Linear style references. The drawing is original and uses no font glyphs, SF Symbols or borrowed brand paths. The native study-desk interface direction is unchanged.

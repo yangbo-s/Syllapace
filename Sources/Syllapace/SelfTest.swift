@@ -30,6 +30,14 @@ enum SelfTest {
         check(model.page == .timeline, "Unchanged background source does not navigate")
         do { let restored = try model.store.load(); check(restored.events == model.archive.events, "Archive survives reload") } catch { fail(error.localizedDescription) }
         check(model.error == nil, "No persistence error")
+        check(L10n.string("Today", language: .english) == "Today"
+              && L10n.string("Today", language: .simplifiedChinese) != "Today"
+              && L10n.string("Canvas", language: .simplifiedChinese) == "Canvas",
+              "Packaged language resources load and preserve product names")
+        let updater = UpdateController()
+        updater.startIfNeeded()
+        check(!updater.isAvailable && !updater.canCheckForUpdates,
+              "Isolated self-test cannot start update checks")
         Snapshot.log("SELFTEST complete")
         NSApp.terminate(nil)
     }

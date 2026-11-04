@@ -44,7 +44,7 @@ enum Snapshot {
                 openSettings()
                 try? await Task.sleep(for: .milliseconds(1600))
                 if let settings = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain && $0 !== main && !($0 is NSPanel) }) {
-                    for tab in 0..<3 {
+                    for tab in [3, 0, 1, 2] {
                         model.settingsTab = tab
                         settings.makeKeyAndOrderFront(nil)
                         try? await Task.sleep(for: .milliseconds(500))

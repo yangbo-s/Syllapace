@@ -11,11 +11,14 @@ GOAL-001：为学生提供可追溯的本地学业日程。
 | REQ-006 / AC-006 | 桌面卡片 | 独立紧凑窗口、置顶选项、进入主界面 |
 | REQ-007 / AC-007 | EventKit | 用户主动授权、专用日历、映射、外部编辑冲突、失败恢复 |
 | REQ-008 / AC-008 | ICS | 稳定UID、全天日期、转义与换行折叠 |
+| REQ-009 / AC-009 | 语言 | 设置中选择跟随系统、English、简体中文，界面即时切换且重启保留；Canvas 等术语和用户资料原文不变 |
+| REQ-010 / AC-010 | 更新 | 应用菜单/通用设置检查 GitHub 上的 Sparkle feed，处理无更新、失败、有更新；Ed25519 验证后用户确认下载安装 |
+| REQ-011 / AC-011 | 首发 | GitHub v0.1.0 包含可解包启动的 arm64 ZIP、DMG、包含更新包签名的 appcast、SHA256SUMS 和明确的系统/签名/验证边界 |
 
 IN-001：Canvas HTTPS host + PAT；模型HTTPS endpoint + key + model；用户选择文档（UTF-8文本、PDF、DOCX）。密钥仅Keychain。
 OUT-001：版本化本地归档、候选/确认事件、系统日历、ICS文件。网络/解析错误向用户显示，不清空已有数据。
 CON-001：macOS26+，Swift6，SwiftUI+AppKit，用户自行运行，无后端。真实Canvas/BYOK/EventKit联调需用户配置，仅以合成数据自动测试。
-ASM-001：默认系统时区，导入时明确学年；无法解析日期保留待审核。应用内文案英文，工程交流中文。
+ASM-001：默认系统时区，导入时明确学年；无法解析日期保留待审核。应用支持英文和简体中文，默认跟随系统；工程交流中文。
 OOS-001：Windows、OCR、其它LMS、自动提交作业。
 ADR-002：原生Swift项目；对比直接fork Tauri，选择系统集成和原生交互，承担重写UI成本。持久化先使用版本化原子JSON，文档体量较小时无数据库依赖。
 MOD-001：SyllapaceKit纯数据/规则/存储/连接器；MOD-002：SwiftUI状态与视图；MOD-003：EventKit与桌面窗口。
@@ -60,4 +63,26 @@ IF-001：课程、来源和事件ID稳定；来源hash仅版本指纹。API失�
 
 ## 阶段门禁与交付
 
-契约、模块实现、合成数据集成、构建与自动化检查已有证据。真实窗口视觉问题已经修正；外部服务和系统权限联调尚未跨越最终发布门禁，详见 `ACCEPTANCE.md`。本次交付为本机可运行实现，未声称公开发行就绪。当前包 ad hoc 签名，不包含公证或安装器；源码、构建脚本、测试、示例、设计文档和验收记录一并交付。
+契约、模块实现、合成数据集成、构建与自动化检查已有证据。首个公开包由用户明确要求发布，作为早期版本披露真实 Canvas/BYOK/EventKit 尚未联调的边界，不以发布替代这些验收。当前环境没有 Developer ID 证书，应用 ad hoc 签名，尚未公证；发布页说明系统首次打开方式。源码、构建脚本、测试、示例、设计文档和验收记录一并交付。
+
+## 0.1.0 语言、更新与发布契约
+
+GOAL-002：使本地客户端可供中英文用户安装使用，并持续从项目 GitHub Release 获取可信更新。
+
+- FUNC-009：界面标签、提示、错误、日期与菜单使用选定语言；Canvas、Syllapace、OpenAI、API、PDF、DOCX、ICS 等名称保持原文。课程名、证据、用户输入和归档键不翻译。应用内立即切换，系统菜单及 Sparkle 标准窗口重启后生效。
+- FUNC-010：手动检查入口在应用菜单与 Settings → General；自动检查可由用户选择。下载与安装由 Sparkle 2.10.1 完成，更新包需通过内嵌公钥验证。demo/selftest/snapshot 禁止自动更新网络与安装行为。
+- IN-002：`appLanguage` 非秘密偏好为 `system/en/zh-Hans`，未知值回退系统；不支持的系统语言回退英文。`APP_LANGUAGE` 仅供隔离验证覆盖。更新输入为 HTTPS GitHub Release 的 appcast.xml，版本使用递增 `CFBundleVersion`。
+- OUT-002：应用选择持久化到本应用 UserDefaults；本地归档 schema 不变。首发输出 `Syllapace-0.1.0-macOS-arm64.zip/.dmg`、`appcast.xml`、`SHA256SUMS`；未更新/离线显示可重试的原生状态，不更改用户数据。
+- CON-002：仅 macOS 26+ Apple Silicon；更新私钥保存在登录 Keychain `app.syllapace.mac` account，不入仓库、包或日志。GitHub 托管公开包与 feed，不接收课程或凭据。
+- OOS-002：本次不新增 Intel/Windows、OCR/中文文档提取算法、后台代理、iCloud 目标或 Apple 公证。
+- ADR-003：比较自写下载/替换器与 Sparkle，选择 Sparkle 的验证、安装与失败处理，新增一个锁定版本的成熟依赖；GitHub `releases/latest/download/appcast.xml` 提供 feed，ZIP 为更新源，DMG 为首次安装入口。
+- MOD-004：Kit 的 L10n/资源供 SwiftUI、AppKit、后台错误共享；App 管理偏好与 locale，保持数据模型。MOD-005：UpdateController 包装 Sparkle 生命周期/状态，UI 仅触发与绑定。MOD-006：build/package 脚本生成签名可验证的包，公开发布由显式版本/tag执行。
+- IF-004：GitHub URL `https://github.com/yangbo-s/Syllapace/releases/latest/download/appcast.xml` 使用 HTTPS 重定向；feed与包版本、签名、长度、系统与架构约束一致。离线/无feed/签名错误由 Sparkle 阻止安装并报告错误；不回退未签名安装。
+
+| 测试 / 验收 | 证据要求 |
+| --- | --- |
+| TC-009 / AC-009 | 语言解析/回退、资源键与插值一致性、术语保留测试；中英浅深色实际窗口；实际设置切换和重启保存 |
+| TC-010 / AC-010 | 更新入口可用性、自测不联网；本地签名包与feed验证；实际GitHub检查，更新完整流程在隔离应用副本验证 |
+| TC-011 / AC-011 | release构建、签名结构、framework及资源自包含；ZIP/DMG完整性及SHA256；公开Release资产回读核对 |
+
+门禁顺序：契约 → 语言/更新实现 → 测试与真实界面 → 隔离安装和更新验证 → 公开源码/tag/Release → 公网feed与下载核验。执行结果与100分证据评分记录于 `ACCEPTANCE.md`。

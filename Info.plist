@@ -4,6 +4,13 @@
 <dict>
 	<key>CFBundleExecutable</key>
 	<string>Syllapace</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>zh-Hans</string>
+	</array>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIconName</key>
@@ -34,6 +41,20 @@
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Syllapace keeps your approved deadlines up to date in a dedicated calendar. It checks for your edits before updating events.</string>
 	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/yangbo-s/Syllapace/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>NhAf3e1q83BwweU6nWvDsM5mh+PaDLTeLs5akt6gbCg=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUAutomaticallyUpdate</key>
+	<false/>
+	<key>SUEnableSystemProfiling</key>
+	<false/>
+	<key>SUSendProfileInfo</key>
+	<false/>
+	<key>SUVerifyUpdateBeforeExtraction</key>
 	<true/>
 </dict>
 </plist>

@@ -4,7 +4,7 @@
 
 ## 当前结果
 
-原生 macOS 应用、核心数据处理、Canvas/BYOK 适配、桌面卡片与 EventKit 适配已实现。完整项目的 **49 项 Swift Testing 测试、7 个测试套件通过**；应用自测的 **7 项检查通过**。Debug 与 Release 构建成功，所查构建日志没有 Swift 编译警告。
+原生 macOS 应用、核心数据处理、Canvas/BYOK 适配、桌面卡片与 EventKit 适配已实现。完整项目的 **54 项 Swift Testing 测试、8 个测试套件通过**；应用自测的 **9 项检查通过**。Debug 与 Release 构建成功，所查构建日志没有 Swift 编译警告。
 
 真实 Canvas 账户、BYOK 服务和用户授权后的 EventKit 读写尚未运行。浅深色窗口截图、窄窗口及空状态已完成阅图；修正后的网格检查通过。真实 UI 点击与快捷键流程已检查。**当前不是全部 P0/P1 验收通过的正式发布结论。**
 
@@ -14,8 +14,8 @@
 
 | 检查 | 实际结果 | 证据 |
 | --- | --- | --- |
-| `./tools/test.sh` | 49/49 通过，7 套件 | 本轮日志 `/tmp/syllapace-tests-final.log`；测试源码见下表 |
-| `./tools/selftest.sh` | 7/7 通过，`SELFTEST complete` | `/tmp/syllapace-selftest.log`；`Sources/Syllapace/SelfTest.swift` |
+| `./tools/test.sh` | 54/54 通过，8 套件 | 本轮日志 `/tmp/syllapace-0.1.0-tests.log`；测试源码见下表 |
+| `./tools/selftest.sh` | 9/9 通过，`SELFTEST complete` | `/tmp/syllapace-0.1.0-selftest.log`；`Sources/Syllapace/SelfTest.swift` |
 | Debug 构建 | 通过，生成 `.app` | `/tmp/syllapace-build-final.log` |
 | Release 构建 | 通过，生成并签名 `.app` | `/tmp/syllapace-release.log` |
 | `./tools/snap.sh` | 最终捕获成功；主页面、编辑/导入、桌面卡片和三项设置两色均已阅图 | `/tmp/syllapace-snap-final.log`；`.impeccable/review/` |
@@ -59,7 +59,7 @@
 | --- | --- | --- |
 | 需求与验收覆盖 | 22/25 | 八项需求均有实现入口；界面与核心交互验证完成，账户接入和系统日历权限尚未闭环 |
 | 功能正确性与边界处理 | 21/25 | 日期/重复/冲突/存储/连接器/日历规划器测试通过；实际端到端外部行为未验证 |
-| 测试充分性与结果 | 17/20 | 完整项目 49 项测试 + 7 项应用自测及真实 UI 冒烟检查通过；缺少真实外部联调、Calendar 客户端导入及代表性大纲评估 |
+| 测试充分性与结果 | 17/20 | 完整项目 54 项测试 + 9 项应用自测及真实 UI 冒烟检查通过；缺少真实外部联调、Calendar 客户端导入及代表性大纲评估 |
 | 架构、接口与扩展性 | 9/10 | Kit 与 UI/系统适配分层，稳定来源/事件ID，观测与人工状态分离；JSON 存储适合当前规模，迁移只拒绝未知版本 |
 | 代码质量、安全性、可维护性 | 9/10 | Swift 6 构建无编译警告、凭据Keychain、同源请求与下载重定向限制、文档资源边界；未完成独立安全审计和真实权限检查 |
 | 文档与交付完整性 | 10/10 | 构建/演示/测试脚本、示例、README、决策、设计规范和验收记录齐备；真实窗口证据已生成 |
@@ -74,8 +74,24 @@
 - 运行时布局探针按实际 NSWindow 坐标记录，仅测可见自定义内容，防止主窗口、sheet 与桌面窗口坐标混用；对齐、内边距、边界、间距及重叠断言通过。系统 Form/Sidebar/Toolbar 不重复测量。
 - 用户选定 C「课程卡片」后，进一步统一全图几何：纸张/内容/端点圆角为 R32/R16/R8；前后页等量偏移，直段和转角主体间距 32；内容四边相对页矩形留白 96，标题和日期格间距均为 64；翻角 R96/R128 同心并以 R8 相切收口。`python3 tools/make_brand.py --check` 的 20 项几何与导出检查通过，10 个生成文件与参数一致；实际日期圆到翻角净距 34.274170 ≥ 32。端头收圆处间距自然展开，不计作恒宽 32。
 - 透明 SVG、四色变体、可再生成参数及结构图见 `Brand/`；原生分层源见 `Icon/AppIcon.icon/`。四种原生外观及 32pt 预览已阅图且独立复核通过，日期圆与翻角仍分离；真实 16px 仅以叠页主轮廓为通过依据，不承诺圆环、圆心、各日期格分别清晰。证据为 `/tmp/syllapace-icon-v3.png`、`/tmp/syllapace-icon-v3-16px.png` 与 `Brand/concepts-v2/alignment.png`。
-- 这次仅修改品牌资产及其生成和说明文件。Release 构建、安装包签名验证通过，已在 `/Users/muse/Applications/Syllapace.app` 的真实 About 窗口核验新图标。应用逻辑未改变，未重复运行原有 49 项测试与 7 项自测。未进行完整 VoiceOver、窗口拖拽、多显示器/Spaces、长时间性能与真实权限交互验收。
+- 上一轮图标修订仅修改品牌资产及其生成和说明文件。Release 构建、安装包签名验证通过，已在 `/Users/muse/Applications/Syllapace.app` 的真实 About 窗口核验新图标。应用逻辑未改变，未重复运行原有 49 项测试与 7 项自测。未进行完整 VoiceOver、窗口拖拽、多显示器/Spaces、长时间性能与真实权限交互验收。
 
 ## 仍待真实环境验证
 
 用户自行配置后的 Canvas、BYOK、EventKit 实测；机构权限、模型兼容性、系统授权与外部日历修改/恢复需逐项核验。凭据只在应用中输入，不写入仓库、日志、截图或测试夹具。
+
+
+## 0.1.0 中英文、更新与首发验证
+
+本轮范围为 REQ-009—011。新增 251 个中英词条、原生语言选择、Sparkle 2.10.1 与 GitHub Release 更新、可重复打包及验证脚本。课程、证据、归档数据和 Canvas 等术语不翻译。首发支持 macOS 26+、Apple Silicon，ad hoc 签名且未公证。
+
+| 验收 / 用例 | 已执行结果及证据 |
+| --- | --- |
+| AC-009 / TC-009 | 5 项新增语言测试包含系统回退、术语保留、资源键及占位符一致性、中文参数顺序和用户内容不变。全套54测试/8 suites通过；应用9项自测通过，已验证包内语言资源。 |
+| AC-009 / 真实交互 | Settings 中英来回切换后主窗口、菜单操作与控件标签更新；重启后保留简体中文。未保存标题 `Draft kept across languages 42` 与关闭“仅日期”的选择都保留；课程/类型选中值正确切换。修复过根View重建丢草稿，以及Form控件重复ID导致互相替换的问题。 |
+| AC-009 / 视觉 | `/tmp/syllapace-0.1.0-shots/{en,zh-Hans}`：50张浅深色主界面、设置、编辑/导入、桌面卡片及空/窄窗口图，独立阅图无阻断问题；网格检查通过。最终控件修订后刷新同一路径。 |
+| AC-010 / TC-010 | 更新菜单/Settings按钮实际可用；未发布feed时显示可恢复错误。隔离副本0.0.0→0.1.0经历发现、下载、签名校验、替换、重启；原测试课程与日程仍可见，签名验证通过。测试独立bundle ID及LSEnvironment固定临时资料库，未替换用户安装。 |
+| AC-010 / 错误边界 | 对测试ZIP追加字节但保留原签名，Sparkle实际报告“improperly signed”并拒绝安装；副本保持build1。测试HTTP仅绑定127.0.0.1且已停止；生产使用HTTPS GitHub。demo/selftest/snapshot不能启动更新。 |
+| AC-011 / TC-011 | Release构建无Swift警告；ZIP解包后完整签名通过；CryptoKit用包内公钥验证Ed25519；DMG完整性和SHA256匹配。日志 `/tmp/syllapace-0.1.0-package-final.log`，附件 `build/releases/0.1.0-final/`。公开发布后的回读另记。 |
+
+本轮范围证据评分：需求与验收覆盖24/25、行为与边界24/25、验证18/20、架构与接口10/10、维护与安全9/10、文档交付9/10，合计 **94/100**。扣分边界：未在最低macOS26机器实测、未覆盖长时间自动更新调度与系统权限拒绝的所有组合、缺Developer ID公证；公开下载回读在发布后记录。本分数针对本轮语言/更新/打包，不替代上方完整产品88分及真实服务未联调的边界。

@@ -5,9 +5,20 @@ import SyllapaceKit
 
 @MainActor @Observable
 final class CalendarBridge {
-    private(set) var status = "Not connected"
+    private var statusKey = "Not connected"
+    private var lastChangeCount = 0
+    var status: String {
+        if statusKey == "syncComplete" {
+            return conflicts.isEmpty ? L10n.format("Up to date · %ld changes", lastChangeCount) : L10n.format("Calendar changes to review: %ld", conflicts.count)
+        }
+        if statusKey == "resolved" {
+            return conflicts.isEmpty ? L10n.string("Calendar change resolved") : L10n.format("Calendar changes to review: %ld", conflicts.count)
+        }
+        return L10n.string(statusKey)
+    }
     private(set) var isConnected = false
-    private(set) var conflicts: [String] = []
+    private var conflictReasons: [(title: String, reason: String)] = []
+    var conflicts: [String] { conflictReasons.map { "\($0.title): \(L10n.string($0.reason))" } }
     private(set) var conflictEventIDs: [String] = []
     @ObservationIgnored private let store = EKEventStore()
     @ObservationIgnored private let mappingURL: URL
@@ -27,14 +38,14 @@ final class CalendarBridge {
         if FileManager.default.fileExists(atPath: self.mappingURL.path) {
             do {
                 archive = try JSONDecoder().decode(CalendarSyncArchive.self, from: Data(contentsOf: self.mappingURL))
-                guard archive.version == 1 else { throw CalendarBridgeError("This calendar mapping was created by a newer version of Syllapace.") }
+                guard archive.version == 1 else { throw CalendarBridgeError(L10n.string("This calendar mapping was created by a newer version of Syllapace.")) }
             } catch {
                 loadError = "Calendar mappings could not be read. Restore the mapping backup before reconnecting to avoid duplicates."
-                status = "Calendar mapping needs attention"
+                statusKey = "Calendar mapping needs attention"
             }
         }
         isConnected = archive.calendarID != nil && EKEventStore.authorizationStatus(for: .event) == .fullAccess && loadError == nil
-        if isConnected { status = "Connected · On My Mac" }
+        if isConnected { statusKey = "Connected · On My Mac" }
     }
 
     private var isolatedRun: Bool {
@@ -43,32 +54,32 @@ final class CalendarBridge {
     }
 
     func connect() async throws {
-        guard !isolatedRun else { throw CalendarBridgeError("Calendar access is disabled in the demo. Return to your own workspace to connect.") }
-        if let loadError { throw CalendarBridgeError(loadError) }
-        guard !isSyncing && !isConnecting else { throw CalendarBridgeError("Wait for the current calendar operation to finish.") }
+        guard !isolatedRun else { throw CalendarBridgeError(L10n.string("Calendar access is disabled in the demo. Return to your own workspace to connect.")) }
+        if let loadError { throw CalendarBridgeError(L10n.string(loadError)) }
+        guard !isSyncing && !isConnecting else { throw CalendarBridgeError(L10n.string("Wait for the current calendar operation to finish.")) }
         isConnecting = true
         defer { isConnecting = false }
         let authorization = EKEventStore.authorizationStatus(for: .event)
         if authorization != .fullAccess {
             guard authorization != .denied && authorization != .restricted else {
-                status = "Calendar permission needed"
-                throw CalendarBridgeError("Allow Syllapace in System Settings → Privacy & Security → Calendars, then reconnect.")
+                statusKey = "Calendar permission needed"
+                throw CalendarBridgeError(L10n.string("Allow Syllapace in System Settings → Privacy & Security → Calendars, then reconnect."))
             }
             guard try await store.requestFullAccessToEvents() else {
-                status = "Calendar permission needed"
-                throw CalendarBridgeError("Calendar permission was not granted. Your Syllapace timeline is still available.")
+                statusKey = "Calendar permission needed"
+                throw CalendarBridgeError(L10n.string("Calendar permission was not granted. Your Syllapace timeline is still available."))
             }
         }
         if let id = archive.calendarID {
             guard let calendar = store.calendar(withIdentifier: id), calendar.allowsContentModifications else {
-                throw CalendarBridgeError("The connected Syllapace calendar is missing or read-only. Restore it in Calendar before syncing; a replacement will not be created automatically.")
+                throw CalendarBridgeError(L10n.string("The connected Syllapace calendar is missing or read-only. Restore it in Calendar before syncing; a replacement will not be created automatically."))
             }
             guard calendar.source.sourceType == .local else {
-                throw CalendarBridgeError("The connected calendar is no longer local. Reconnect to a calendar under On My Mac.")
+                throw CalendarBridgeError(L10n.string("The connected calendar is no longer local. Reconnect to a calendar under On My Mac."))
             }
         } else {
             guard let local = store.sources.first(where: { $0.sourceType == .local }) else {
-                throw CalendarBridgeError("In Calendar, choose File → New Calendar → On My Mac, then try again. Syllapace will not switch to iCloud automatically.")
+                throw CalendarBridgeError(L10n.string("In Calendar, choose File → New Calendar → On My Mac, then try again. Syllapace will not switch to iCloud automatically."))
             }
             // Test persistence before creating a system calendar.
             try persist()
@@ -85,26 +96,26 @@ final class CalendarBridge {
             }
         }
         isConnected = true
-        status = "Connected · On My Mac"
+        statusKey = "Connected · On My Mac"
     }
 
     func sync(events: [AcademicEvent]) async throws -> String {
-        guard !isolatedRun else { throw CalendarBridgeError("Calendar sync is disabled in the demo.") }
-        if let loadError { throw CalendarBridgeError(loadError) }
-        guard !isSyncing else { throw CalendarBridgeError("A calendar sync is already running.") }
+        guard !isolatedRun else { throw CalendarBridgeError(L10n.string("Calendar sync is disabled in the demo.")) }
+        if let loadError { throw CalendarBridgeError(L10n.string(loadError)) }
+        guard !isSyncing else { throw CalendarBridgeError(L10n.string("A calendar sync is already running.")) }
         guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else {
             isConnected = false
-            status = "Calendar permission needed"
-            throw CalendarBridgeError("Connect Apple Calendar in Settings to sync confirmed events.")
+            statusKey = "Calendar permission needed"
+            throw CalendarBridgeError(L10n.string("Connect Apple Calendar in Settings to sync confirmed events."))
         }
         guard let id = archive.calendarID, let calendar = store.calendar(withIdentifier: id), calendar.allowsContentModifications else {
             isConnected = false
-            throw CalendarBridgeError("Connect a dedicated Syllapace calendar before syncing.")
+            throw CalendarBridgeError(L10n.string("Connect a dedicated Syllapace calendar before syncing."))
         }
-        guard calendar.source.sourceType == .local else { throw CalendarBridgeError("The connected calendar is not local. Sync was stopped.") }
+        guard calendar.source.sourceType == .local else { throw CalendarBridgeError(L10n.string("The connected calendar is not local. Sync was stopped.")) }
         isSyncing = true
         defer { isSyncing = false }
-        conflicts = []
+        conflictReasons = []
         conflictEventIDs = []
         var changed = 0
         var processed = Set<String>()
@@ -144,8 +155,8 @@ final class CalendarBridge {
                     // prior binding so an ordinary transient failure is retryable.
                     archive.bindings[event.id] = binding
                     try persist()
-                    status = "Calendar sync interrupted"
-                    throw CalendarBridgeError("Could not save “\(event.title)” in Calendar. Earlier changes were saved; try syncing again.")
+                    statusKey = "Calendar sync interrupted"
+                    throw CalendarBridgeError(L10n.format("Could not save “%@” in Calendar. Earlier changes were saved; try syncing again.", event.title))
                 }
                 archive.bindings[event.id] = CalendarEventBinding(calendarEventID: target.eventIdentifier, lastWritten: snapshot(target))
                 try persist()
@@ -161,14 +172,15 @@ final class CalendarBridge {
                 } catch {
                     archive.bindings[event.id] = binding
                     try persist()
-                    throw CalendarBridgeError("Could not remove “\(event.title)” from Calendar. Try syncing again.")
+                    throw CalendarBridgeError(L10n.format("Could not remove “%@” from Calendar. Try syncing again.", event.title))
                 }
                 archive.bindings.removeValue(forKey: event.id)
                 try persist()
                 changed += 1
             }
         }
-        status = conflicts.isEmpty ? "Up to date · \(changed) changes" : "\(conflicts.count) calendar changes need review"
+        lastChangeCount = changed
+        statusKey = "syncComplete"
         return status
     }
 
@@ -176,41 +188,41 @@ final class CalendarBridge {
     /// Calendar contents as a baseline, then applies the user's Syllapace version.
     /// A missing event can be recreated; unrelated events and calendars stay untouched.
     func resolveUsingApp(event: AcademicEvent) async throws -> String {
-        guard !isolatedRun else { throw CalendarBridgeError("Calendar access is disabled in the demo.") }
-        if let loadError { throw CalendarBridgeError(loadError) }
-        guard !isSyncing && !isConnecting else { throw CalendarBridgeError("Wait for the current calendar operation to finish.") }
+        guard !isolatedRun else { throw CalendarBridgeError(L10n.string("Calendar access is disabled in the demo.")) }
+        if let loadError { throw CalendarBridgeError(L10n.string(loadError)) }
+        guard !isSyncing && !isConnecting else { throw CalendarBridgeError(L10n.string("Wait for the current calendar operation to finish.")) }
         guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else {
             isConnected = false
-            throw CalendarBridgeError("Allow Calendar access in System Settings before resolving this change.")
+            throw CalendarBridgeError(L10n.string("Allow Calendar access in System Settings before resolving this change."))
         }
         guard let calendarID = archive.calendarID, let calendar = store.calendar(withIdentifier: calendarID),
               calendar.allowsContentModifications, calendar.source.sourceType == .local else {
-            throw CalendarBridgeError("The connected local Syllapace calendar is unavailable.")
+            throw CalendarBridgeError(L10n.string("The connected local Syllapace calendar is unavailable."))
         }
         guard event.state == .approved || event.state == .rejected else {
-            throw CalendarBridgeError("Confirm this event in Review before publishing it to Calendar.")
+            throw CalendarBridgeError(L10n.string("Confirm this event in Review before publishing it to Calendar."))
         }
         if event.state == .approved, CalendarEventPayload(event: event) == nil {
-            throw CalendarBridgeError("Confirm this event's date and time zone before publishing it.")
+            throw CalendarBridgeError(L10n.string("Confirm this event's date and time zone before publishing it."))
         }
         let binding = archive.bindings[event.id]
         let expectedMarker = CalendarEventPayload(event: event)?.marker ?? binding?.lastWritten?.payload.marker ?? binding?.pendingPayload?.marker
         if let id = binding?.calendarEventID, let identified = store.event(withIdentifier: id) {
             guard identified.calendar.calendarIdentifier == calendarID else {
-                throw CalendarBridgeError("This event was moved to another calendar. Move it back to Syllapace before replacing it.")
+                throw CalendarBridgeError(L10n.string("This event was moved to another calendar. Move it back to Syllapace before replacing it."))
             }
             guard identified.url?.absoluteString == expectedMarker else {
-                throw CalendarBridgeError("The linked event's identity was changed in Calendar. Restore its Syllapace link before replacing it.")
+                throw CalendarBridgeError(L10n.string("The linked event's identity was changed in Calendar. Restore its Syllapace link before replacing it."))
             }
         }
         let matches = matchingEvents(event: event, binding: binding, calendar: calendar)
         guard matches.count <= 1 else {
-            throw CalendarBridgeError("Multiple linked events exist in Calendar. Resolve the duplicates there before replacing this event.")
+            throw CalendarBridgeError(L10n.string("Multiple linked events exist in Calendar. Resolve the duplicates there before replacing this event."))
         }
         let previousArchive = archive
         if let current = matches.first {
             guard !current.hasRecurrenceRules else {
-                throw CalendarBridgeError("This event now repeats in Calendar. Remove its repeat schedule there before replacing it with a single Syllapace event.")
+                throw CalendarBridgeError(L10n.string("This event now repeats in Calendar. Remove its repeat schedule there before replacing it with a single Syllapace event."))
             }
             let baseline = snapshot(current)
             archive.bindings[event.id] = CalendarEventBinding(calendarEventID: baseline.identifier, lastWritten: baseline)
@@ -223,29 +235,29 @@ final class CalendarBridge {
             archive = previousArchive
             throw error
         }
-        let remainingConflicts = zip(conflictEventIDs, conflicts).filter { $0.0 != event.id }
+        let remainingConflicts = zip(conflictEventIDs, conflictReasons).filter { $0.0 != event.id }
         do {
             _ = try await sync(events: [event])
         } catch {
             let newIDs = Set(conflictEventIDs)
             for (id, message) in remainingConflicts where !newIDs.contains(id) {
                 conflictEventIDs.append(id)
-                conflicts.append(message)
+                conflictReasons.append(message)
             }
             throw error
         }
         let newIDs = Set(conflictEventIDs)
         for (id, message) in remainingConflicts where !newIDs.contains(id) {
             conflictEventIDs.append(id)
-            conflicts.append(message)
+            conflictReasons.append(message)
         }
-        status = conflicts.isEmpty ? "Calendar change resolved" : "\(conflicts.count) calendar changes need review"
+        statusKey = "resolved"
         return status
     }
 
     private func recordConflict(event: AcademicEvent, reason: String) {
         conflictEventIDs.append(event.id)
-        conflicts.append("\(event.title): \(reason)")
+        conflictReasons.append((title: event.title, reason: reason))
     }
 
     private func matchingEvents(event: AcademicEvent, binding: CalendarEventBinding?, calendar: EKCalendar) -> [EKEvent] {

@@ -5,8 +5,8 @@ public enum ArchiveError: LocalizedError, Sendable {
     case corrupt(backupAvailable: Bool)
     public var errorDescription: String? {
         switch self {
-        case .unsupportedVersion(let version): "This library was saved by a newer Syllapace version (schema \(version)). Update the app before opening it."
-        case .corrupt(let available): available ? "The library could not be read. A backup is available; your files have not been changed." : "The library could not be read. Your file has been preserved."
+        case .unsupportedVersion(let version): L10n.format("This library was saved by a newer Syllapace version (schema %ld). Update the app before opening it.", version)
+        case .corrupt(let available): available ? L10n.string("The library could not be read. A backup is available; your files have not been changed.") : L10n.string("The library could not be read. Your file has been preserved.")
         }
     }
 }

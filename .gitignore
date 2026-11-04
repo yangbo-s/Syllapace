@@ -10,3 +10,4 @@ build/
 Resources/Assets.car
 Resources/AppIcon.icns
 Resources/icon-info.plist
+__pycache__/

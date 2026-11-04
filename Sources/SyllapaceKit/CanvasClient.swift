@@ -5,20 +5,20 @@ public enum ConnectorError: Error, LocalizedError, Sendable, Equatable {
     case invalidURL, missingCredential, invalidCredential, responseTooLarge, invalidResponse, invalidModelOutput(String), unsupportedFile, tooManyPages, unsafeRedirect, http(Int)
     public var errorDescription: String? {
         switch self {
-        case .invalidURL: return "Enter a valid HTTPS address without credentials or query parameters."
-        case .missingCredential: return "Add your access key in Settings, then try again."
-        case .invalidCredential: return "The access key contains spaces or control characters. Paste the key again."
-        case .responseTooLarge: return "The response exceeds the safe size limit. Choose a smaller document."
-        case .invalidResponse: return "The service returned an unexpected response. Try again later."
-        case .invalidModelOutput(let reason): return "The model result could not be verified: \(reason)"
-        case .unsupportedFile: return "This file is not a supported PDF, DOCX or UTF-8 text document."
-        case .tooManyPages: return "The service returned too many pages. The sync was stopped without removing saved data."
-        case .unsafeRedirect: return "The service redirected to an address this connection cannot safely follow."
-        case .http(401): return "The access key is expired or invalid. Replace it in Settings."
-        case .http(403): return "Your account does not have access to this resource."
-        case .http(404): return "This resource is no longer available. Saved events have been kept."
-        case .http(429): return "The service is rate limiting requests. Wait a moment, then sync again."
-        case .http(let status): return "The service returned HTTP \(status). Try again later."
+        case .invalidURL: return L10n.string("Enter a valid HTTPS address without credentials or query parameters.")
+        case .missingCredential: return L10n.string("Add your access key in Settings, then try again.")
+        case .invalidCredential: return L10n.string("The access key contains spaces or control characters. Paste the key again.")
+        case .responseTooLarge: return L10n.string("The response exceeds the safe size limit. Choose a smaller document.")
+        case .invalidResponse: return L10n.string("The service returned an unexpected response. Try again later.")
+        case .invalidModelOutput(let reason): return L10n.format("The model result could not be verified: %@", L10n.string(reason))
+        case .unsupportedFile: return L10n.string("This file is not a supported PDF, DOCX or UTF-8 text document.")
+        case .tooManyPages: return L10n.string("The service returned too many pages. The sync was stopped without removing saved data.")
+        case .unsafeRedirect: return L10n.string("The service redirected to an address this connection cannot safely follow.")
+        case .http(401): return L10n.string("The access key is expired or invalid. Replace it in Settings.")
+        case .http(403): return L10n.string("Your account does not have access to this resource.")
+        case .http(404): return L10n.string("This resource is no longer available. Saved events have been kept.")
+        case .http(429): return L10n.string("The service is rate limiting requests. Wait a moment, then sync again.")
+        case .http(let status): return L10n.format("The service returned HTTP %ld. Try again later.", status)
         }
     }
 }
@@ -187,7 +187,7 @@ public struct CanvasClient: Sendable {
                     let reply = try await request(endpoint("courses/\(record.id)", query: [.init(name: "include[]", value: "syllabus_body")]))
                     syllabus = try JSONDecoder().decode(CanvasCourseDTO.self, from: reply.data).syllabus_body
                 } catch is CancellationError { throw CancellationError() }
-                catch { result.warnings.append("\(course.code) syllabus: \(Self.safeMessage(error))") }
+                catch { result.warnings.append(L10n.format("%@ syllabus: %@", course.code, Self.safeMessage(error))) }
             }
             if let html = syllabus, !html.isEmpty {
                 result.sources.append(SourceDocument(id: "\(courseID):syllabus", courseID: courseID, title: "\(course.code) syllabus", text: Self.plainText(html), url: origin.appendingPathComponent("courses/\(record.id)/assignments/syllabus").absoluteString, hash: Self.hash(html)))
@@ -203,7 +203,7 @@ public struct CanvasClient: Sendable {
                                          completed: item.submission?.submitted_at != nil || item.submission?.excused == true)
                 })
             } catch is CancellationError { throw CancellationError() }
-            catch { result.warnings.append("\(course.code) assignments: \(Self.safeMessage(error))") }
+            catch { result.warnings.append(L10n.format("%@ assignments: %@", course.code, Self.safeMessage(error))) }
             do {
                 let events = try await pages(CanvasCalendarDTO.self, url: endpoint("calendar_events", query: [.init(name: "context_codes[]", value: "course_\(record.id)"), .init(name: "type", value: "event"), .init(name: "all_events", value: "true"), .init(name: "per_page", value: "100")]))
                 result.events.append(contentsOf: events.filter { $0.workflow_state != "deleted" }.map { item in
@@ -216,7 +216,7 @@ public struct CanvasClient: Sendable {
                                          evidence: Self.plainText(item.description ?? item.title), sourceURL: link.url?.absoluteString)
                 })
             } catch is CancellationError { throw CancellationError() }
-            catch { result.warnings.append("\(course.code) calendar: \(Self.safeMessage(error))") }
+            catch { result.warnings.append(L10n.format("%@ calendar: %@", course.code, Self.safeMessage(error))) }
             do {
                 let files = try await pages(CanvasFileDTO.self, url: endpoint("courses/\(record.id)/files", query: [.init(name: "per_page", value: "100")]))
                 for file in files where file.locked_for_user != true && file.hidden_for_user != true {
@@ -225,7 +225,7 @@ public struct CanvasClient: Sendable {
                     result.files.append(CanvasFile(id: "\(scope):file:\(file.id)", courseID: courseID, title: title, url: url, sourceURL: origin.appendingPathComponent("courses/\(record.id)/files/\(file.id)").absoluteString, mimeType: file.contentType ?? "", size: file.size ?? 0))
                 }
             } catch is CancellationError { throw CancellationError() }
-            catch { result.warnings.append("\(course.code) files: \(Self.safeMessage(error))") }
+            catch { result.warnings.append(L10n.format("%@ files: %@", course.code, Self.safeMessage(error))) }
         }
         return result
     }
@@ -270,7 +270,7 @@ public struct CanvasClient: Sendable {
     }
     static func safeMessage(_ error: any Error) -> String {
         if let error = error as? ConnectorError { return error.localizedDescription }
-        return "Connection failed. Saved data has been kept."
+        return L10n.string("Connection failed. Saved data has been kept.")
     }
     public static func plainText(_ html: String) -> String {
         var text = html.replacingOccurrences(of: "(?is)<(script|style)\\b[^>]*>.*?</\\1>", with: "", options: .regularExpression)

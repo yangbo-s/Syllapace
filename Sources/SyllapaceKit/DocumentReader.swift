@@ -6,11 +6,11 @@ public enum DocumentError: LocalizedError, Sendable {
     case unsupported, tooLarge, unreadable, noText, invalidDocument
     public var errorDescription: String? {
         switch self {
-        case .unsupported: "Choose a PDF, DOCX, TXT, Markdown, or HTML document."
-        case .tooLarge: "This document exceeds the import limit (20 MB, 150 PDF pages, or 2 MB of text)."
-        case .unreadable: "The document could not be read. Check its permissions and try again."
-        case .noText: "No selectable text was found. Scanned documents need OCR before importing."
-        case .invalidDocument: "The document is damaged, encrypted, or not a supported document."
+        case .unsupported: L10n.string("Choose a PDF, DOCX, TXT, Markdown, or HTML document.")
+        case .tooLarge: L10n.string("This document exceeds the import limit (20 MB, 150 PDF pages, or 2 MB of text).")
+        case .unreadable: L10n.string("The document could not be read. Check its permissions and try again.")
+        case .noText: L10n.string("No selectable text was found. Scanned documents need OCR before importing.")
+        case .invalidDocument: L10n.string("The document is damaged, encrypted, or not a supported document.")
         }
     }
 }
