@@ -92,6 +92,14 @@
 | AC-009 / 视觉 | `/tmp/syllapace-0.1.0-shots/{en,zh-Hans}`：50张浅深色主界面、设置、编辑/导入、桌面卡片及空/窄窗口图，独立阅图无阻断问题；网格检查通过。最终控件修订后刷新同一路径。 |
 | AC-010 / TC-010 | 更新菜单/Settings按钮实际可用；未发布feed时显示可恢复错误。隔离副本0.0.0→0.1.0经历发现、下载、签名校验、替换、重启；原测试课程与日程仍可见，签名验证通过。测试独立bundle ID及LSEnvironment固定临时资料库，未替换用户安装。 |
 | AC-010 / 错误边界 | 对测试ZIP追加字节但保留原签名，Sparkle实际报告“improperly signed”并拒绝安装；副本保持build1。测试HTTP仅绑定127.0.0.1且已停止；生产使用HTTPS GitHub。demo/selftest/snapshot不能启动更新。 |
-| AC-011 / TC-011 | Release构建无Swift警告；ZIP解包后完整签名通过；CryptoKit用包内公钥验证Ed25519；DMG完整性和SHA256匹配。日志 `/tmp/syllapace-0.1.0-package-final.log`，附件 `build/releases/0.1.0-final/`。公开发布后的回读另记。 |
+| AC-011 / TC-011 | Release构建无Swift警告；ZIP解包后完整签名通过；CryptoKit用包内公钥验证Ed25519；DMG完整性和SHA256匹配。日志 `/tmp/syllapace-0.1.0-package-final.log`，附件 `build/releases/0.1.0-final/`。公开发布后四个附件均已重新下载，SHA256、包内公钥签名、ZIP签名及DMG完整性通过；latest/feed重定向正确。 |
 
-本轮范围证据评分：需求与验收覆盖24/25、行为与边界24/25、验证18/20、架构与接口10/10、维护与安全9/10、文档交付9/10，合计 **94/100**。扣分边界：未在最低macOS26机器实测、未覆盖长时间自动更新调度与系统权限拒绝的所有组合、缺Developer ID公证；公开下载回读在发布后记录。本分数针对本轮语言/更新/打包，不替代上方完整产品88分及真实服务未联调的边界。
+本轮范围证据评分：需求与验收覆盖24/25、行为与边界24/25、验证18/20、架构与接口10/10、维护与安全9/10、文档交付9/10，合计 **94/100**。扣分边界：未在最低macOS26机器实测、未覆盖长时间自动更新调度与系统权限拒绝的所有组合、缺Developer ID公证；公开下载回读已经通过。本分数针对本轮语言/更新/打包，不替代上方完整产品88分及真实服务未联调的边界。
+
+
+### 公开发布后核验
+
+- 已公开：[v0.1.0](https://github.com/yangbo-s/Syllapace/releases/tag/v0.1.0)，tag对应源码提交 `f3ff1b7`。附件为DMG、ZIP、appcast.xml及SHA256SUMS，非draft、非prerelease。
+- GitHub返回的四个asset SHA-256和长度均与本地最终包一致；随后从无鉴权公开URL重新下载到 `/tmp/syllapace-release-public-download`，运行 `tools/verify_release.py verify` 再次通过。
+- 正式 `releases/latest/download/appcast.xml` 可访问并返回相同feed；已安装 `/Users/muse/Applications/Syllapace.app` 的检查更新窗口以中文显示“您使用的就是最新版！Syllapace 0.1.0是当前的最新版本”。通用设置的版本为0.1.0 (1)，中文偏好在重启后保留。
+- 更新替换的隔离副本使用独立bundle ID、临时归档和仅127.0.0.1的HTTP测试源；测试服务器已关闭。最终发布包不包含测试ID、LSEnvironment或HTTP例外。
