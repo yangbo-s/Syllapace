@@ -1,6 +1,8 @@
 # Syllapace
 
-A native Mac workspace for assignments, syllabus deadlines, and the changes that happen during a semester.
+**English** | [简体中文](README.zh-CN.md)
+
+A native macOS app for organizing Canvas assignments and syllabus deadlines, with local storage, a desktop card, and Apple Calendar sync.
 
 Syllapace runs on your Mac. Connect your own Canvas account, optionally configure your own model API key, review extracted dates with their source text, and keep confirmed events in Apple Calendar. A compact desktop card puts upcoming work within reach.
 
