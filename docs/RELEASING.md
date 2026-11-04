@@ -64,6 +64,8 @@ gh release create v0.1.0 --repo yangbo-s/Syllapace --verify-tag --draft \
 gh release edit v0.1.0 --repo yangbo-s/Syllapace --draft=false --latest
 ```
 
+草稿附件校验从 GitHub releases 列表中按 `tag_name` 定位并读取其 ID；按 tag 直接查询未发布草稿可能返回 404。公开后重新读取正式 Release 元数据中的下载 URL，草稿阶段的 `untagged-*` 临时地址不能用于公开回读。确认四个 asset 的状态、长度与 GitHub 返回的 SHA-256 都匹配本地产物后再公开。
+
 不要覆盖已公开版本的二进制。需要修正可执行文件时递增版本和 build 并发布新 Release。发布后从 GitHub 下载附件到新的临时目录，重验哈希、Ed25519 签名、解压后 app 签名和版本；核对 latest URL 可用。用户本机的检查、下载安装与重启留给用户测试；需要额外端到端自动验证时使用隔离副本，并在验收记录中说明测试条件。
 
 ## 首发签名状态

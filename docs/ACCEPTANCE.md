@@ -134,4 +134,9 @@
 - `./tools/test.sh`：69 项 / 9 套件通过；`./build.sh --release`：通过、零 Swift warning；`./tools/selftest.sh`：9 项通过。日志为 `/tmp/syllapace-0.1.1-{tests,build,selftest}.log`。
 - `./tools/package_release.sh`：DMG、ZIP、appcast.xml、SHA256SUMS 已生成到 `build/releases/0.1.1/`；包内公钥验证 Ed25519、ZIP 解包签名、版本/架构/feed 约束、DMG 完整性均通过。日志为 `/tmp/syllapace-0.1.1-package.log`。
 - 发布前已只读记录本机 Info.plist、可执行文件和 CodeResources 的 SHA-256；构建与打包后相同。本机仍为 0.1.0 (1)，没有替换、重新启动或发起更新检查，也没有修改更新偏好和计时。其更新器默认约 24 小时自动检查，下载安装由用户确认。
-- 当前完成发布前验证，公开 Release 与回读验证结果在发布后补记。自然自动检查、提示、安装和重启由用户在真实本机验证，本轮不将其记录为已通过。
+- 已公开 [v0.1.1](https://github.com/yangbo-s/Syllapace/releases/tag/v0.1.1)，源码 tag 对应 `9e314b92a3f465e3c0350325d823bb8a201caadb`，是正常 Release 且为 latest。GitHub 上四个 asset 的大小与 SHA-256 均与本地包一致；从无鉴权公开地址重新下载也全部匹配。正式 latest feed 的内容与该 release 的 appcast 相同，版本为 0.1.1、build 为 2。
+- 公开下载包再次通过 `tools/verify_release.py verify`：SHA-256、Ed25519、ZIP 解包签名、DMG 完整性通过。另只读挂载 DMG，确认其中的版本、Info.plist、可执行文件与 ZIP 一致，嵌套签名有效，验证后已卸载。新包公钥与本机旧版一致。证据：`/tmp/syllapace-0.1.1-public-s5t82tst/`、`/tmp/syllapace-0.1.1-public-verify.log`。
+- 发布及回读后，本机三个文件的指纹仍与发布前相同，版本仍为 0.1.0 (1)。自然自动检查、提示、安装和重启由用户在真实本机验证，本轮没有执行，也不记录为已通过。
+- 已解决的验证问题：按 tag 查询草稿返回 404，改由 release 列表定位 ID 后完成上传资产校验；首次回读误用了草稿 `untagged-*` 临时地址，公开后刷新正式元数据并使用版本地址，四个公开文件验证全部通过。这两条注意事项已补入发布流程。
+
+本次发布范围证据评分：需求覆盖 **25/25**（公开包、feed、源码与保留本机旧版均核验），功能边界 **24/25**（更新器代码未变，本轮未再执行真实跨版本替换），测试 **17/20**（包与更新源通过，最低系统和自然调度仍未实测），架构接口 **10/10**（复用既有发布和签名链），维护安全 **9/10**（签名和附件一致，仍未 Apple 公证），文档交付 **10/10**（双语说明、公开回读、版本边界和长期交付约定齐备），合计 **95/100**。该分数针对本次发布过程，不替代 Canvas 真实续期和本机升级验证。
