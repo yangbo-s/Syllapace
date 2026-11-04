@@ -1,2 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><g transform="translate(32 32) scale(.9375)"><g xmlns="http://www.w3.org/2000/svg" id="back-page"><path fill="#e8ae72" d="M264 208H664Q704 208 704 248V256H360Q288 256 288 328V736H264Q224 736 224 696V248Q224 208 264 208Z" /></g>
-  </g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Syllapace</title>
+  <desc id="desc">Course pages, an aligned date grid, and a turning corner built from shared spacing and circular-radius tokens.</desc>
+  <g id="icon-glyph" transform="translate(512 512) scale(0.795454545455) translate(-512 -512)">
+  <g id="back-page"><path fill="#e8ae72" d="M240,160H688A32,32 0 0 1 688,224H336A64,64 0 0 0 272,288V736A32,32 0 0 1 208,736V192A32,32 0 0 1 240,160Z"/></g>
+  </g>
+</svg>

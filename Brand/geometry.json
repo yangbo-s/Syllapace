@@ -1,0 +1,325 @@
+{
+  "schemaVersion": 1,
+  "tokens": {
+    "unit": 8,
+    "gapUnits": 4,
+    "paperRadiusUnits": 4,
+    "detailRadiusUnits": 2,
+    "tipRadiusUnits": 1,
+    "contentPaddingGaps": 3,
+    "contentGapGaps": 2,
+    "cellSizeGaps": 4,
+    "headerHeightGaps": 1,
+    "stackOffsetGaps": 3,
+    "foldConcaveRadiusGaps": 4
+  },
+  "layout": {
+    "canvasUnits": 128,
+    "gridColumns": 2,
+    "gridRows": 2,
+    "logoCropMarginUnits": 16,
+    "iconScaleNumerator": 35,
+    "iconScaleDenominator": 44
+  },
+  "colors": {
+    "primary": "#26786e",
+    "accent": "#e8ae72",
+    "black": "#161c1b",
+    "white": "#ffffff",
+    "previewBackground": "#f4f5f2",
+    "iconBackgroundDefault": "srgb:0.10000,0.42000,0.37000,1.00000",
+    "iconBackgroundDark": "srgb:0.07000,0.20000,0.18000,1.00000"
+  },
+  "icon": {
+    "shadowOpacity": 0.25,
+    "translucency": 0.2
+  },
+  "derived": {
+    "unit": 8,
+    "gap": 32,
+    "paperRadius": 32,
+    "detailRadius": 16,
+    "tipRadius": 8,
+    "contentPadding": 96,
+    "contentGap": 64,
+    "cellSize": 128,
+    "headerHeight": 32,
+    "stackOffset": 96,
+    "backExposure": 64,
+    "frontPage": {
+      "x": 304.0,
+      "y": 256.0,
+      "width": 512,
+      "height": 608
+    },
+    "backPage": {
+      "x": 208.0,
+      "y": 160.0,
+      "width": 512,
+      "height": 608
+    },
+    "contentBounds": [
+      400.0,
+      352.0,
+      720.0,
+      768.0
+    ],
+    "headerBounds": [
+      400.0,
+      352.0,
+      720.0,
+      384.0
+    ],
+    "dateCenters": [
+      [
+        464.0,
+        512.0
+      ],
+      [
+        656.0,
+        512.0
+      ],
+      [
+        464.0,
+        704.0
+      ],
+      [
+        656.0,
+        704.0
+      ]
+    ],
+    "dateStep": 192,
+    "selectedDate": {
+      "center": [
+        656.0,
+        704.0
+      ],
+      "outerRadius": 64.0,
+      "innerRadius": 32.0
+    },
+    "fold": {
+      "center": [
+        816.0,
+        864.0
+      ],
+      "concaveRadius": 128,
+      "innerRadius": 96,
+      "outerRadius": 32,
+      "tipRadius": 8,
+      "dateClearance": 34.274169979695216
+    },
+    "overallBounds": [
+      208.0,
+      160.0,
+      816.0,
+      864.0
+    ],
+    "logoViewBox": [
+      128,
+      128,
+      768,
+      768
+    ],
+    "iconScale": 0.7954545454545454,
+    "iconGlyphWidth": 483.6363636363636,
+    "iconGlyphHeight": 560.0
+  },
+  "checks": [
+    {
+      "name": "equal_content_padding",
+      "passed": true,
+      "evidence": [
+        96.0,
+        96.0,
+        96.0,
+        96.0
+      ]
+    },
+    {
+      "name": "equal_date_grid_step",
+      "passed": true,
+      "evidence": {
+        "step": 192,
+        "centers": [
+          [
+            464.0,
+            512.0
+          ],
+          [
+            656.0,
+            512.0
+          ],
+          [
+            464.0,
+            704.0
+          ],
+          [
+            656.0,
+            704.0
+          ]
+        ]
+      }
+    },
+    {
+      "name": "equal_content_gaps",
+      "passed": true,
+      "evidence": 64
+    },
+    {
+      "name": "header_aligns_date_grid",
+      "passed": true,
+      "evidence": [
+        400.0,
+        720.0
+      ]
+    },
+    {
+      "name": "selected_date_matches_cell",
+      "passed": true,
+      "evidence": {
+        "cell": 128,
+        "outerRadius": 64.0,
+        "innerRadius": 32.0,
+        "ring": 32
+      }
+    },
+    {
+      "name": "back_page_spacing",
+      "passed": true,
+      "evidence": {
+        "exposure": 64,
+        "gap": 32,
+        "radii": [
+          32,
+          64
+        ]
+      }
+    },
+    {
+      "name": "fold_concentric_spacing",
+      "passed": true,
+      "evidence": {
+        "center": [
+          816.0,
+          864.0
+        ],
+        "radii": [
+          128,
+          96
+        ],
+        "gap": 32
+      }
+    },
+    {
+      "name": "fold_tip_1_tangent",
+      "passed": true,
+      "evidence": {
+        "join": [
+          808.4705882352941,
+          736.2216451879368
+        ],
+        "arcRadius": 128,
+        "tipRadius": 8,
+        "radialCrossProduct": 4.007461029686965e-12
+      }
+    },
+    {
+      "name": "fold_tip_2_tangent",
+      "passed": true,
+      "evidence": {
+        "join": [
+          688.2216451879368,
+          856.4705882352941
+        ],
+        "arcRadius": 128,
+        "tipRadius": 8,
+        "radialCrossProduct": -4.007461029686965e-12
+      }
+    },
+    {
+      "name": "fold_tip_3_tangent",
+      "passed": true,
+      "evidence": {
+        "join": [
+          720.3975172354619,
+          855.2727272727273
+        ],
+        "arcRadius": 96,
+        "tipRadius": 8,
+        "radialCrossProduct": 1.9753088054130785e-12
+      }
+    },
+    {
+      "name": "fold_tip_4_tangent",
+      "passed": true,
+      "evidence": {
+        "join": [
+          807.2727272727273,
+          768.3975172354619
+        ],
+        "arcRadius": 96,
+        "tipRadius": 8,
+        "radialCrossProduct": -1.9753088054130785e-12
+      }
+    },
+    {
+      "name": "date_to_fold_clearance",
+      "passed": true,
+      "evidence": {
+        "actual": 34.274169979695216,
+        "minimum": 32
+      }
+    },
+    {
+      "name": "centered_total_bounds",
+      "passed": true,
+      "evidence": {
+        "bounds": [
+          208.0,
+          160.0,
+          816.0,
+          864.0
+        ],
+        "center": [
+          512.0,
+          512.0
+        ]
+      }
+    },
+    {
+      "name": "paper_and_fold_outer_radius",
+      "passed": true,
+      "evidence": 32
+    },
+    {
+      "name": "back_uses_only_circular_arcs",
+      "passed": true,
+      "evidence": "Only M/H/V/A/Z path commands"
+    },
+    {
+      "name": "front_uses_only_circular_arcs",
+      "passed": true,
+      "evidence": "Only M/H/V/A/Z path commands"
+    },
+    {
+      "name": "cutouts_uses_only_circular_arcs",
+      "passed": true,
+      "evidence": "Only M/H/V/A/Z path commands"
+    },
+    {
+      "name": "fold_uses_only_circular_arcs",
+      "passed": true,
+      "evidence": "Only M/H/V/A/Z path commands"
+    },
+    {
+      "name": "exported_vectors_share_geometry",
+      "passed": true,
+      "evidence": "Four logo variants retain the master shape attributes and evenodd cutouts."
+    },
+    {
+      "name": "self_contained_vectors",
+      "passed": true,
+      "evidence": "SVG XML parses; no bitmap, font, filter, stroke or external reference."
+    }
+  ]
+}

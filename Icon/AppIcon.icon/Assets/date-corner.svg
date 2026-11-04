@@ -1,3 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><g transform="translate(32 32) scale(.9375)"><g xmlns="http://www.w3.org/2000/svg" id="selected-date"><circle cx="640" cy="640" r="24" fill="#e8ae72" /></g>
-  <g xmlns="http://www.w3.org/2000/svg" id="turned-corner"><path fill="#e8ae72" d="M704 816V776Q704 728 752 728H800C784 772 748 804 704 816Z" /></g>
-</g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Syllapace</title>
+  <desc id="desc">Course pages, an aligned date grid, and a turning corner built from shared spacing and circular-radius tokens.</desc>
+  <g id="icon-glyph" transform="translate(512 512) scale(0.795454545455) translate(-512 -512)">
+  <g id="selected-date"><circle cx="656" cy="704" r="32" fill="#e8ae72"/></g>
+  <g id="turned-corner"><path fill="#e8ae72" d="M816,776.364391V832A32,32 0 0 1 784,864H728.364391A8,8 0 0 1 720.397517,855.272727A96,96 0 0 1 807.272727,768.397517A8,8 0 0 1 816,776.364391Z"/></g>
+  </g>
+</svg>
