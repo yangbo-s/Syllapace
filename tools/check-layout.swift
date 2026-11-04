@@ -14,6 +14,7 @@
 //   5. Stacked probes on one edge are a multiple of the unit apart. Text heights
 //      have fractions and SwiftUI rounds positions, so gaps get 0.5 pt of room.
 //   6. Probes in one area never overlap.
+//   7. An empty event list fills the content column below its heading.
 // Prints PASS or FAIL per file and exits with 1 on any failure.
 
 import Foundation
@@ -88,6 +89,17 @@ for path in paths {
         let trail = area.maxX - probe.maxX
         if trail < area.inset - tolerance {
             problems.append("\(probe.name): ends \(fmt(trail)) pt from the right of \(area.name), inside its \(fmt(area.inset)) pt inset")
+        }
+    }
+
+    if let empty = probes.first(where: { $0.name == "empty-state" }),
+       let column = areas["content-column"],
+       let heading = probes.first(where: { $0.name == "heading" && $0.area == "content-column" }) {
+        if abs(empty.x - column.x) > tolerance || abs(empty.width - column.width) > tolerance {
+            problems.append("empty-state: does not fill the content column horizontally")
+        }
+        if abs(empty.y - heading.maxY) > tolerance || abs(empty.maxY - column.maxY) > tolerance {
+            problems.append("empty-state: does not fill the remaining space below the heading")
         }
     }
 

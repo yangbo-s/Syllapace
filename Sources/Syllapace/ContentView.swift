@@ -104,7 +104,8 @@ struct ContentView: View {
                 } actions: {
                     if filtered { Button(L10n.string("Clear filters")) { model.search = ""; model.courseFilter = nil } } else if model.page != .review { Button(L10n.string("Import a syllabus")) { model.showImport = true } }
                 }
-
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .gridProbe("empty-state", area: "content-column")
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {

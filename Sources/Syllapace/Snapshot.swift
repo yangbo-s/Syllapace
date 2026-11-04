@@ -16,6 +16,13 @@ enum Snapshot {
             guard let main = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) else { return }
             let originalFrame = main.frame
             defer { main.setFrame(originalFrame, display: false) }
+            if ProcessInfo.processInfo.environment["APP_SNAPSHOT_EMPTY"] == "1" {
+                await captureEmptyStates(model: model, window: main, directory: dir, openSettings: openSettings)
+                log("SNAPSHOT done \(dir)")
+                main.setFrame(originalFrame, display: true)
+                NSApp.terminate(nil)
+                return
+            }
             for dark in [false, true] {
                 let mode = dark ? "dark" : "light"
                 NSApp.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
@@ -74,6 +81,64 @@ enum Snapshot {
             main.setFrame(originalFrame, display: true)
             NSApp.terminate(nil)
         }
+    }
+    private static func captureEmptyStates(model: AppModel, window: NSWindow, directory: String, openSettings: OpenSettingsAction) async {
+        let events = model.archive.events
+        model.selectedID = nil
+        model.courseFilter = nil
+        for size in [NSSize(width: 940, height: 620), NSSize(width: 1280, height: 800)] {
+            let width = Int(size.width)
+            window.setContentSize(size)
+            for dark in [false, true] {
+                let mode = dark ? "dark" : "light"
+                NSApp.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                model.archive.events = []
+                model.search = ""
+                for page in [AppPage.today, .timeline, .review] {
+                    model.page = page
+                    await captureActive(window, path: "\(directory)/empty-\(page.rawValue.lowercased())-\(width)-\(mode).png")
+                }
+                model.archive.events = events
+                model.page = .timeline
+                model.search = "no-match-fixture"
+                await captureActive(window, path: "\(directory)/empty-search-\(width)-\(mode).png")
+                model.search = ""
+            }
+        }
+        model.settingsTab = 0
+        openSettings()
+        try? await Task.sleep(for: .milliseconds(800))
+        if let settings = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain && $0 !== window && !($0 is NSPanel) }) {
+            for dark in [false, true] {
+                NSApp.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                await captureActive(settings, path: "\(directory)/settings-canvas-\(dark ? "dark" : "light").png")
+            }
+            settings.orderOut(nil)
+        }
+    }
+    private static func captureActive(_ window: NSWindow, path: String) async {
+        // An inactive window dims native controls and is not valid visual evidence.
+        for _ in 0..<5 {
+            NSApp.unhideWithoutActivation(); NSApp.activate(); window.makeKeyAndOrderFront(nil)
+            try? await Task.sleep(for: .milliseconds(600))
+            if NSApp.isActive && window.isKeyWindow {
+                if ProcessInfo.processInfo.environment["APP_SNAPSHOT_EXTERNAL"] == "1" {
+                    GridProbes.shared.write(to: path.replacingOccurrences(of: ".png", with: "-layout.json"), window: window)
+                    // A permitted external runner captures this window only. Keep
+                    // its state stable until the PNG is written or capture fails.
+                    for _ in 0..<100 {
+                        if FileManager.default.fileExists(atPath: path) { log("SNAPSHOT \(path) (external window capture)"); return }
+                        try? await Task.sleep(for: .milliseconds(50))
+                    }
+                    log("Capture failed: external window capture timed out for \(path)")
+                    exit(1)
+                }
+                capture(window, path: path)
+                return
+            }
+        }
+        log("Capture failed: window did not become active for \(path)")
+        exit(1)
     }
     static func capture(_ window: NSWindow, path: String) {
         NSApp.unhideWithoutActivation(); window.makeKeyAndOrderFront(nil)

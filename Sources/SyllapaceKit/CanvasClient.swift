@@ -141,9 +141,11 @@ public struct CanvasClient: Sendable {
         parts.path = "/api/v1/" + path; parts.queryItems = query.isEmpty ? nil : query
         return parts.url!
     }
-    private func request(_ url: URL) async throws -> HTTPReply {
+    private func request(_ url: URL, method: String = "GET", body: Data? = nil) async throws -> HTTPReply {
         guard ConnectorURL.sameOrigin(url, origin), url.path.hasPrefix("/api/v1/") else { throw ConnectorError.unsafeRedirect }
         var request = URLRequest(url: url)
+        request.httpMethod = method; request.httpBody = body
+        if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         var reply = try await transport.send(request, maxBytes: 8 * 1024 * 1024)
@@ -169,6 +171,34 @@ public struct CanvasClient: Sendable {
             next = try ConnectorURL.nextPage(link: reply.headers["link"], current: page, origin: origin)
         }
         return all
+    }
+    public func maintainAccessToken(previousLease: CanvasTokenLease? = nil, now: Date = .now) async throws -> CanvasTokenMaintenance {
+        let records = try await pages(CanvasTokenDTO.self, url: endpoint("users/self/user_generated_tokens", query: [.init(name: "per_page", value: "100")]))
+        // Canvas installations can include a shard prefix. Match only a unique
+        // server-provided hint; never guess a token ID or update an ambiguous match.
+        let hints = Set([String(token.prefix(5)), String(token.split(separator: "~").last?.prefix(5) ?? "")])
+        let matches = records.filter { record in
+            record.token_hint.map { hints.contains($0) } == true
+                || record.visible_token.map { value in hints.contains(where: { value == $0 + "..." }) || value == token } == true
+        }
+        guard matches.count == 1, let record = matches.first, record.workflow_state == "active",
+              let created = Self.instant(record.created_at) else { throw CanvasTokenRenewalError.unverifiable }
+        let expires = record.expires_at.flatMap(Self.instant)
+        guard record.expires_at == nil || expires != nil else { throw CanvasTokenRenewalError.unverifiable }
+        var lease = try CanvasTokenLease(tokenID: record.id, createdAt: created, expiresAt: expires, previous: previousLease)
+        guard let proposed = try lease.renewalDate(now: now) else { return CanvasTokenMaintenance(lease: lease, renewed: false) }
+        try Task.checkCancellation()
+        let body = try JSONSerialization.data(withJSONObject: ["token": ["expires_at": proposed.ISO8601Format()]])
+        let reply = try await request(endpoint("users/self/tokens/\(record.id)"), method: "PUT", body: body)
+        guard let updated = try? JSONDecoder().decode(CanvasTokenDTO.self, from: reply.data),
+              updated.id == record.id, updated.workflow_state == "active",
+              Self.instant(updated.created_at) == created,
+              let newExpiry = updated.expires_at.flatMap(Self.instant), let oldExpiry = expires,
+              newExpiry > oldExpiry, newExpiry <= proposed.addingTimeInterval(1) else {
+            throw CanvasTokenRenewalError.notExtended
+        }
+        lease = try CanvasTokenLease(tokenID: record.id, createdAt: created, expiresAt: newExpiry, previous: lease, acceptedInterval: newExpiry.timeIntervalSince(now))
+        return CanvasTokenMaintenance(lease: lease, renewed: true)
     }
     public func sync() async throws -> CanvasSyncResult {
         _ = try await request(endpoint("users/self/profile"))
@@ -282,6 +312,27 @@ public struct CanvasClient: Sendable {
     }
 }
 private struct CanvasCourseDTO: Decodable, Sendable { var id: Int64; var name: String?; var course_code: String?; var syllabus_body: String?; var time_zone: String? }
+private struct CanvasTokenDTO: Decodable, Sendable {
+    var id: Int64
+    var created_at: String
+    var expires_at: String?
+    var workflow_state: String
+    var token_hint: String?
+    var visible_token: String?
+    enum CodingKeys: String, CodingKey { case id, created_at, expires_at, workflow_state, token_hint, visible_token }
+    init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        guard values.contains(.expires_at) else {
+            throw DecodingError.keyNotFound(CodingKeys.expires_at, .init(codingPath: decoder.codingPath, debugDescription: "Missing expiration metadata"))
+        }
+        id = try values.decode(Int64.self, forKey: .id)
+        created_at = try values.decode(String.self, forKey: .created_at)
+        expires_at = try values.decodeIfPresent(String.self, forKey: .expires_at)
+        workflow_state = try values.decode(String.self, forKey: .workflow_state)
+        token_hint = try values.decodeIfPresent(String.self, forKey: .token_hint)
+        visible_token = try values.decodeIfPresent(String.self, forKey: .visible_token)
+    }
+}
 private struct CanvasAssignmentDTO: Decodable, Sendable {
     var id: Int64; var name: String; var due_at: String?; var submission: Submission?
     struct Submission: Decodable, Sendable { var submitted_at: String?; var excused: Bool? }

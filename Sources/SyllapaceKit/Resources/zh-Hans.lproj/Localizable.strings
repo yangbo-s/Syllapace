@@ -250,3 +250,17 @@
 "Your semester, in view." = "整个学期，一目了然。";
 "Your token is stored in macOS Keychain. Requests go directly to your Canvas instance." = "token 保存在 macOS Keychain 中。请求直接发送到你的 Canvas 实例。";
 "your configured model" = "你配置的模型";
+
+/* Canvas token renewal */
+"Token renewal is off." = "token 自动续期已关闭。";
+"Save your connection to check token expiry." = "保存连接后检查 token 有效期。";
+"Checking token expiry…" = "正在检查 token 有效期…";
+"This token has no expiration date." = "此 token 未设置到期时间。";
+"Token renewed until %@." = "token 已续期至 %@。";
+"Token expires %@." = "token 将于 %@ 到期。";
+"Automatic renewal is unavailable for this token. Replace it before it expires." = "此 token 暂不可自动续期。请在到期前更换。";
+"The token is expired or invalid. Generate a new token in Canvas and save it here." = "token 已过期或失效。请在 Canvas 重新生成并在此保存。";
+"Token expiry could not be checked. Syllapace will retry while open." = "暂时无法检查 token 有效期，应用运行时会重试。";
+"Save a Canvas token to enable automatic renewal." = "保存 Canvas token 后即可自动检查续期。";
+"Renew token automatically" = "自动续期 token";
+"Renews before expiry while Syllapace is open, when your school allows it." = "应用运行时会在 token 到期前续期，须学校允许此操作。";

@@ -4,7 +4,7 @@
 
 ## 当前结果
 
-原生 macOS 应用、核心数据处理、Canvas/BYOK 适配、桌面卡片与 EventKit 适配已实现。完整项目的 **54 项 Swift Testing 测试、8 个测试套件通过**；应用自测的 **9 项检查通过**。Debug 与 Release 构建成功，所查构建日志没有 Swift 编译警告。
+原生 macOS 应用、核心数据处理、Canvas/BYOK 适配、桌面卡片与 EventKit 适配已实现。当前源码新增 Canvas token 自动续期与空状态居中修复，完整项目的 **69 项 Swift Testing 测试、9 个测试套件通过**；应用自测的 **9 项检查通过**。Release 构建成功，所查本轮测试与构建日志没有 Swift 编译警告。首发时的 Debug 构建和版本验收另见历史记录。
 
 真实 Canvas 账户、BYOK 服务和用户授权后的 EventKit 读写尚未运行。浅深色窗口截图、窄窗口及空状态已完成阅图；修正后的网格检查通过。真实 UI 点击与快捷键流程已检查。**当前不是全部 P0/P1 验收通过的正式发布结论。**
 
@@ -14,10 +14,10 @@
 
 | 检查 | 实际结果 | 证据 |
 | --- | --- | --- |
-| `./tools/test.sh` | 54/54 通过，8 套件 | 本轮日志 `/tmp/syllapace-0.1.0-tests.log`；测试源码见下表 |
-| `./tools/selftest.sh` | 9/9 通过，`SELFTEST complete` | `/tmp/syllapace-0.1.0-selftest.log`；`Sources/Syllapace/SelfTest.swift` |
+| `./tools/test.sh` | 69/69 通过，9 套件 | 本轮日志 `/tmp/syllapace-token-tests.log`；测试源码见下表及续期增量记录 |
+| `./tools/selftest.sh` | 9/9 通过，`SELFTEST complete` | `/tmp/syllapace-token-selftest.log`；`Sources/Syllapace/SelfTest.swift` |
 | Debug 构建 | 通过，生成 `.app` | `/tmp/syllapace-build-final.log` |
-| Release 构建 | 通过，生成并签名 `.app` | `/tmp/syllapace-release.log` |
+| Release 构建 | 通过，生成并签名 `.app` | `/tmp/syllapace-token-build.log` |
 | `./tools/snap.sh` | 最终捕获成功；主页面、编辑/导入、桌面卡片和三项设置两色均已阅图 | `/tmp/syllapace-snap-final.log`；`.impeccable/review/` |
 | `./tools/grid-lint.sh` | 修正后 PASS；运行时布局检查也通过（23 份 JSON，其中 17 份有自定义布局探针，6 份为系统 Form 设置页） | `/tmp/syllapace-grid.log`、`/tmp/syllapace-layout-check.log`、`.impeccable/review/*-layout.json` |
 | Canvas/BYOK 真实请求 | 未运行 | 没有用户账户凭据或 API key |
@@ -51,9 +51,9 @@
 - 扫描 PDF/OCR、多语种规则完整覆盖、Windows、其他 LMS、后台代理、OAuth、iCloud 目标选择均未实现。
 - 本地归档采用原子 JSON + 上次有效备份；不是应用级加密数据库。构建产物默认 ad hoc 签名，未公证。
 
-## 100 分证据评分
+## 首发前完整产品证据评分（历史基线）
 
-以下为当前实现及已有验证证据评分；真实外部联调缺失单列为验收边界。独立视觉审阅为 94/100，仅代表本轮截图与交互范围，不替代功能验收。
+以下保留首发前实现及当时验证证据的评分；后续增量单独记录，避免将局部验证当成完整产品复验。真实外部联调缺失单列为验收边界。独立视觉审阅为 94/100，仅代表当时截图与交互范围，不替代功能验收。
 
 | 维度 | 得分 | 证据、扣分及后续验证 |
 | --- | --- | --- |
@@ -103,3 +103,25 @@
 - GitHub返回的四个asset SHA-256和长度均与本地最终包一致；随后从无鉴权公开URL重新下载到 `/tmp/syllapace-release-public-download`，运行 `tools/verify_release.py verify` 再次通过。
 - 正式 `releases/latest/download/appcast.xml` 可访问并返回相同feed；已安装 `/Users/muse/Applications/Syllapace.app` 的检查更新窗口以中文显示“您使用的就是最新版！Syllapace 0.1.0是当前的最新版本”。通用设置的版本为0.1.0 (1)，中文偏好在重启后保留。
 - 更新替换的隔离副本使用独立bundle ID、临时归档和仅127.0.0.1的HTTP测试源；测试服务器已关闭。最终发布包不包含测试ID、LSEnvironment或HTTP例外。
+
+## Canvas token 自动续期与空状态修复验收
+
+日期：2026-11-04。范围为 REQ-012 / AC-012，以及 AC-001 / AC-009 的空状态布局回归。源码构建已安装到 `/Users/muse/Applications/Syllapace.app` 并实际启动；应用仍标记为 0.1.0 (1)，公开 v0.1.0 下载包尚未替换。本轮变更见 [未发布说明](releases/unreleased.md)。
+
+空状态偏左的已证实根因：`ContentUnavailableView` 位于 leading 对齐的父容器中，原先仅占内容固有宽度。现让它占满标题下方的剩余区域；新增 `empty-state` 探针，测量其横向边界和上下边界，覆盖旧布局检查遗漏的组件。
+
+| 需求 / 验收 / 用例 | 层级、优先级及执行 | 实际结果与证据 |
+| --- | --- | --- |
+| REQ-012 / AC-012 / TC-012 | P1，Kit 模块与模拟契约；固定日期、合成 token 和模拟 HTTP 响应 | 新增 15 项测试通过。验证临近到期只向当前 token ID 发送一次有限期 PUT，正文仅含到期时间；远期、无到期日和已过期时不发送 PUT。`Tests/SyllapaceKitTests/TokenRenewalTests.swift` |
+| AC-012 / TC-012 边界 | P1，短有效期重载、服务器缩短周期、最大周期、匹配歧义、错误响应、401/403/404/405/429/500、离线恢复、取消与跨源分页 | 模拟验证通过；请求不会轮换凭据、增加 scopes 或改写课程数据。短周期保留，服务器返回的更短周期用于后续调度；取消后不发起新 PUT。已在服务器处理中的请求无法保证撤回。 |
+| AC-012 / 真实 UI | P1，在安装版打开 Canvas 设置，关闭并重新开启续期 | 默认开启；关闭后显示“token 自动续期已关闭”，恢复后显示“保存 Canvas token 后即可自动检查续期”。之前填写的 Canvas 地址已保存，当前没有保存 token，未发起真实账户续期。 |
+| AC-001 / AC-009 / TC-013 | P1，Today、Timeline、Review、搜索无结果；中英文、浅深色、940×620 与 1280×800 | 32 张空状态及 4 张 Canvas 设置真实活动窗口截图均已阅图，无偏左、溢出或控件截断。`.impeccable/review/token-renewal-verified/`；可运行 `APP_SNAPSHOT_EMPTY=1 ./tools/snap.sh` 重新生成。 |
+| TC-013 布局回归 | P1，`./tools/grid-lint.sh`、`swift tools/check-layout.swift <layout JSON files>` | 静态网格检查通过；36 份布局记录通过，其中 32 份包含空状态探针，4 份系统 Form 无自定义探针。`/tmp/syllapace-token-grid.log`、`/tmp/syllapace-token-layout.log` |
+| 受影响模块与应用回归 | P1，`./tools/test.sh`、`./tools/selftest.sh`、`./build.sh` | 全套 69 测试 / 9 套件、9 项应用自测、Release 构建通过；测试与构建日志中零 Swift warning。`/tmp/syllapace-token-{tests,selftest,build}.log` |
+| 本机交付 | P1，暂存安装、签名验证、重启、实际设置与主窗口检查 | `codesign --verify --deep --strict` 通过。用户资料和 Keychain 未被迁移或覆盖。已核对真实安装版空状态居中。旧应用包临时备份在 `/tmp/syllapace-app-backup-qfqfckqw/`。 |
+
+验证中发现并处理的问题：首次测试编译因嵌套 `#require` 宏报错，拆分取值后通过；早期截图因应用未激活或隔离副本缺少窗口捕获许可而产生非活动图或 fallback，不计入验收。最终脚本使用独立临时预览应用、显式活动窗口检查，由已有捕获能力的运行器只截取该预览窗口，36 张最终图均为真实活动窗口捕获。预览应用与临时数据已自动清理，旧失败截图目录不作为交付证据。
+
+本轮没有保存的真实 Canvas token，因此学校端元数据权限和真实到期延长 **未运行**；不能将模拟契约测试解释为该学校已经允许自动续期。应用退出期间不运行任务，长时间关闭导致过期时仍需手动替换。未做跨日运行、睡眠恢复的长时实测；最低 macOS 26 机器也未另行验证。
+
+本轮证据评分：需求与验收覆盖 **23/25**（学校权限尚未联调），功能正确性与边界 **23/25**（真实服务器更新时间语义待验），测试充分性 **17/20**（无真实续期与跨日调度实测），架构与接口 **10/10**（纯策略、请求、应用调度分离，复用原连接器），维护与安全 **9/10**（凭据不变、同源与取消检查通过，未做独立安全审查），文档与交付 **10/10**（双语说明、可复现脚本、本机安装与限制齐备），合计 **92/100**。该评分仅针对本轮范围；实现与本机回归通过，真实账户续期仍待配置后验证。

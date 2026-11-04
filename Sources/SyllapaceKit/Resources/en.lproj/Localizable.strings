@@ -250,3 +250,17 @@
 "Your semester, in view." = "Your semester, in view.";
 "Your token is stored in macOS Keychain. Requests go directly to your Canvas instance." = "Your token is stored in macOS Keychain. Requests go directly to your Canvas instance.";
 "your configured model" = "your configured model";
+
+/* Canvas token renewal */
+"Token renewal is off." = "Token renewal is off.";
+"Save your connection to check token expiry." = "Save your connection to check token expiry.";
+"Checking token expiry…" = "Checking token expiry…";
+"This token has no expiration date." = "This token has no expiration date.";
+"Token renewed until %@." = "Token renewed until %@.";
+"Token expires %@." = "Token expires %@.";
+"Automatic renewal is unavailable for this token. Replace it before it expires." = "Automatic renewal is unavailable for this token. Replace it before it expires.";
+"The token is expired or invalid. Generate a new token in Canvas and save it here." = "The token is expired or invalid. Generate a new token in Canvas and save it here.";
+"Token expiry could not be checked. Syllapace will retry while open." = "Token expiry could not be checked. Syllapace will retry while open.";
+"Save a Canvas token to enable automatic renewal." = "Save a Canvas token to enable automatic renewal.";
+"Renew token automatically" = "Renew token automatically";
+"Renews before expiry while Syllapace is open, when your school allows it." = "Renews before expiry while Syllapace is open, when your school allows it.";

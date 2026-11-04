@@ -14,6 +14,7 @@ struct SettingsView: View {
             Form {
                 Section(L10n.string("Your Canvas account")) {
                     TextField(L10n.string("Canvas address"), text: $model.canvasHost, prompt: Text("https://canvas.your-university.edu"))
+                        .onChange(of: model.canvasHost) { _, _ in model.tokenRenewal.cancel() }
                     SecureField(L10n.string("Access token"), text: $canvasToken, prompt: Text(L10n.string("Leave blank to keep the saved token")))
                     HStack {
                         Button(L10n.string("Save connection")) { saveCanvas() }.disabled(model.isDemo || model.canvasHost.isEmpty)
@@ -21,6 +22,14 @@ struct SettingsView: View {
                     }
                 }
                 Section { Toggle(L10n.string("Refresh every 10 minutes while running"), isOn: $model.canvasAutoSync).onChange(of: model.canvasAutoSync) { _, value in UserDefaults.standard.set(value, forKey: "canvasAutoSync") }; Text(L10n.string("Your token is stored in macOS Keychain. Requests go directly to your Canvas instance.")).font(.caption).foregroundStyle(.secondary) }
+                Section {
+                    Toggle(L10n.string("Renew token automatically"), isOn: Binding(get: { model.tokenRenewal.enabled }, set: { value in
+                        model.tokenRenewal.setEnabled(value)
+                        if value { model.checkCanvasToken(force: true) }
+                    })).disabled(model.isDemo)
+                        .help(L10n.string("Renews before expiry while Syllapace is open, when your school allows it."))
+                    Text(model.tokenRenewal.statusText).font(.caption).foregroundStyle(.secondary)
+                }
                 if let result { Text(result).font(.caption).textSelection(.enabled) }
             }.formStyle(.grouped).tabItem { Label("Canvas", systemImage: "graduationcap") }.tag(0)
             Form {
@@ -107,9 +116,10 @@ struct SettingsView: View {
     }
     private func saveCanvas() {
         do {
-            _ = try CanvasClient(host: model.canvasHost, token: "validation")
+            _ = try CanvasClient(host: model.canvasHost, token: canvasToken.isEmpty ? "validation" : canvasToken)
             if !canvasToken.isEmpty { try CredentialStore.save(canvasToken, account: model.canvasCredentialAccount); canvasToken = "" }
             UserDefaults.standard.set(model.canvasHost, forKey: "canvasHost"); result = L10n.string("Connection saved.")
+            model.checkCanvasToken(force: true)
         } catch { result = error.localizedDescription }
     }
     private func saveModel() {

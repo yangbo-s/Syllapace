@@ -63,9 +63,11 @@ Open **Settings → Canvas**:
 - Keep the saved address spelling consistent. Credentials are stored in macOS Keychain under the configured address. Changing the address requires saving a token for that address; a token is not automatically transferred to another endpoint.
 - Leave the token field blank to retain the saved credential for the current address.
 
-The connector reads active courses, assignments and submission state, course calendar events, syllabus HTML, and accessible file metadata. Likely syllabus/schedule documents appear in **Sources** and are downloaded when selected. It does not crawl every course attachment or modify Canvas.
+The connector reads active courses, assignments and submission state, course calendar events, syllabus HTML, and accessible file metadata. Likely syllabus/schedule documents appear in **Sources** and are downloaded when selected. It does not crawl every course attachment or modify Canvas course content.
 
 **Refresh every 10 minutes while running** is opt-in. The app must remain running to fetch changes. Partial failures preserve existing data; the sync message identifies failed course resources. An expired token can be replaced in Settings. Unchanged syllabus hashes are skipped during background refresh, without moving the current view.
+
+**Renew token automatically** is enabled by default in Canvas settings in the current source build; it is not included in the v0.1.0 download. While the app is open, it checks the saved personal token and requests an expiry extension near the end of its lifetime, when the institution permits it. The renewal period is no longer than the first observed lifetime and is capped at 30 days. This updates the existing token’s expiry; its value and permissions remain unchanged. Settings shows the expiry or a recovery message. You can switch renewal off. If the app stays closed until the token expires, or Canvas refuses the operation, generate a replacement in Canvas and save it in Settings. Course sync and saved data do not depend on renewal succeeding.
 
 ## Use your own model
 

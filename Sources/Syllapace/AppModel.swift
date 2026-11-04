@@ -28,6 +28,7 @@ import UniformTypeIdentifiers
     var modelEndpoint = UserDefaults.standard.string(forKey: "modelEndpoint") ?? "https://api.openai.com/v1"
     var modelName = UserDefaults.standard.string(forKey: "modelName") ?? ""
     let calendar = CalendarBridge()
+    let tokenRenewal = CanvasTokenRenewal()
     let isDemo: Bool
     @ObservationIgnored private var syncTask: Task<Void, Never>?
     @ObservationIgnored let store: ArchiveStore
@@ -61,6 +62,7 @@ import UniformTypeIdentifiers
     }
     func startRefreshLoop() {
         guard refreshTask == nil, !isDemo else { return }
+        checkCanvasToken()
         refreshTask = Task { [weak self] in
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(600)) } catch { return }
@@ -68,6 +70,11 @@ import UniformTypeIdentifiers
                 if self.canvasAutoSync && !self.canvasHost.isEmpty { self.syncCanvas() }
             }
         }
+    }
+    func checkCanvasToken(force: Bool = false) {
+        guard !isDemo, ProcessInfo.processInfo.environment["APP_SELFTEST"] != "1",
+              canvasHost == UserDefaults.standard.string(forKey: "canvasHost") else { return }
+        tokenRenewal.start(host: canvasHost, account: canvasCredentialAccount, force: force)
     }
     func resolveCalendar(_ event: AcademicEvent) {
         guard !busy, !isDemo else { return }; busy = true
@@ -131,6 +138,7 @@ import UniformTypeIdentifiers
     func syncCanvas() {
         guard !busy else { return }
         guard !isDemo else { notice = L10n.string("Demo data stays separate from your accounts."); return }
+        checkCanvasToken()
         busy = true
         syncTask = Task {
             defer { busy = false }
