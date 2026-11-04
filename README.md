@@ -10,15 +10,15 @@ This is an early release. Automated tests and local application checks are avail
 
 ## Install
 
-Download the **DMG** from [GitHub Releases](https://github.com/yangbo-s/Syllapace/releases), drag Syllapace to Applications, and open it there. The first release supports **Apple Silicon and macOS 26+**. A ZIP and SHA-256 checksums are also provided.
+Download the **DMG** from [GitHub Releases](https://github.com/yangbo-s/Syllapace/releases), drag Syllapace to Applications, and open it there. Syllapace supports **Apple Silicon and macOS 26+**. A ZIP and SHA-256 checksums are also provided.
 
-The package is ad hoc signed and **not notarized by Apple**. If macOS blocks the first launch, use Apple's per-app **System Settings → Privacy & Security → Open Anyway** flow after checking the source and checksum; see the [release notes](docs/releases/0.1.0.md). An update signature protects subsequent downloads, but does not replace Apple notarization.
+The package is ad hoc signed and **not notarized by Apple**. If macOS blocks the first launch, use Apple's per-app **System Settings → Privacy & Security → Open Anyway** flow after checking the source and checksum; see the [release notes](docs/releases/0.1.1.md). An update signature protects subsequent downloads, but does not replace Apple notarization.
 
 ## Language and updates
 
 Open **Settings → General** to choose **Follow system**, **English**, or **简体中文**. The app interface changes immediately and remembers the preference. Native system menus and Sparkle update windows adopt the language after reopening. Canvas, OpenAI, API, PDF, DOCX, ICS and other product/protocol names retain their spelling. Course names and original evidence are never translated; changing the interface language does not expand the document parser's language support.
 
-Choose **Syllapace → Check for Updates…** or use the button in General settings. Sparkle checks the GitHub-hosted feed, verifies update archives with the public key embedded in the app, and installs after confirmation. Automatic checks can be turned off in General. Update checks send no course content or credentials; system profile submission is disabled.
+Choose **Syllapace → Check for Updates…** or use the button in General settings. Sparkle checks the GitHub-hosted feed, verifies update archives with the public key embedded in the app, and installs after confirmation. Automatic checks are enabled by default, roughly every 24 hours while the app is running, and can be turned off in General. Publishing a release does not immediately push it to running clients. Update checks send no course content or credentials; system profile submission is disabled.
 
 ## Build and run
 
@@ -67,7 +67,7 @@ The connector reads active courses, assignments and submission state, course cal
 
 **Refresh every 10 minutes while running** is opt-in. The app must remain running to fetch changes. Partial failures preserve existing data; the sync message identifies failed course resources. An expired token can be replaced in Settings. Unchanged syllabus hashes are skipped during background refresh, without moving the current view.
 
-**Renew token automatically** is enabled by default in Canvas settings in the current source build; it is not included in the v0.1.0 download. While the app is open, it checks the saved personal token and requests an expiry extension near the end of its lifetime, when the institution permits it. The renewal period is no longer than the first observed lifetime and is capped at 30 days. This updates the existing token’s expiry; its value and permissions remain unchanged. Settings shows the expiry or a recovery message. You can switch renewal off. If the app stays closed until the token expires, or Canvas refuses the operation, generate a replacement in Canvas and save it in Settings. Course sync and saved data do not depend on renewal succeeding.
+**Renew token automatically**, available since v0.1.1, is enabled by default in Canvas settings. While the app is open, it checks the saved personal token and requests an expiry extension near the end of its lifetime, when the institution permits it. The renewal period is no longer than the first observed lifetime and is capped at 30 days. This updates the existing token’s expiry; its value and permissions remain unchanged. Settings shows the expiry or a recovery message. You can switch renewal off. If the app stays closed until the token expires, or Canvas refuses the operation, generate a replacement in Canvas and save it in Settings. Course sync and saved data do not depend on renewal succeeding.
 
 ## Use your own model
 

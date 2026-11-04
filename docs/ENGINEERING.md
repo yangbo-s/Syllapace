@@ -15,6 +15,7 @@ GOAL-001：为学生提供可追溯的本地学业日程。
 | REQ-010 / AC-010 | 更新 | 应用菜单/通用设置检查 GitHub 上的 Sparkle feed，处理无更新、失败、有更新；Ed25519 验证后用户确认下载安装 |
 | REQ-011 / AC-011 | 首发 | GitHub v0.1.0 包含可解包启动的 arm64 ZIP、DMG、包含更新包签名的 appcast、SHA256SUMS 和明确的系统/签名/验证边界 |
 | REQ-012 / AC-012 | Canvas token 续期 | 识别当前个人 token，在有效期末段自动延长到期时间；只修改唯一匹配的当前 token，关闭后不再发起续期，失败不影响课程资料 |
+| REQ-013 / AC-013 | 持续发布 | 应用功能或修复交付时同步发布递增版本的 DMG、ZIP、签名 feed 与校验值；公开回读验证，并保留用户本机旧版供其测试更新 |
 
 IN-001：Canvas HTTPS host + PAT；模型HTTPS endpoint + key + model；用户选择文档（UTF-8文本、PDF、DOCX）。密钥仅Keychain。
 OUT-001：版本化本地归档、候选/确认事件、系统日历、ICS文件。网络/解析错误向用户显示，不清空已有数据。
@@ -91,11 +92,17 @@ GOAL-002：使本地客户端可供中英文用户安装使用，并持续从项
 ## Canvas token 续期与空状态修复
 
 - FUNC-012：自动续期默认开启，可在 Canvas 设置关闭。启动、保存连接和同步时启动检查；依据到期时间调度，正常检查间隔最多六小时，暂时失败十五分钟后重试，权限或有效性失败二十四小时后重试。仅在剩余有效期不大于原周期的四分之一且不超过七天时续期。应用退出期间不执行任务；已过期 token 提示重新生成。
-- IF-004：Kit 使用 HTTPS `GET /api/v1/users/self/user_generated_tokens` 分页读取元数据，通过 `token_hint` 或 `visible_token` 唯一匹配当前凭据；`PUT /api/v1/users/self/tokens/:id` 只发送 `token[expires_at]`。不发送 `regenerate`、不改变 scopes，不自动建立其它 token。续期周期保留首次确认值并最多三十天；接受服务器限制，拒绝时不尝试绕过。
+- IF-005：Kit 使用 HTTPS `GET /api/v1/users/self/user_generated_tokens` 分页读取元数据，通过 `token_hint` 或 `visible_token` 唯一匹配当前凭据；`PUT /api/v1/users/self/tokens/:id` 只发送 `token[expires_at]`。不发送 `regenerate`、不改变 scopes，不自动建立其它 token。续期周期保留首次确认值并最多三十天；接受服务器限制，拒绝时不尝试绕过。
 - OUT-003：Keychain 中原 token 不变，避免轮换后凭据丢失；按源站及凭据摘要隔离保存非秘密到期元数据。UI 区分有效、已续期、无到期日、无法自动续期、已失效和暂时失败。切换地址/凭据或关闭开关时取消旧任务，旧响应不得覆盖当前连接状态；已经发送的远程请求可能仍由服务器完成。
 - ADR-004：选择延长原 token 的有效期而不是生成替代 token；操作幂等且不导致服务器与 Keychain 的凭据值不一致。自动化仅使用模拟响应；学校实例的真实权限单独验证。
 - MOD-012：`CanvasTokenLease` 负责纯到期策略；`CanvasClient.maintainAccessToken(previousLease:now:)` 负责同源元数据读取和有限期更新；应用层 `CanvasTokenRenewal` 负责 Keychain 读取、调度、非秘密缓存和本地化状态。课程同步与续期各自运行，续期失败不修改归档。
-- IF-004 字段：正整数 `id`、ISO 8601 `created_at`、必需但允许 null 的 `expires_at`、`workflow_state`，以及至少一个可唯一匹配的 token 提示。合法更新正文为 `{"token":{"expires_at":"2026-12-01T00:00:00Z"}}`；缺少 `expires_at`、无效日期、重复提示或响应 ID 改变均不得确认为续期成功。HTTP 401 表示凭据失效，400/403/404/405/422 表示本次无法自动续期；暂时网络错误保留原凭据并稍后重试。沿用请求超时、响应大小和分页上限。
-- IF-004 依据：[Canvas Access Tokens API](https://developerdocs.instructure.com/services/canvas/resources/access_tokens)。官方接口存在不等于每所学校的配置均允许当前用户通过自己的 token 调用；真实授权结果以该实例响应为准。
+- IF-005 字段：正整数 `id`、ISO 8601 `created_at`、必需但允许 null 的 `expires_at`、`workflow_state`，以及至少一个可唯一匹配的 token 提示。合法更新正文为 `{"token":{"expires_at":"2026-12-01T00:00:00Z"}}`；缺少 `expires_at`、无效日期、重复提示或响应 ID 改变均不得确认为续期成功。HTTP 401 表示凭据失效，400/403/404/405/422 表示本次无法自动续期；暂时网络错误保留原凭据并稍后重试。沿用请求超时、响应大小和分页上限。
+- IF-005 依据：[Canvas Access Tokens API](https://developerdocs.instructure.com/services/canvas/resources/access_tokens)。官方接口存在不等于每所学校的配置均允许当前用户通过自己的 token 调用；真实授权结果以该实例响应为准。
 - TC-012 / AC-012：续期前后、尚未接近到期、无到期日、已过期、重启保留短周期、权限拒绝/限流/离线、无法唯一匹配、异常响应、取消及源站隔离；确认只有必要时发出 PUT，正文不含 token 原值或 regenerate。
 - TC-013 / AC-001 / AC-009：Today、Timeline、Review 和无搜索结果在中英文、浅深色、940×620 与1280×800窗口下，空状态占满标题下方剩余区域并居中。使用实际窗口截图与新增空状态布局测量验证。
+
+## 0.1.1 持续发布验收
+
+REQ-013 复用 MOD-006 与 IF-004 的发布和更新契约。FUNC-013：本轮将已实现的 token 续期和布局修复发布为 0.1.1 (2)，维持同一 Sparkle 公钥与更新源；公开包版本及签名一致，旧版本可按更新源发现新版。用户本机保持 0.1.0 (1)，检测和安装由用户亲自验证。
+
+TC-014 / AC-013（P1，发布联调）：运行正式构建、自测和打包器；从公开地址回读四个附件，比较 SHA-256、更新签名、ZIP 与 DMG 内容及版本，确认 latest feed 指向 build 2。发布前后只读核对已安装应用的文件指纹。自然自动检查、下载安装和重启未发生时明确标记待用户验证；具体流程与完成边界见 `RELEASING.md`。

@@ -2,6 +2,14 @@
 
 发布目标是 `yangbo-s/Syllapace`。安装包通过 GitHub Release 托管；应用固定读取 `https://github.com/yangbo-s/Syllapace/releases/latest/download/appcast.xml`。因此公开发行使用正常 Release，并将经过验证的版本设为 latest；GitHub prerelease 不作为当前更新源。
 
+## 每次应用交付的完成条件
+
+遵循根目录 [AGENTS.md](../AGENTS.md) 的交付约定。源码/tag、版本与 build、DMG/ZIP、签名 appcast、公开 latest 必须一致；从公开下载地址回读验证后，才报告应用修订已交付。不能只推送源码而留下旧安装包。
+
+自动验证运行仓库构建或隔离副本。本机正式安装由用户自行验证更新；发布前后只读核对其版本和文件指纹，保留用户的更新偏好、上次检查时间和资料。没有实际执行更新时，验收记录只能写“公开更新源及包校验通过”，不能写成“本机跨版本升级通过”。
+
+当前启用自动检查，采用 Sparkle 默认约 24 小时检查间隔；应用需运行，检测到新版后由用户确认安装。发布到 GitHub 不会立即向客户端推送，手动“检查更新”可立即发起检查。测试自然调度时保留客户端的真实检查时间，不用修改计时或偏好来制造通过。
+
 ## 发布输入与产物
 
 `Info.plist` 是版本、最低系统版本、更新 URL 和 Ed25519 公钥的来源。每次更新递增 `CFBundleVersion`，同时更新 `CFBundleShortVersionString` 与对应的 `docs/releases/<version>.md`。当前构建目标为 Apple Silicon、macOS 26.0+。
@@ -56,7 +64,7 @@ gh release create v0.1.0 --repo yangbo-s/Syllapace --verify-tag --draft \
 gh release edit v0.1.0 --repo yangbo-s/Syllapace --draft=false --latest
 ```
 
-不要覆盖已公开版本的二进制。需要修正可执行文件时递增版本和 build 并发布新 Release。发布后从 GitHub 下载附件到新的临时目录，重验哈希、Ed25519 签名、解压后 app 签名和版本；核对 latest URL 可用，并在已安装应用中执行「检查更新」。首发没有已公开的旧版本，完整跨版本安装验证需要用隔离的测试副本进行，并在验收记录中说明测试条件。
+不要覆盖已公开版本的二进制。需要修正可执行文件时递增版本和 build 并发布新 Release。发布后从 GitHub 下载附件到新的临时目录，重验哈希、Ed25519 签名、解压后 app 签名和版本；核对 latest URL 可用。用户本机的检查、下载安装与重启留给用户测试；需要额外端到端自动验证时使用隔离副本，并在验收记录中说明测试条件。
 
 ## 首发签名状态
 
