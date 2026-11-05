@@ -93,6 +93,7 @@ struct CanvasQuizDTO: Decodable, Sendable {
 }
 struct CanvasAnnouncementDTO: Decodable, Sendable {
     var id: Int64; var title: String; var message: String?; var html_url: String?; var attachments: [CanvasFileDTO]?; var attachment: CanvasFileDTO?
+    var posted_at: String?; var delayed_post_at: String?; var updated_at: String?
 }
 struct CanvasModuleDTO: Decodable, Sendable {
     var id: Int64; var name: String?; var published: Bool?; var state: String?

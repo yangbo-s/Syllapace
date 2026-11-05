@@ -81,6 +81,15 @@ public struct SourceDocument: Identifiable, Codable, Sendable, Equatable {
     /// A per-source opt-out. Explicit one-time organization does not clear it.
     public var localOnly: Bool?
     public var remoteRevision: String?
+    public var publishedAt: Date?
+    public var updatedAt: Date?
+    public var effectiveDueAt: Date?
+    public var availableAt: Date?
+    /// Verified public timetable observations; retained for offline reopening.
+    public var teachingStartsAt: Date?
+    public var teachingEndsAt: Date?
+    public var meetingScheduleComplete: Bool?
+    public var meetingSchedule: [AcademicEvent]?
     public init(id: String = UUID().uuidString, courseID: String, title: String, text: String, url: String? = nil, hash: String = "", fetchedAt: Date = .now, kind: SourceKind? = nil, links: [SourceLink]? = nil, academicCalendarID: String? = nil) {
         self.id = id; self.courseID = courseID; self.title = title; self.text = text; self.url = url; self.hash = hash; self.fetchedAt = fetchedAt
         self.kind = kind; self.links = links; self.academicCalendarID = academicCalendarID
@@ -126,6 +135,7 @@ public struct AcademicEvent: Identifiable, Codable, Sendable, Equatable {
     public var curationVersion: Int?
     public var curationExcluded: Bool?
     public var relatedSourceIDs: [String]?
+    public var relatedEventIDs: [String]?
     /// Last machine-provided title, retained when the user customizes `title`.
     public var sourceTitle: String?
     public var progress: TaskProgress {

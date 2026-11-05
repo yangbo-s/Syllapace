@@ -575,3 +575,7 @@
 "Release date only" = "Release date only";
 
 "Activity" = "Activity";
+
+"Processing interrupted" = "Processing interrupted";
+"Official class schedule" = "Official class schedule";
+"The source changed this event’s time." = "The source changed this event’s time.";

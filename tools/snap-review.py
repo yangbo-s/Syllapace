@@ -23,6 +23,11 @@ if sum(value == '1' for value in capture_flags.values()) > 1:
 
 def expected_names():
     appearances = ('light', 'dark')
+    if os.environ.get('APP_SNAPSHOT_INPUT'):
+        data = json.loads(Path(os.environ['APP_SNAPSHOT_INPUT']).read_text())
+        codes = [course['code'] for course in data['courses']]
+        return {f'{name}-{mode}.png' for mode in appearances for name in
+                [f'courses-{view}' for view in ('list', 'gantt', 'calendar', 'review', 'editor')] + [f'course-{code}' for code in codes]}
     views = ('list', 'gantt', 'calendar')
     if capture_flags['APP_SNAPSHOT_GANTT'] == '1':
         return {f'workspace-gantt-{width}-{mode}.png' for width in (1320, 1120, 940) for mode in appearances}
@@ -80,6 +85,7 @@ with tempfile.TemporaryDirectory(prefix='syllapace-window-review-', dir='/tmp') 
                 'APP_SNAPSHOT': str(shots),
                 'APP_SNAPSHOT_EXTERNAL': '1', 'APP_LANGUAGE': language, 'APP_SNAPSHOT_WAIT': '1',
                 **capture_flags,
+                **({'APP_SNAPSHOT_INPUT': os.environ['APP_SNAPSHOT_INPUT']} if os.environ.get('APP_SNAPSHOT_INPUT') else {}),
             }.items():
                 command += ['--env', f'{key}={value}']
             command += ['--args', '-appLanguage', language]

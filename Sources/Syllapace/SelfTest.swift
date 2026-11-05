@@ -65,7 +65,7 @@ enum SelfTest {
         model.save()
         do {
             model.archive = try model.store.load()
-            check(model.sourcesNeedingCuration().isEmpty && model.sourcesNeedingCuration(force: true).count == 1 && model.curationIssues.count == 1, "Failed curation survives reload and only explicit retry repeats the request")
+            check(model.sourcesNeedingCuration().isEmpty && model.sourcesNeedingCuration(force: true).count == 1 && model.curationIssues.isEmpty && model.curationFailures.count == 1, "Failed curation survives reload and only explicit retry repeats the request")
         } catch { fail(error.localizedDescription) }
         let legacyOwner = model.course(source.courseID), legacyWindow = model.curationWindow(for: source)
         let legacyFingerprint = EventCuration.legacyFingerprint(source: source, version: 2, modelIdentity: model.curationModelIdentity,
@@ -74,6 +74,42 @@ enum SelfTest {
         model.archive.curationRecords?[source.id] = SourceCurationRecord(fingerprint: legacyFingerprint)
         model.sanitizeLegacyData()
         check(model.sourcesNeedingCuration().isEmpty, "Legacy cache migrates without another model request")
+        let pipelineCheckpoint = model.archive
+        var dated = source; dated.publishedAt = Date(timeIntervalSince1970: 1_793_620_800)
+        model.ingest(dated, navigate: false)
+        model.sanitizeLegacyData()
+        check(model.sourcesNeedingCuration().count == 1, "New source context invalidates the old extraction cache once")
+        model.archive = pipelineCheckpoint
+        var weekly = AcademicEvent(id: "official-selftest", courseID: courseID, title: "Lecture", kind: .session,
+            date: Date(timeIntervalSince1970: 1_793_620_800), dateOnly: false, timeZone: "America/New_York", state: .approved,
+            sourceID: "official-source", sourceSeriesID: "official-series")
+        weekly.curationVersion = 2; weekly.subtype = .lecture
+        var official = SourceDocument(id: "official-source", courseID: courseID, title: "Official class schedule", text: "Verified schedule", hash: "official-hash")
+        official.localOnly = true; official.meetingSchedule = [weekly]
+        model.ingest(official, navigate: false)
+        model.restoreLocalSchedules(); model.save()
+        do {
+            model.archive = try model.store.load()
+            check(model.archive.sources.first { $0.id == official.id }?.meetingSchedule == [weekly], "Verified weekly timetable survives an offline reload")
+            check(model.workspaceEvents.contains { $0.id == weekly.id } && model.publishableEvents.contains { $0.id == weekly.id }, "Workspace and calendar export share verified occurrences")
+            check(model.sourcesNeedingCuration(sourceIDs: [official.id], force: true).isEmpty, "Official schedules never make a redundant model request")
+            let before = model.archive.events
+            model.restoreLocalSchedules()
+            check(model.archive.events == before, "Restoring cached weekly meetings is idempotent")
+            var notice = weekly; notice.id = "announcement-copy"; notice.sourceID = "announcement-source"; notice.sourceSeriesID = nil; notice.location = "Hall 101"
+            model.archive.events.append(notice)
+            let projected = model.workspaceEvents.first { $0.id == weekly.id }
+            check(projected?.relatedEventIDs == [notice.id] && projected?.location == "Hall 101", "Canonical occurrence collects exact aliases and room evidence")
+            var edited = weekly; edited.userEdited = true; edited.title = "My lecture"; edited.kind = .exam
+            check(model.saveEditedEvent(edited, replacing: weekly), "Editing a merged occurrence keeps a stored concurrency baseline")
+            check(!model.workspaceEvents.contains { $0.id == notice.id }, "Changing a canonical meeting type keeps its duplicate hidden")
+            if let current = model.archive.events.first(where: { $0.id == weekly.id }) {
+                var cancelled = current; cancelled.state = .rejected
+                check(model.saveEditedEvent(cancelled, replacing: current), "Cancelling the merged meeting commits its alias intent")
+                check(!model.workspaceEvents.contains { $0.id == weekly.id || $0.id == notice.id }, "Cancelled aliases cannot reappear in the workspace")
+            }
+        } catch { fail("Verified schedule cache could not reload") }
+        model.archive = pipelineCheckpoint
         let stable = model.archive.events
         check(model.commitCuration(CurationResult(issues: ["Date evidence is incomplete"]), source: source, fingerprint: model.curationFingerprint(source)) && model.archive.events == stable && model.curationIssues.count == 1, "Incomplete curation preserves existing dates and exposes the issue")
         let beforeFirst = model.archive

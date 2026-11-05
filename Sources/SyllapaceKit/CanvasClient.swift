@@ -43,14 +43,18 @@ private final class RefuseRedirects: NSObject, URLSessionTaskDelegate {
     }
 }
 public struct BoundedHTTPTransport: HTTPTransport {
-    public init() {}
+    private let requestTimeout: TimeInterval
+    private let resourceTimeout: TimeInterval
+    public init(requestTimeout: TimeInterval = 30, resourceTimeout: TimeInterval = 90) {
+        self.requestTimeout = requestTimeout; self.resourceTimeout = resourceTimeout
+    }
     public func send(_ request: URLRequest, maxBytes: Int) async throws -> HTTPReply {
         let config = URLSessionConfiguration.ephemeral
         config.httpCookieStorage = nil
         config.httpShouldSetCookies = false
         config.urlCache = nil
-        config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 90
+        config.timeoutIntervalForRequest = requestTimeout
+        config.timeoutIntervalForResource = resourceTimeout
         let session = URLSession(configuration: config, delegate: RefuseRedirects(), delegateQueue: nil)
         defer { session.invalidateAndCancel() }
         let (stream, response) = try await session.bytes(for: request)
@@ -251,7 +255,8 @@ public struct CanvasClient: Sendable {
                     var link = URLComponents(url: origin, resolvingAgainstBaseURL: false)!
                     link.path = "/calendar"; link.queryItems = [.init(name: "event_id", value: String(item.id))]
                     return AcademicEvent(id: "\(scope):calendar:\(item.id)", courseID: courseID, title: item.title, kind: CanvasClassification.kind(title: item.title, calendar: true), date: date, dateOnly: item.all_day ?? false, timeZone: timezone, state: date == nil ? .pending : .approved,
-                                         evidence: Self.plainText(item.description ?? item.title), sourceURL: link.url?.absoluteString)
+                                         evidence: Self.plainText(item.description ?? item.title), sourceURL: link.url?.absoluteString,
+                                         sourceSeriesID: Self.calendarSeriesID(item.series_uuid, courseID: courseID))
                 })
             } catch is CancellationError { throw CancellationError() }
             catch { result.warnings.append(L10n.format("%@ calendar: %@", course.code, Self.safeMessage(error))) }
@@ -371,6 +376,10 @@ public struct CanvasClient: Sendable {
                 let url = courseURL.appendingPathComponent("assignments/\(item.id)")
                 let sourceID = "\(course.id):assignment:\(item.id)"
                 document("assignment:\(item.id)", title: item.name, html: item.description ?? "", url: url, kind: .assignment)
+                if let index = result.sources.firstIndex(where: { $0.id == sourceID }) {
+                    result.sources[index].effectiveDueAt = item.due_at.flatMap(Self.instant)
+                    result.sources[index].availableAt = item.unlock_at.flatMap(Self.instant)
+                }
                 let date = item.due_at.flatMap(Self.instant)
                 let submission = item.submission.map { SubmissionStatus(state: $0.workflow_state, grade: $0.grade, score: $0.score, late: $0.late, missing: $0.missing, excused: $0.excused) }
                 let kind = CanvasClassification.kind(title: item.name, group: item.assignment_group_id.flatMap { groups[$0] }, quiz: item.quiz_id != nil || item.is_quiz_assignment == true)
@@ -420,7 +429,8 @@ public struct CanvasClient: Sendable {
                 result.events.append(AcademicEvent(id: "\(scope):calendar:\(item.id)", courseID: course.id, title: item.title,
                                                    kind: CanvasClassification.kind(title: item.title, calendar: true), date: date, dateOnly: item.all_day ?? false,
                                                    timeZone: timeZone, state: date == nil ? .pending : .approved, sourceID: "\(course.id):calendar:\(item.id)", evidence: Self.plainText(item.description ?? item.title), sourceURL: parts.url?.absoluteString,
-                                                   endsAt: item.all_day == true ? nil : safeEnd, location: item.location_name))
+                                                   endsAt: item.all_day == true ? nil : safeEnd, location: item.location_name,
+                                                   sourceSeriesID: Self.calendarSeriesID(item.series_uuid, courseID: course.id)))
             }
         } catch is CancellationError { throw CancellationError() }
         catch { warn("Calendar", error) }
@@ -434,6 +444,10 @@ public struct CanvasClient: Sendable {
                 let links = attachments.map { SourceLink(url: courseURL.appendingPathComponent("files/\($0.id)").absoluteString, title: $0.display_name ?? $0.filename ?? L10n.string("Attachment")) }
                 document("announcement:\(announcement.id)", title: announcement.title, html: announcement.message ?? "",
                          url: courseURL.appendingPathComponent("discussion_topics/\(announcement.id)"), kind: .announcement, extraLinks: links)
+                if let index = result.sources.firstIndex(where: { $0.id == "\(course.id):announcement:\(announcement.id)" }) {
+                    result.sources[index].publishedAt = (announcement.posted_at ?? announcement.delayed_post_at).flatMap(Self.instant)
+                    result.sources[index].updatedAt = announcement.updated_at.flatMap(Self.instant)
+                }
             }
         } catch is CancellationError { throw CancellationError() }
         catch { warn("Announcements", error) }
@@ -581,8 +595,8 @@ public struct CanvasClient: Sendable {
             let ext = (file.title as NSString).pathExtension.lowercased()
             switch ext {
             case "pdf": guard response.data.starts(with: Data("%PDF-".utf8)) else { throw ConnectorError.unsupportedFile }
-            case "docx": guard response.data.starts(with: [0x50, 0x4b, 0x03, 0x04]) else { throw ConnectorError.unsupportedFile }
-            case "txt", "md", "html", "htm": guard String(data: response.data, encoding: .utf8) != nil else { throw ConnectorError.unsupportedFile }
+            case "docx", "xlsx": guard response.data.starts(with: [0x50, 0x4b, 0x03, 0x04]) else { throw ConnectorError.unsupportedFile }
+            case "txt", "csv", "md", "markdown", "html", "htm": guard String(data: response.data, encoding: .utf8) != nil else { throw ConnectorError.unsupportedFile }
             default: throw ConnectorError.unsupportedFile
             }
             let destination = FileManager.default.temporaryDirectory.appendingPathComponent("syllapace-\(UUID().uuidString).\(ext)")
@@ -595,6 +609,13 @@ public struct CanvasClient: Sendable {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter.date(from: text) ?? ISO8601DateFormatter().date(from: text)
+    }
+    private static func calendarSeriesID(_ value: String?, courseID: String) -> String? {
+        // Canvas already returns occurrences. Preserve its identity; an RRULE
+        // alone never authorizes expanding or inventing a recurrence series.
+        guard let value, (1...128).contains(value.utf8.count),
+              value.range(of: #"^[A-Za-z0-9][A-Za-z0-9_-]*$"#, options: .regularExpression) != nil else { return nil }
+        return "canvas-series:\(courseID):\(value)"
     }
     static func hash(_ text: String) -> String { SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined() }
     public static func isLikelySyllabus(_ name: String) -> Bool {
@@ -649,6 +670,7 @@ private struct CanvasAssignmentDTO: Decodable, Sendable {
 private struct CanvasCalendarDTO: Decodable, Sendable {
     var id: Int64; var title: String; var start_at: String?; var all_day: Bool?; var all_day_date: String?; var description: String?; var workflow_state: String?
     var end_at: String?; var location_name: String?; var hidden: Bool?
+    var series_uuid: String?
 }
 struct CanvasFileDTO: Decodable, Sendable {
     var id: Int64; var display_name: String?; var filename: String?; var url: String?; var size: Int?; var locked_for_user: Bool?; var hidden_for_user: Bool?; var contentType: String?; var modified_at: String?; var updated_at: String?

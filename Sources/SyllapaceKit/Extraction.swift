@@ -1,6 +1,13 @@
 import Foundation
 
 public enum RuleExtractor {
+    private static let monthNamePattern = #"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"#
+    private static let monthFirstPattern = #"(?i)\b("# + monthNamePattern + #")\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(20\d{2}))?\b"#
+    private static let dayFirstPattern = #"(?i)\b(\d{1,2})(?:st|nd|rd|th)?\s+("# + monthNamePattern + #")\.?(?:,?\s+(20\d{2}))?\b"#
+    private static let chineseDatePattern = #"(?:(20\d{2})年)?(\d{1,2})月(\d{1,2})[日号]"#
+    private static let isoDateTimePattern = #"\b20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})"#
+    private static let datePatterns = [isoDateTimePattern, monthFirstPattern, dayFirstPattern, #"\b20\d{2}-\d{2}-\d{2}\b"#,
+                                       #"\b\d{1,2}/\d{1,2}(?:/20\d{2})?\b"#, chineseDatePattern]
     public static func curate(source: SourceDocument, year: Int, timeZone: String) -> CurationResult {
         let issues = source.text.components(separatedBy: .newlines).compactMap { raw -> String? in
             let line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -115,7 +122,7 @@ public enum RuleExtractor {
            let due = text.range(of: #"\b(?:due|deadline|submit(?:ted)? by)\b|截止|提交日期"#, options: [.regularExpression, .caseInsensitive]) {
             text = String(text[due.lowerBound...])
         }
-        if let iso = try? NSRegularExpression(pattern: #"\b20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})"#) {
+        if let iso = try? NSRegularExpression(pattern: isoDateTimePattern) {
             let instants = iso.matches(in: text, range: NSRange(text.startIndex..., in: text)).compactMap {
                 Range($0.range, in: text).flatMap { CanvasClient.instant(String(text[$0])) }
             }
@@ -123,7 +130,7 @@ public enum RuleExtractor {
             var calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(identifier: timeZone) ?? .gmt
             if dateOnly, instants.contains(where: { calendar.isDate($0, inSameDayAs: date) }) { return false }
         }
-        let pattern = #"(?:\b(?:20\d{2}-\d{2}-\d{2}|(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+20\d{2})?|\d{1,2}/\d{1,2}(?:/20\d{2})?)\b|(?:20\d{2}年)?\d{1,2}月\d{1,2}[日号])"#
+        let pattern = datePatterns.joined(separator: "|")
         guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { return false }
         let ranges = regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).compactMap { Range($0.range, in: text) }
         var calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(identifier: timeZone) ?? .gmt
@@ -143,27 +150,36 @@ public enum RuleExtractor {
         var result = ParsedDate(zone: timeZone)
         guard var zone = TimeZone(identifier: timeZone), (1900...2200).contains(year) else { return result }
         if text.range(of: "(?i)\\b(?:UTC|GMT)\\b", options: .regularExpression) != nil { zone = .gmt; result.zone = zone.identifier }
-        let monthPattern = "(?i)\\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(20\\d{2}))?\\b"
-        let chinesePattern = #"(?:(20\d{2})年)?(\d{1,2})月(\d{1,2})[日号]"#
-        let datePatterns = [monthPattern, "\\b20\\d{2}-\\d{2}-\\d{2}\\b", "\\b\\d{1,2}/\\d{1,2}(?:/20\\d{2})?\\b", chinesePattern]
         let dateCount = datePatterns.reduce(0) { count, pattern in
             count + ((try? NSRegularExpression(pattern: pattern))?.numberOfMatches(in: text, range: NSRange(text.startIndex..., in: text)) ?? 0)
         }
         // A line can contain release and due dates, or several events. Do not guess which
         // date belongs to the deadline; the structured extractor or reviewer can resolve it.
         guard dateCount <= 1 else { return result }
+        if let match = firstMatch(isoDateTimePattern, in: text) {
+            // API metadata is an absolute instant. Reading its clock as local
+            // wall time would shift a UTC release into the course time zone.
+            guard let instant = CanvasClient.instant(String(text[match.range])) else { return result }
+            result.date = instant; result.dateOnly = false; result.range = match.range
+            return result
+        }
         var dateYear = year
         var month: Int?
         var day: Int?
-        if let match = firstMatch(chinesePattern, in: text) {
+        if let match = firstMatch(chineseDatePattern, in: text) {
             if let explicit = Int(match.values[0]) { dateYear = explicit }
             month = Int(match.values[1]); day = Int(match.values[2]); result.range = match.range
         } else if let match = firstMatch("\\b(20\\d{2})-(\\d{2})-(\\d{2})\\b", in: text) {
             dateYear = Int(match.values[0]) ?? year; month = Int(match.values[1]); day = Int(match.values[2]); result.range = match.range
-        } else if let match = firstMatch(monthPattern, in: text) {
+        } else if let match = firstMatch(monthFirstPattern, in: text) {
             let months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
             month = months.firstIndex(of: String(match.values[0].lowercased().prefix(3))).map { $0 + 1 }
             day = Int(match.values[1]); if let explicitYear = Int(match.values[2]) { dateYear = explicitYear }; result.range = match.range
+        } else if let match = firstMatch(dayFirstPattern, in: text) {
+            let months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+            day = Int(match.values[0])
+            month = months.firstIndex(of: String(match.values[1].lowercased().prefix(3))).map { $0 + 1 }
+            if let explicitYear = Int(match.values[2]) { dateYear = explicitYear }; result.range = match.range
         } else if let match = firstMatch("\\b(\\d{1,2})/(\\d{1,2})(?:/(20\\d{2}))?\\b", in: text) {
             let first = Int(match.values[0]) ?? 0, second = Int(match.values[1]) ?? 0
             result.range = match.range

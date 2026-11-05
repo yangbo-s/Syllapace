@@ -62,6 +62,22 @@ private func json(_ string: String, status: Int = 200, headers: [String: String]
         #expect(requests[1].value(forHTTPHeaderField: "Authorization") == nil)
         #expect(try Data(contentsOf: path).starts(with: Data("%PDF-".utf8)))
     }
+    @Test func supportedSpreadsheetDownloadsKeepDocumentBoundaries() async throws {
+        let transport = FixtureTransport([
+            HTTPReply(data: Data([0x50, 0x4b, 0x03, 0x04])),
+            json("Date,Class\n2026-11-06,Recitation"),
+            json("<html>Login required</html>")
+        ])
+        let client = try CanvasClient(host: "canvas.example.edu", token: "synthetic", transport: transport)
+        for name in ["schedule.xlsx", "schedule.csv"] {
+            let url = try await client.download(file: CanvasFile(id: name, courseID: "1", title: name, url: "https://canvas.example.edu/files/1/download"))
+            defer { try? FileManager.default.removeItem(at: url) }
+            #expect(url.pathExtension == (name as NSString).pathExtension)
+        }
+        await #expect(throws: ConnectorError.unsupportedFile) {
+            try await client.download(file: CanvasFile(id: "bad", courseID: "1", title: "schedule.xlsx", url: "https://canvas.example.edu/files/1/download"))
+        }
+    }
     @Test func downloadRejectsPrivateRedirect() async throws {
         let transport = FixtureTransport([json("", status: 302, headers: ["location": "https://127.0.0.1/private"])])
         let client = try CanvasClient(host: "canvas.example.edu", token: "synthetic-token", transport: transport)

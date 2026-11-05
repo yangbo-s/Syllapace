@@ -81,7 +81,7 @@ struct ContentView: View {
                 .help(L10n.string("Choose the semester and courses shown in your workspace"))
             List(selection: $model.page) {
                 Section {
-                    ForEach(AppPage.allCases.filter { $0 != .review || model.pendingCount > 0 }) { page in
+                    ForEach(AppPage.allCases.filter { $0 != .review || model.pendingCount > 0 || !model.curationFailures.isEmpty || !model.officialScheduleErrors.isEmpty }) { page in
                         HStack { Label { Text(page.localizedName) } icon: { if page == model.page { Image(systemName: page.symbol).foregroundStyle(Palette.accent) } else { Image(systemName: page.symbol).foregroundStyle(.secondary) } }; Spacer(); if page == .review && model.pendingCount > 0 { Text("\(model.pendingCount)").font(.caption).foregroundStyle(.secondary) } }.padding(.vertical, 4).tag(page)
                     }
                 }

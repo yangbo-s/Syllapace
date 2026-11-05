@@ -4,6 +4,10 @@ import Foundation
 /// endpoints; an unqualified `1–2` is deliberately not guessed as 1 PM–2 PM.
 enum EvidenceClock {
     static func values(in text: String) -> [(Int, Int)] {
+        // Dotted meridiems carry the same explicit AM/PM evidence. Normalize
+        // before matching so `11:59 p.m.` cannot fall back to 11:59 in 24h time.
+        let text = text.replacingOccurrences(of: #"(?i)(?<![a-z])([ap])\s*\.\s*m\.?(?![a-z])"#,
+                                             with: "$1M", options: .regularExpression)
         var values: [(Int, Int, Int)] = []
         var covered: [NSRange] = []
         let rangePattern = #"(?<!\d)(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?\s*(?:[-–—]|to)\s*(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\b"#

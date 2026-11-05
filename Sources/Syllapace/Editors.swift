@@ -22,6 +22,7 @@ struct EventEditor: View {
     @State private var location = ""
     @State private var chosenZone = TimeZone.current.identifier
     @State private var saveError: String?
+    private var initialDraft: AcademicEvent { model.projectedEvents.first { $0.id == original.id } ?? original }
     var body: some View {
         // Redraw translated content without replacing the view or its draft state.
         let _ = languagePreference
@@ -53,6 +54,16 @@ struct EventEditor: View {
                 TextField(L10n.string("Location"), text: $location)
                 if !dateOnly { Text(L10n.format("Time zone: %@", chosenZone)).font(.caption).foregroundStyle(.secondary) }
             }.formStyle(.grouped).environment(\.timeZone, TimeZone(identifier: chosenZone) ?? .current).gridProbe("editor-form", area: "event-editor")
+            let evidence = model.projectedEvents.first { $0.id == original.id } ?? original
+            let sourceIDs = Set(([evidence.sourceID].compactMap { $0 }) + (evidence.relatedSourceIDs ?? []))
+            let sources = model.archive.sources.filter { sourceIDs.contains($0.id) }
+            if !sources.isEmpty {
+                Menu(L10n.string("Sources")) {
+                    ForEach(sources) { source in
+                        Button(source.title) { model.readingSource = source }
+                    }
+                }.menuStyle(.borderlessButton).fixedSize()
+            }
             if let proposed = original.proposedDate {
                 HStack { Text(L10n.format("New source date: %@", L10n.date(proposed))).font(.caption); Spacer(); Button(L10n.string("Use new date")) { date = proposed; dateOnly = original.proposedDateOnly ?? dateOnly; chosenZone = original.proposedTimeZone ?? chosenZone; hasEnd = original.proposedEndsAt != nil; endDate = original.proposedEndsAt ?? date } }.gridProbe("editor-proposal", area: "event-editor")
             }
@@ -74,8 +85,9 @@ struct EventEditor: View {
                 }.buttonStyle(.borderedProminent).tint(Palette.actionAccent).keyboardShortcut(.defaultAction).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (hasEnd && (dateOnly ? endDate <= date : endDate < date)) || (isDeadline && hasRelease && releaseAfterDue))
             }.gridProbe("editor-actions", area: "event-editor")
         }.padding(28).frame(width: 480).gridArea("event-editor", inset: 28).background(CalmFocus(enabled: !original.title.isEmpty))
-        .onAppear { title = original.title; date = original.date ?? .now; dateOnly = original.dateOnly; courseID = original.courseID; kind = original.kind; chosenZone = original.timeZone; hasEnd = original.endsAt != nil; endDate = original.endsAt ?? date; location = original.location ?? ""; titleFocused = original.title.isEmpty }
+        .onAppear { let draft = initialDraft; title = draft.title; date = draft.date ?? .now; dateOnly = draft.dateOnly; courseID = draft.courseID; kind = draft.kind; chosenZone = draft.timeZone; hasEnd = draft.endsAt != nil; endDate = draft.endsAt ?? date; location = draft.location ?? ""; titleFocused = original.title.isEmpty }
         .onAppear { hasRelease = original.releasedAt != nil; releaseDate = original.releasedAt ?? min(.now, original.date ?? .now); releaseDateOnly = original.releaseDateOnly ?? true }
+        .sheet(item: $model.readingSource) { SourceReader(source: $0) }
         .alert(L10n.string("Could not save changes. Try again."), isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
             Button(L10n.string("OK")) { saveError = nil }
         } message: { Text(saveError ?? "") }
@@ -109,7 +121,7 @@ struct SourcesView: View {
                                 VStack(alignment: .leading, spacing: 8) { Text(source.title).fontWeight(.medium); Text(model.sourceOwnerName(source)).font(.caption).foregroundStyle(.secondary) }
                                 Spacer()
                                 Button(L10n.string("Read")) { model.readingSource = source }
-                                Button { model.extractAI(source) } label: { Label(L10n.string("Organize"), systemImage: "sparkles") }.disabled(model.curationTask != nil).help(L10n.string("Organize relevant dates with your selected model"))
+                                Button { model.extractAI(source) } label: { Label(L10n.string("Organize"), systemImage: "sparkles") }.disabled(model.curationTask != nil || source.meetingSchedule != nil).help(L10n.string("Organize relevant dates with your selected model"))
                             }.padding(.vertical, 16).gridProbe("source-row-\(source.id)", area: "sources")
                             Divider().gridProbe("source-divider-\(source.id)", area: "sources")
                         }

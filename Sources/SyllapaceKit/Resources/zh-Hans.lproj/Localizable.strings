@@ -575,3 +575,7 @@
 "Release date only" = "发布日期不含时间";
 
 "Activity" = "最近操作";
+
+"Processing interrupted" = "处理未完成";
+"Official class schedule" = "官方课表";
+"The source changed this event’s time." = "来源更新了此事项的时间。";

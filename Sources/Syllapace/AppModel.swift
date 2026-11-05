@@ -33,6 +33,8 @@ import UniformTypeIdentifiers
     }
     var workspaceRevision = 0
     var showActivity = false
+    var fetchingCourseSchedules = false
+    var officialScheduleErrors: [String: String] = [:]
     var curationStatus: String?
     var curationErrors: [String: String] = [:]
     var lastCurationUndo: [ImportUndo]?
@@ -140,7 +142,11 @@ import UniformTypeIdentifiers
         guard refreshTask == nil, !isDemo else { return }
         checkCanvasToken()
         sanitizeLegacyData()
-        scheduleCuration()
+        Task { [weak self] in
+            guard let self else { return }
+            await self.refreshOfficialSchedules()
+            self.scheduleCuration()
+        }
         refreshTask = Task { [weak self] in
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(600)) } catch { return }
@@ -174,7 +180,7 @@ import UniformTypeIdentifiers
         }
     }
     func update(_ event: AcademicEvent) {
-        var event = event
+        var event = retainingMeetingAliases(event)
         event.importUndone = nil
         if let i = archive.events.firstIndex(where: { $0.id == event.id }) { archive.events[i] = event } else { archive.events.append(event) }
         selectedID = event.id
@@ -188,12 +194,19 @@ import UniformTypeIdentifiers
             return false
         }
         let checkpoint = archive
-        var edited = event; edited.importUndone = nil
+        var edited = retainingMeetingAliases(event); edited.importUndone = nil
         edited.revision = max(original.revision + 1, edited.revision)
         if let index { archive.events[index] = edited } else { archive.events.append(edited) }
         guard save() else { archive = checkpoint; return false }
         selectedID = edited.id
         return true
+    }
+    func retainingMeetingAliases(_ event: AcademicEvent) -> AcademicEvent {
+        guard let projection = projectedEvents.first(where: { $0.id == event.id }), projection.kind == .session || projection.relatedEventIDs?.isEmpty == false else { return event }
+        var result = event
+        result.relatedEventIDs = Array(Set((event.relatedEventIDs ?? []) + (projection.relatedEventIDs ?? []))).sorted()
+        result.relatedSourceIDs = Array(Set((event.relatedSourceIDs ?? []) + (projection.relatedSourceIDs ?? []))).sorted()
+        return result
     }
     func approve(_ event: AcademicEvent) {
         guard event.date != nil else { editor = event; return }
@@ -213,7 +226,15 @@ import UniformTypeIdentifiers
         archive.courses.append(Course(id: id, name: name, code: name, color: archive.courses.count % 4)); save(); return id
     }
     func ingest(_ source: SourceDocument, navigate: Bool = true) {
-        if !navigate, !source.hash.isEmpty, archive.sources.contains(where: { $0.id == source.id && $0.hash == source.hash && $0.remoteRevision == source.remoteRevision }) { return }
+        if !navigate, !source.hash.isEmpty, archive.sources.contains(where: {
+            $0.id == source.id && $0.hash == source.hash && $0.remoteRevision == source.remoteRevision &&
+            $0.publishedAt == source.publishedAt && $0.updatedAt == source.updatedAt &&
+            $0.effectiveDueAt == source.effectiveDueAt && $0.availableAt == source.availableAt &&
+            $0.meetingSchedule == source.meetingSchedule && $0.meetingScheduleComplete == source.meetingScheduleComplete && $0.teachingStartsAt == source.teachingStartsAt && $0.teachingEndsAt == source.teachingEndsAt
+        }) {
+            if let index = archive.sources.firstIndex(where: { $0.id == source.id }) { archive.sources[index].fetchedAt = source.fetchedAt }
+            return
+        }
         if let i = archive.sources.firstIndex(where: { $0.id == source.id }) {
             var refreshed = source
             // A refresh is not a new permission to upload an explicitly local import.
@@ -296,6 +317,8 @@ import UniformTypeIdentifiers
                     } catch is CancellationError { throw CancellationError() }
                     catch { materialWarnings.append(file.title + ": " + error.localizedDescription) }
                 }
+                await refreshOfficialSchedules(force: promptForSelection)
+                guard canvasGeneration == generation, canvasHost == host else { return }
                 archive.lastSync = .now
                 save()
                 var messages = result.warnings + materialWarnings

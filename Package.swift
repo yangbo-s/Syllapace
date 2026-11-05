@@ -4,6 +4,7 @@ let package = Package(name: "Syllapace", defaultLocalization: "en", platforms: [
     .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.1")
 ], targets: [
     .target(name: "SyllapaceKit", resources: [.process("Resources")]),
+    .executableTarget(name: "SyllapaceAudit", dependencies: ["SyllapaceKit"]),
     .executableTarget(name: "Syllapace", dependencies: ["SyllapaceKit", .product(name: "Sparkle", package: "Sparkle")],
                       swiftSettings: [.defaultIsolation(MainActor.self)],
                       linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]),

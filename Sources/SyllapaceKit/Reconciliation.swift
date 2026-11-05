@@ -34,6 +34,7 @@ public enum Reconciler {
                     self.replace(&result, at: index, with: retry, index: lookup)
                     continue
                 }
+                if current.id == observation.id, current.sourceID == nil { current.sourceID = observation.sourceID }
                 current.sourceSeriesID = observation.sourceSeriesID ?? current.sourceSeriesID
                 if !current.userEdited {
                     current.releasedAt = observation.releasedAt
@@ -128,7 +129,32 @@ public enum Reconciler {
                 result.append(candidate)
             }
         }
-        return result
+        return repairUneditedConflicts(existing: result)
+    }
+
+    /// Earlier imports could mark an added end time as a conflict, then record
+    /// that end as observed. Repeating the same sync could never clear it. Only
+    /// repair a proven completion of an already approved, untouched event.
+    public static func repairUneditedConflicts(existing: [AcademicEvent]) -> [AcademicEvent] {
+        existing.map { saved in
+            guard saved.state == .conflict, saved.wasApproved == true,
+                  !saved.userEdited, saved.importUndone != true, saved.curationExcluded != true,
+                  saved.curationVersion != nil, saved.sourceID != nil || saved.id.hasPrefix("canvas:"),
+                  let start = saved.date, !saved.dateOnly, saved.endsAt == nil,
+                  saved.proposedDate == start, saved.observedSourceDate == start,
+                  saved.proposedDateOnly == saved.dateOnly, saved.observedSourceDateOnly == saved.dateOnly,
+                  saved.proposedTimeZone == saved.timeZone, saved.observedSourceTimeZone == saved.timeZone,
+                  let end = saved.proposedEndsAt, end > start, saved.observedSourceEndsAt == end else { return saved }
+            var repaired = saved
+            repaired.endsAt = end
+            repaired.state = .approved
+            repaired.proposedDate = nil
+            repaired.proposedDateOnly = nil
+            repaired.proposedTimeZone = nil
+            repaired.proposedEndsAt = nil
+            repaired.revision += 1
+            return repaired
+        }
     }
 
     private static func replace(_ result: inout [AcademicEvent], at position: Int, with event: AcademicEvent, index: MergeIndex) {

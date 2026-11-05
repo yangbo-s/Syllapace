@@ -26,7 +26,7 @@ fi
 ./tools/build_workspace.sh
 
 mkdir -p .build/config .build/security .build/cache build
-xcrun swift build --config-path "$PWD/.build/config" --security-path "$PWD/.build/security" --cache-path "$PWD/.build/cache" -c "$config" --disable-sandbox
+xcrun swift build --product Syllapace --config-path "$PWD/.build/config" --security-path "$PWD/.build/security" --cache-path "$PWD/.build/cache" -c "$config" --disable-sandbox
 ./tools/make_icon.sh
 
 staging=$(mktemp -d "$PWD/build/.bundle.XXXXXX")

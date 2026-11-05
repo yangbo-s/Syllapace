@@ -21,6 +21,33 @@ enum Snapshot {
             guard let main = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) else { return }
             let originalFrame = main.frame
             defer { main.setFrame(originalFrame, display: false) }
+            if let input = ProcessInfo.processInfo.environment["APP_SNAPSHOT_INPUT"], input.hasPrefix("/tmp/") || input.hasPrefix("/private/tmp/") {
+                do { model.archive = try ArchiveStore(url: URL(fileURLWithPath: input)).load() }
+                catch { log("Capture failed: isolated course archive unavailable"); NSApp.terminate(nil); return }
+                model.cancelCuration(); model.workspaceRevision += 1
+                for dark in [false, true] {
+                    let mode = dark ? "dark" : "light"
+                    NSApp.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                    main.setContentSize(NSSize(width: 1320, height: 820))
+                    model.courseFilter = nil
+                    for view in WorkspaceViewMode.allCases {
+                        model.page = AppPage(view: view)
+                        await captureWorkspace(model: model, window: main, dark: dark, path: "\(dir)/courses-\(view.rawValue)-\(mode).png")
+                    }
+                    for course in model.scopedCourses {
+                        model.courseFilter = course.id; model.page = AppPage(view: .gantt)
+                        await captureWorkspace(model: model, window: main, dark: dark, path: "\(dir)/course-\(course.code)-\(mode).png")
+                    }
+                    model.courseFilter = nil; model.page = .review
+                    try? await Task.sleep(for: .milliseconds(600))
+                    await captureActive(main, path: "\(dir)/courses-review-\(mode).png")
+                    model.editor = model.archive.events.first { $0.sourceID?.hasPrefix("official:") == true }
+                    try? await Task.sleep(for: .milliseconds(600))
+                    if let sheet = main.attachedSheet { await captureActive(sheet, path: "\(dir)/courses-editor-\(mode).png") }
+                    model.editor = nil
+                }
+                log("SNAPSHOT done \(dir)"); NSApp.terminate(nil); return
+            }
             if ProcessInfo.processInfo.environment["APP_SNAPSHOT_ACTIVITY"] == "1" {
                 await captureActivity(model: model, window: main, directory: dir)
                 log("SNAPSHOT done \(dir)"); NSApp.terminate(nil); return

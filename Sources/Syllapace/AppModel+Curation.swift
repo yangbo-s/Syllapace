@@ -11,19 +11,33 @@ extension AppModel {
     var curationIssues: [(source: SourceDocument, message: String)] {
         curationSources.compactMap { source in
             let record = archive.curationRecords?[source.id]
-            let messages = (curationErrors[source.id] ?? record?.failure).map { [$0] } ?? record?.issues ?? []
+            let questions = CurationReviewPolicy.questions(source: source, record: record, events: archive.events,
+                hasWeeklySchedule: archive.sources.contains { $0.courseID == source.courseID && $0.meetingSchedule?.isEmpty == false })
+            let messages = LocalCurationRecovery.unresolvedIssues(questions, source: source, course: course(source.courseID), recoveredEvents: archive.events)
             return messages.isEmpty ? nil : (source, messages.joined(separator: "\n"))
         }
+    }
+    var curationFailures: [(source: SourceDocument, message: String)] {
+        curationSources.compactMap { source in
+            (curationErrors[source.id] ?? archive.curationRecords?[source.id]?.failure).map { (source, $0) }
+        }
+    }
+    func preparedCurationSource(_ source: SourceDocument) -> SourceDocument {
+        CurationContext.prepare(source: source, course: course(source.courseID), relatedSources: archive.sources)
     }
     var curationModelIdentity: String { [modelProvider.rawValue, modelEndpoint, modelName, modelWorkspaceID].joined(separator: "|") }
     func curationWindow(for source: SourceDocument) -> (start: Date?, end: Date?) {
         let owner = course(source.courseID)
+        if let verified = archive.sources.first(where: { $0.courseID == source.courseID && $0.meetingSchedule?.isEmpty == false }),
+           let start = verified.teachingStartsAt, let end = verified.teachingEndsAt {
+            return (start, end)
+        }
         // A term label such as Fall 2026 is not evidence of the first or last class.
         return (owner.startsAt ?? owner.term?.startAt, owner.endsAt ?? owner.term?.endAt)
     }
     func curationFingerprint(_ source: SourceDocument) -> String {
         let owner = course(source.courseID), window = curationWindow(for: source)
-        return EventCuration.fingerprint(source: source, modelIdentity: curationModelIdentity,
+        return EventCuration.fingerprint(source: preparedCurationSource(source), modelIdentity: curationModelIdentity,
             year: source.curationYear ?? owner.term?.academicYear ?? importYear, timeZone: source.curationTimeZone ?? owner.timeZone ?? TimeZone.current.identifier,
             termStart: window.start, termEnd: window.end, intent: source.curationIntent ?? "")
     }
@@ -33,8 +47,10 @@ extension AppModel {
     }
     func sourcesNeedingCuration(sourceIDs: Set<String>? = nil, force: Bool = false) -> [SourceDocument] {
         curationSources.filter { source in
+            source.meetingSchedule == nil &&
             (sourceIDs == nil || sourceIDs!.contains(source.id)) &&
             (force || source.localOnly != true) &&
+            (force || !source.id.contains(":calendar:") || !archive.events.contains { $0.id.hasPrefix("canvas:") && $0.courseID == source.courseID && ($0.sourceID == source.id || $0.id.hasSuffix(":calendar:" + (source.id.components(separatedBy: ":calendar:").last ?? ""))) && $0.date != nil && $0.category != nil }) &&
             (force || archive.curationRecords?[source.id]?.fingerprint != curationFingerprint(source))
         }
     }
@@ -78,7 +94,7 @@ extension AppModel {
                     let owner = course(source.courseID), window = curationWindow(for: source)
                     curationStatus = L10n.format("Organizing material %ld of %ld…", index + 1, sources.count)
                     do {
-                        let result = try await client.curate(source: source, year: source.curationYear ?? owner.term?.academicYear ?? importYear,
+                        let result = try await client.curate(source: preparedCurationSource(source), year: source.curationYear ?? owner.term?.academicYear ?? importYear,
                             timeZone: source.curationTimeZone ?? owner.timeZone ?? TimeZone.current.identifier, intent: source.curationIntent ?? "", termStart: window.start, termEnd: window.end)
                         try Task.checkCancellation()
                         guard generation == curationGeneration, modelIdentity == curationModelIdentity,
@@ -135,7 +151,8 @@ extension AppModel {
     func sanitizeLegacyData() {
         let before = archive
         for source in curationSources {
-            guard let record = archive.curationRecords?[source.id], record.fingerprint != curationFingerprint(source) else { continue }
+            guard preparedCurationSource(source).text == source.text,
+                  let record = archive.curationRecords?[source.id], record.fingerprint != curationFingerprint(source) else { continue }
             let owner = course(source.courseID), window = curationWindow(for: source)
             if [1, 2].contains(where: { version in
                 record.fingerprint == EventCuration.legacyFingerprint(source: source, version: version, modelIdentity: curationModelIdentity,
@@ -148,6 +165,7 @@ extension AppModel {
             }
         }
         archive.events = EventCuration.sanitizeLegacyEvents(existing: archive.events, courseIDs: scopedCourseIDs).events
+        archive.events = Reconciler.repairUneditedConflicts(existing: archive.events)
         restoreLocalSchedules()
         guard before.events != archive.events || before.curationRecords != archive.curationRecords else { return }
         guard save() else { archive = before; return }
@@ -156,7 +174,14 @@ extension AppModel {
         notice = L10n.string("Course dates organized. You can undo this reorganization.")
     }
     func restoreLocalSchedules() {
+        archive.events = LocalCurationRecovery.restore(existing: archive.events, sources: curationSources, courses: scopedCourses)
         for source in curationSources {
+            if let schedule = source.meetingSchedule {
+                archive.events = Reconciler.merge(existing: archive.events, incoming: schedule)
+                continue
+            }
+            // The official teaching-date calendar already excludes breaks and exams.
+            if archive.sources.contains(where: { $0.courseID == source.courseID && $0.meetingSchedule?.isEmpty == false }) { continue }
             let owner = course(source.courseID), window = curationWindow(for: source)
             let meetings = WeeklySchedule.extract(source: source, year: owner.term?.academicYear ?? importYear,
                 timeZone: source.curationTimeZone ?? owner.timeZone ?? TimeZone.current.identifier, termStart: window.start, termEnd: window.end)

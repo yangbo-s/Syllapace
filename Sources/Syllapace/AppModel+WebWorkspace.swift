@@ -7,9 +7,10 @@ extension AppModel {
         let generated = event.id.hasPrefix("document-") || event.id.hasPrefix("model:")
         return !generated || event.userEdited || event.curationVersion != nil
     }
-    var presentationEvents: [AcademicEvent] { scopedEvents.filter { $0.academicCalendarID == nil && canPresent($0) } }
+    var projectedEvents: [AcademicEvent] { CourseScheduleProjection.project(events: scopedEvents, sources: archive.sources, courses: scopedCourses) }
+    var presentationEvents: [AcademicEvent] { projectedEvents.filter { $0.academicCalendarID == nil && canPresent($0) } }
     var publishableEvents: [AcademicEvent] {
-        scopedEvents.map { event in
+        CourseScheduleProjection.publication(events: scopedEvents, sources: archive.sources, courses: scopedCourses).map { event in
             guard event.academicCalendarID == nil, !event.userEdited else { return event }
             var guarded = event
             if event.category == nil { guarded.state = .rejected }
@@ -18,7 +19,7 @@ extension AppModel {
         }
     }
     var workspaceEvents: [AcademicEvent] {
-        scopedEvents.filter { event in
+        projectedEvents.filter { event in
             guard event.state == .approved || (event.state == .conflict && event.wasApproved == true),
                   courseFilter == nil || event.courseID == courseFilter else { return false }
             if let academicCalendarFilter { return event.academicCalendarID == academicCalendarFilter }
@@ -88,7 +89,7 @@ extension AppModel {
             guard commit(item) else { return failure("Could not save changes. Try again.") }
         case .openEditor(let id):
             guard let item = event(id) else { return failure("This event is no longer available.") }
-            editor = item
+            editor = archive.events.first { $0.id == item.id } ?? item
         case .openSource(let id):
             guard let item = event(id), let raw = item.sourceURL, let url = URL(string: raw), let safe = WorkspaceNavigation.externalURL(url) else { return failure("No web source is available for this event.") }
             NSWorkspace.shared.open(safe)
