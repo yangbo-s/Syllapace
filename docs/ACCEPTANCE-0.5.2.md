@@ -51,4 +51,10 @@
 
 证据评分 **92/100**：需求 23/25、正确性 24/25、测试 17/20、架构 9/10、代码 9/10、文档交付 10/10。扣分来自真实模型调用待明确授权、公开课表适配范围与仍需原始资料确认的任务日期；不据此扩大为通用浏览代理或猜测缺失值。
 
-版本 **0.5.2 / build 9**。最终候选为 `build/releases/0.5.2-final/`，已通过签名、arm64、版本、ZIP 内嵌公钥更新签名、解压应用签名和 DMG 完整性校验。公开回读与安装指纹核对将在发布后补充。
+版本 **0.5.2 / build 9**，源码与 tag `v0.5.2` 对应 `4f8a34e`。最终候选为 `build/releases/0.5.2-final/`，已通过签名、arm64、版本、ZIP 内嵌公钥更新签名、解压应用签名和 DMG 完整性校验。
+
+[GitHub Release](https://github.com/yangbo-s/Syllapace/releases/tag/v0.5.2) 于 2026-11-05 09:03:31 UTC 公开并设为 latest。草稿四个附件的状态、长度与服务器 SHA-256 均匹配最终候选；公开后重新下载四个附件，哈希与本地一致，重验更新签名、ZIP 应用签名、DMG 完整性及只读挂载后的实际可执行文件。固定 latest appcast 与版本附件逐字节一致。证据：`draft-verification.json`、`public-verification.log`、`public-verification.json`。
+
+公开 DMG SHA-256：`1fafe57036b515f4a515e006a6f9a74543adea7fd2752b28ecbf7558bada6088`；ZIP SHA-256：`843202eac91abe68df0b218d813ef342b41470a75082ee881fa6bc2685b3b8da`。
+
+发布前后只读核对本机应用均为 **0.5.1 / build 8**，可执行文件 SHA-256 不变。未执行本机跨版本安装；用户可自行通过应用内“检查更新”验证。任务专用临时目录中的真实资料、凭据副本和预览 archive 已清理；本机忽略目录仅保留验收记录与窗口证据，不上传私人内容。
