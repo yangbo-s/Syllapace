@@ -28,6 +28,9 @@ enum DemoData {
         archive.events.append(AcademicEvent(id: "demo-quiz", courseID: "canvas:demo:course:ml", title: "Neural networks quiz", kind: .quiz, date: date(3, 16), dateOnly: false, state: .approved, evidence: "Complete the practice quiz before Friday's class.", submission: SubmissionStatus(state: "unsubmitted")))
         archive.events.append(AcademicEvent(id: "demo-history", courseID: "canvas:demo:course:history", title: "Archived seminar essay", date: date(-180), state: .pending))
         archive.sources.append(SourceDocument(id: "demo-announcement", courseID: "canvas:demo:course:design", title: "Week 11 schedule", text: "The studio critique is now in Studio 204. See the weekly schedule for preparation details.", hash: "demo-announcement", kind: .announcement, links: [SourceLink(url: "https://docs.google.com/spreadsheets/d/example/edit#gid=0", title: "Weekly schedule", kind: "external")]))
+        archive.courseAppearances = ["canvas:demo:course:design": CourseAppearance(mode: .custom, alias: "Interaction Design")]
+        archive.academicCalendars = [AcademicCalendarSubscription(id: "demo-school", name: "CMU Academic Calendar", url: AcademicCalendarPreset.cmu.feedURL, termID: term.id)]
+        archive.events.append(AcademicEvent(id: "demo-school-event", courseID: "", title: "Registration opens", kind: .academic, date: date(5, 0), state: .approved, academicCalendarID: "demo-school"))
         archive.lastSync = .now
         return archive
     }

@@ -10,7 +10,7 @@ import SyllapaceKit
             ContentView(model: model)
                 .environment(\.locale, L10n.locale)
                 .task { updater.startIfNeeded() }
-                .onOpenURL { url in if url.scheme == "syllapace", url.host == "event" { model.page = .timeline; model.selectedID = url.lastPathComponent } }
+                .onOpenURL { url in if url.scheme == "syllapace", url.host == "event" { model.page = .timeline; model.selectedID = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "id" }?.value ?? url.lastPathComponent } }
         }.defaultSize(width: 1120, height: 760)
         .commands {
             CommandGroup(after: .appInfo) {
@@ -19,7 +19,7 @@ import SyllapaceKit
             }
             CommandGroup(replacing: .newItem) {
                 Button(L10n.string("New Event")) { model.newEvent() }.keyboardShortcut("n")
-                Button(L10n.string("Import Syllabus…")) { model.showImport = true }.keyboardShortcut("o")
+                Button(L10n.string("Add material…")) { model.showImport = true }.keyboardShortcut("o")
                 Button(L10n.string("Export Calendar…")) { model.exportICS() }.keyboardShortcut("e", modifiers: [.command, .shift])
             }
             CommandMenu(L10n.string("Sync")) {

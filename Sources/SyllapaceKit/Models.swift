@@ -1,6 +1,6 @@
 import Foundation
 
-public enum EventKind: String, Codable, Sendable, CaseIterable { case session, assignment, project, quiz, exam, presentation, other }
+public enum EventKind: String, Codable, Sendable, CaseIterable { case session, assignment, project, quiz, exam, presentation, academic, holiday, other }
 public enum ReviewState: String, Codable, Sendable { case pending, approved, rejected, conflict }
 public struct AcademicTerm: Identifiable, Codable, Sendable, Equatable {
     public var id: String
@@ -66,15 +66,17 @@ public struct SourceDocument: Identifiable, Codable, Sendable, Equatable {
     public var hash: String
     public var fetchedAt: Date
     public var kind: SourceKind?
+    public var academicCalendarID: String?
     public var links: [SourceLink]?
-    public init(id: String = UUID().uuidString, courseID: String, title: String, text: String, url: String? = nil, hash: String = "", fetchedAt: Date = .now, kind: SourceKind? = nil, links: [SourceLink]? = nil) {
+    public init(id: String = UUID().uuidString, courseID: String, title: String, text: String, url: String? = nil, hash: String = "", fetchedAt: Date = .now, kind: SourceKind? = nil, links: [SourceLink]? = nil, academicCalendarID: String? = nil) {
         self.id = id; self.courseID = courseID; self.title = title; self.text = text; self.url = url; self.hash = hash; self.fetchedAt = fetchedAt
-        self.kind = kind; self.links = links
+        self.kind = kind; self.links = links; self.academicCalendarID = academicCalendarID
     }
 }
 public struct AcademicEvent: Identifiable, Codable, Sendable, Equatable {
     public var id: String
     public var courseID: String
+    public var academicCalendarID: String?
     public var title: String
     public var kind: EventKind
     public var date: Date?
@@ -83,10 +85,12 @@ public struct AcademicEvent: Identifiable, Codable, Sendable, Equatable {
     public var wasApproved: Bool?
     public var state: ReviewState
     public var sourceID: String?
+    public var sourceSeriesID: String?
     public var evidence: String
     public var sourceURL: String?
     public var userEdited: Bool
     public var completed: Bool
+    public var importUndone: Bool?
     public var observedSourceDateOnly: Bool?
     public var observedSourceTimeZone: String?
     public var proposedDateOnly: Bool?
@@ -100,17 +104,22 @@ public struct AcademicEvent: Identifiable, Codable, Sendable, Equatable {
     public var submission: SubmissionStatus?
     public var observedSourceEndsAt: Date?
     public var proposedEndsAt: Date?
-    public init(id: String = UUID().uuidString, courseID: String, title: String, kind: EventKind = .assignment, date: Date? = nil, dateOnly: Bool = true, timeZone: String = TimeZone.current.identifier, state: ReviewState = .pending, sourceID: String? = nil, evidence: String = "", sourceURL: String? = nil, userEdited: Bool = false, completed: Bool = false, observedSourceDate: Date? = nil, previousDate: Date? = nil, proposedDate: Date? = nil, revision: Int = 0, observedSourceDateOnly: Bool? = nil, observedSourceTimeZone: String? = nil, proposedDateOnly: Bool? = nil, proposedTimeZone: String? = nil, endsAt: Date? = nil, location: String? = nil, submission: SubmissionStatus? = nil) {
+    public init(id: String = UUID().uuidString, courseID: String, title: String, kind: EventKind = .assignment, date: Date? = nil, dateOnly: Bool = true, timeZone: String = TimeZone.current.identifier, state: ReviewState = .pending, sourceID: String? = nil, evidence: String = "", sourceURL: String? = nil, userEdited: Bool = false, completed: Bool = false, observedSourceDate: Date? = nil, previousDate: Date? = nil, proposedDate: Date? = nil, revision: Int = 0, observedSourceDateOnly: Bool? = nil, observedSourceTimeZone: String? = nil, proposedDateOnly: Bool? = nil, proposedTimeZone: String? = nil, endsAt: Date? = nil, location: String? = nil, submission: SubmissionStatus? = nil, academicCalendarID: String? = nil, sourceSeriesID: String? = nil) {
         self.observedSourceDateOnly = observedSourceDateOnly ?? dateOnly; self.observedSourceTimeZone = observedSourceTimeZone ?? timeZone; self.proposedDateOnly = proposedDateOnly; self.proposedTimeZone = proposedTimeZone; self.id = id; self.courseID = courseID; self.title = title; self.kind = kind; self.date = date; self.dateOnly = dateOnly; self.timeZone = timeZone; self.state = state; self.wasApproved = state == .approved; self.sourceID = sourceID; self.evidence = evidence; self.sourceURL = sourceURL; self.userEdited = userEdited; self.completed = completed; self.observedSourceDate = observedSourceDate ?? date; self.previousDate = previousDate; self.proposedDate = proposedDate; self.revision = revision
+        self.academicCalendarID = academicCalendarID
+        self.sourceSeriesID = sourceSeriesID
         self.endsAt = endsAt; self.location = location; self.submission = submission; self.observedSourceEndsAt = endsAt
     }
 }
 public struct AppArchive: Codable, Sendable {
-    public var schemaVersion: Int = 2
+    public var schemaVersion: Int = 3
     public var courses: [Course] = []
     public var events: [AcademicEvent] = []
     public var sources: [SourceDocument] = []
     public var lastSync: Date?
     public var canvasSelection: CanvasSelection?
+    public var courseDisplayMode: CourseDisplayMode?
+    public var courseAppearances: [String: CourseAppearance]?
+    public var academicCalendars: [AcademicCalendarSubscription]?
     public init() {}
 }

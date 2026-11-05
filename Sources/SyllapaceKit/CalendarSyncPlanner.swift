@@ -29,7 +29,11 @@ public struct CalendarEventPayload: Codable, Sendable, Equatable {
             guard let localStart = localCalendar.date(from: components),
                   let following = localCalendar.date(byAdding: .day, value: 1, to: localStart) else { return nil }
             start = localStart
-            end = following
+            if let sourceEnd = event.endsAt, sourceEnd > date {
+                let endComponents = sourceCalendar.dateComponents([.year, .month, .day], from: sourceEnd)
+                guard let localEnd = localCalendar.date(from: endComponents), localEnd > localStart else { return nil }
+                end = localEnd
+            } else { end = following }
             timeZone = calendarTimeZone.identifier
         } else {
             start = date

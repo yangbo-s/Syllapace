@@ -6,7 +6,7 @@ public enum DocumentError: LocalizedError, Sendable {
     case unsupported, tooLarge, unreadable, noText, invalidDocument
     public var errorDescription: String? {
         switch self {
-        case .unsupported: L10n.string("Choose a PDF, DOCX, TXT, Markdown, or HTML document.")
+        case .unsupported: L10n.string("Choose a PDF, DOCX, XLSX, CSV, TXT, Markdown, or HTML document.")
         case .tooLarge: L10n.string("This document exceeds the import limit (20 MB, 150 PDF pages, or 2 MB of text).")
         case .unreadable: L10n.string("The document could not be read. Check its permissions and try again.")
         case .noText: L10n.string("No selectable text was found. Scanned documents need OCR before importing.")
@@ -45,6 +45,8 @@ public enum DocumentReader {
                 }
             }
             text = pages.joined(separator: "\n\n")
+        case "xlsx":
+            text = try SpreadsheetReader.read(url: url)
         case "docx":
             guard data.starts(with: [0x50, 0x4b]) else { throw DocumentError.invalidDocument }
             let xml = try extractDOCX(url: url)
@@ -55,7 +57,7 @@ public enum DocumentReader {
             parser.delegate = delegate
             guard parser.parse(), !delegate.exceeded else { throw DocumentError.invalidDocument }
             text = delegate.text
-        case "txt", "md", "markdown", "html", "htm":
+        case "txt", "csv", "md", "markdown", "html", "htm":
             guard data.count <= maxTextBytes else { throw DocumentError.tooLarge }
             guard let raw = String(data: data, encoding: .utf8) else { throw DocumentError.unreadable }
             if ["html", "htm"].contains(url.pathExtension.lowercased()) {

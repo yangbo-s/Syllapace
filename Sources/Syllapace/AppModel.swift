@@ -8,12 +8,21 @@ import UniformTypeIdentifiers
     var page: AppPage = .today
     var selectedID: String?
     var courseFilter: String?
+    var academicCalendarFilter: String?
+    var editingCourse: Course?
+    var importCalendarID: String?
+    var importURL = ""
+    var importFixtureMode: Int?
+    var modelProvider = ModelProvider(rawValue: UserDefaults.standard.string(forKey: "modelProvider") ?? "custom") ?? .custom
+    var modelWorkspaceID = UserDefaults.standard.string(forKey: "modelWorkspaceID") ?? ""
     var search = ""
     var busy = false
     var notice: String?
     var error: String?
     var editor: AcademicEvent?
     var showImport = false
+    var calendarStatus: [String: String] = [:]
+    var lastImportUndo: ImportUndo?
     var readingSource: SourceDocument?
     var showCourseSelection = false
     var draftTermID: String?
@@ -24,6 +33,7 @@ import UniformTypeIdentifiers
     var importYear = Calendar.current.component(.year, from: .now)
     var remoteFiles: [CanvasFile] = []
     var settingsTab = 3
+    var showSchoolSearch = false
     var canvasAutoSync = UserDefaults.standard.bool(forKey: "canvasAutoSync")
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
     var calendarAutoSync = UserDefaults.standard.bool(forKey: "calendarAutoSync")
@@ -45,8 +55,8 @@ import UniformTypeIdentifiers
         archive.courses.filter { !$0.isCanvas || archive.canvasSelection?.includes($0) == true }
     }
     var scopedCourseIDs: Set<String> { Set(scopedCourses.map(\.id)) }
-    var scopedEvents: [AcademicEvent] { let ids = scopedCourseIDs; return archive.events.filter { ids.contains($0.courseID) } }
-    var scopedSources: [SourceDocument] { let ids = scopedCourseIDs; return archive.sources.filter { ids.contains($0.courseID) && (courseFilter == nil || $0.courseID == courseFilter) } }
+    var scopedEvents: [AcademicEvent] { archive.events.filter { isInScope(courseID: $0.courseID, calendarID: $0.academicCalendarID) && academicDateIsVisible($0) } }
+    var scopedSources: [SourceDocument] { archive.sources.filter { isInScope(courseID: $0.courseID, calendarID: $0.academicCalendarID) && (courseFilter == nil || $0.courseID == courseFilter) && (academicCalendarFilter == nil || $0.academicCalendarID == academicCalendarFilter) } }
     var scopedRemoteFiles: [CanvasFile] { let ids = scopedCourseIDs; return remoteFiles.filter { ids.contains($0.courseID) && (courseFilter == nil || $0.courseID == courseFilter) } }
     var selectedEvent: AcademicEvent? { scopedEvents.first { $0.id == selectedID } }
     var pendingCount: Int { scopedEvents.filter { $0.state == .pending || $0.state == .conflict }.count }
@@ -72,8 +82,9 @@ import UniformTypeIdentifiers
     var events: [AcademicEvent] {
         scopedEvents.filter { e in
             (courseFilter == nil || e.courseID == courseFilter) &&
+            (academicCalendarFilter == nil || e.academicCalendarID == academicCalendarFilter) &&
             (kindFilter == nil || e.kind == kindFilter) &&
-            (search.isEmpty || e.title.localizedCaseInsensitiveContains(search) || course(e.courseID).localizedName.localizedCaseInsensitiveContains(search)) &&
+            (search.isEmpty || e.title.localizedCaseInsensitiveContains(search) || eventSearchText(e).localizedCaseInsensitiveContains(search)) &&
             (page == .review ? (e.state == .pending || e.state == .conflict) : (e.state == .approved || (e.state == .conflict && e.wasApproved == true))) &&
             (page != .today || (!e.completed && (e.presentationDate.map { $0 >= Calendar.current.startOfDay(for: .now) && $0 < Calendar.current.date(byAdding: .day, value: 8, to: .now)! } ?? false)))
         }.sorted { ($0.presentationDate ?? .distantFuture) < ($1.presentationDate ?? .distantFuture) }
@@ -95,9 +106,9 @@ import UniformTypeIdentifiers
         if archive.courses.isEmpty { archive.courses = [Course(id: "personal", name: "Personal", code: "Personal")] }
     }
     func course(_ id: String) -> Course { archive.courses.first { $0.id == id } ?? Course(id: id, name: L10n.string("Imported course"), code: L10n.string("Course")) }
-    func save() {
-        guard !isDemo else { return }
-        do { try store.save(archive); scheduleCalendarSync() } catch { self.error = L10n.format("Could not save changes. %@", error.localizedDescription) }
+    @discardableResult func save() -> Bool {
+        guard !isDemo else { return true }
+        do { try store.save(archive); scheduleCalendarSync(); return true } catch { self.error = L10n.format("Could not save changes. %@", error.localizedDescription); return false }
     }
     func startRefreshLoop() {
         guard refreshTask == nil, !isDemo else { return }
@@ -106,7 +117,8 @@ import UniformTypeIdentifiers
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(600)) } catch { return }
                 guard let self else { return }
-                if self.canvasAutoSync && !self.canvasHost.isEmpty { self.syncCanvas(promptForSelection: false) }
+                if !self.busy, let due = self.scopedAcademicCalendars.first(where: { !$0.url.isEmpty && ($0.lastFetchedAt ?? .distantPast) < Date.now.addingTimeInterval(-6 * 3600) }) { self.syncAcademicCalendar(due) }
+                else if self.canvasAutoSync && !self.canvasHost.isEmpty { self.syncCanvas(promptForSelection: false) }
             }
         }
     }
@@ -116,7 +128,7 @@ import UniformTypeIdentifiers
         tokenRenewal.start(host: canvasHost, account: canvasCredentialAccount, force: force)
     }
     func resolveCalendar(_ event: AcademicEvent) {
-        guard !busy, !isDemo, scopedCourseIDs.contains(event.courseID) else { return }; busy = true
+        guard !busy, !isDemo, isInScope(courseID: event.courseID, calendarID: event.academicCalendarID) else { return }; busy = true
         Task {
             defer { busy = false }
             do { notice = try await calendar.resolveUsingApp(event: event) }
@@ -134,6 +146,8 @@ import UniformTypeIdentifiers
         }
     }
     func update(_ event: AcademicEvent) {
+        var event = event
+        event.importUndone = nil
         if let i = archive.events.firstIndex(where: { $0.id == event.id }) { archive.events[i] = event } else { archive.events.append(event) }
         selectedID = event.id
         save()
@@ -146,7 +160,7 @@ import UniformTypeIdentifiers
     }
     func reject(_ event: AcademicEvent) { var e = event; e.state = .rejected; update(e) }
     func toggleComplete(_ event: AcademicEvent) { var e = event; e.completed.toggle(); update(e) }
-    func newEvent() { editor = AcademicEvent(courseID: courseFilter ?? scopedCourses.first?.id ?? "personal", title: "", date: Calendar.current.startOfDay(for: .now), state: .approved, evidence: "Added manually") }
+    func newEvent() { editor = AcademicEvent(courseID: academicCalendarFilter != nil ? "" : courseFilter ?? scopedCourses.first?.id ?? "personal", title: "", date: Calendar.current.startOfDay(for: .now), state: .approved, evidence: "Added manually", academicCalendarID: academicCalendarFilter) }
     func showDesktop() {
         if panel == nil { panel = DesktopPanel(model: self) }
         panel?.toggle()
@@ -273,7 +287,7 @@ import UniformTypeIdentifiers
     func applyCanvasSelection(sync: Bool = true) {
         guard !busy else { return }
         archive.canvasSelection = CanvasSelection(termID: draftTermID, courseIDs: draftCourseIDs.intersection(Set(canvasCourses.map(\.id))))
-        selectedID = nil; courseFilter = nil; kindFilter = nil; search = ""
+        selectedID = nil; courseFilter = nil; academicCalendarFilter = nil; kindFilter = nil; search = ""
         if let year = availableTerms.first(where: { $0.id == draftTermID })?.academicYear { importYear = year }
         showCourseSelection = false
         save()
@@ -315,19 +329,20 @@ import UniformTypeIdentifiers
         }
     }
     func extractAI(_ source: SourceDocument) {
-        guard !busy, scopedCourseIDs.contains(source.courseID) else { return }
+        guard !busy, isInScope(courseID: source.courseID, calendarID: source.academicCalendarID) else { return }
         let endpoint = modelEndpoint, name = modelName, account = modelCredentialAccount
+        let provider = modelProvider, workspace = modelWorkspaceID
         let year = course(source.courseID).term?.academicYear ?? importYear
-        let zone = course(source.courseID).timeZone ?? TimeZone.current.identifier
+        let zone = source.academicCalendarID.flatMap { id in archive.academicCalendars?.first { $0.id == id }?.timeZone } ?? course(source.courseID).timeZone ?? TimeZone.current.identifier
         busy = true
         Task {
             defer { busy = false }
             do {
                 guard !isDemo else { throw AppError.message(L10n.string("AI requests are disabled in demo mode.")) }
                 guard let key = try await CredentialStore.readAsync(account), !key.isEmpty else { throw AppError.message(L10n.string("Configure your model and API key in Settings first.")) }
-                guard endpoint == modelEndpoint, name == modelName, account == modelCredentialAccount else { return }
-                let candidates = try await LLMClient(endpoint: endpoint, key: key, model: name).extract(source: source, year: year, timeZone: zone)
-                guard endpoint == modelEndpoint, name == modelName, scopedCourseIDs.contains(source.courseID) else { return }
+                guard endpoint == modelEndpoint, name == modelName, account == modelCredentialAccount, provider == modelProvider, workspace == modelWorkspaceID else { return }
+                let candidates = try await LLMClient(endpoint: endpoint, key: key, model: name, provider: provider, workspaceID: workspace.isEmpty ? nil : workspace).extract(source: source, year: year, timeZone: zone)
+                guard endpoint == modelEndpoint, name == modelName, provider == modelProvider, workspace == modelWorkspaceID, isInScope(courseID: source.courseID, calendarID: source.academicCalendarID) else { return }
                 archive.events = Reconciler.merge(existing: archive.events, incoming: candidates)
                 save(); page = .review; notice = L10n.format("AI candidates ready to review: %ld.", candidates.count)
             } catch { self.error = error.localizedDescription }
@@ -344,7 +359,7 @@ import UniformTypeIdentifiers
     func exportICS() {
         let picker = NSSavePanel(); picker.nameFieldStringValue = "Syllapace.ics"; picker.allowedContentTypes = [UTType(filenameExtension: "ics") ?? .plainText]
         guard picker.runModal() == .OK, let url = picker.url else { return }
-        do { try ICSExporter.export(events: scopedEvents, courses: scopedCourses).write(to: url, atomically: true, encoding: .utf8); notice = L10n.string("Calendar exported.") }
+        do { try ICSExporter.export(events: scopedEvents, courses: scopedCourses, calendars: scopedAcademicCalendars).write(to: url, atomically: true, encoding: .utf8); notice = L10n.string("Calendar exported.") }
         catch { self.error = error.localizedDescription }
     }
 }

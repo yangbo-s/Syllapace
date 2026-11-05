@@ -68,6 +68,32 @@ enum SelfTest {
         check(!model.busy && model.notice == priorNotice && model.error == priorError,
               "Calendar conflict resolution ignores events outside the selected scope")
         do { let restored = try model.store.load(); check(restored.canvasSelection == model.archive.canvasSelection, "Course selection survives reload") } catch { fail(error.localizedDescription) }
+        model.archive.courseDisplayMode = .codeAndName
+        model.saveAppearance(CourseAppearance(mode: .custom, alias: "My systems"), for: fallCourse.id)
+        check(model.courseTitle(fallCourse) == "My systems", "Course alias overrides the global display mode")
+        let school = AcademicCalendarSubscription(id: "school-fall", name: "School calendar", url: "", termID: fall.id)
+        model.saveAcademicCalendar(school)
+        let schoolEvent = AcademicEvent(id: "school-event", courseID: "", title: "Reading day", kind: .academic, date: .now, state: .approved, academicCalendarID: school.id)
+        model.archive.events.append(schoolEvent)
+        check(!model.scopedEvents.contains { $0.id == schoolEvent.id }, "School dates respect semester selection")
+        model.prepareCourseSelection(termID: fall.id); model.applyCanvasSelection(sync: false)
+        check(model.scopedEvents.contains { $0.id == schoolEvent.id } && model.eventOwnerName(schoolEvent) == school.name, "School calendar is a separate visible owner")
+        let importedSource = SourceDocument(id: "preview-source", courseID: courseID, title: "Pasted schedule", text: "Exam November 19, 2026")
+        let importedEvent = AcademicEvent(id: "preview-event", courseID: courseID, title: "Exam", kind: .exam, date: .now, sourceID: importedSource.id)
+        let draft = MaterialImportDraft(); draft.sources = [importedSource]; draft.candidates = [importedEvent]; draft.selected = [importedEvent.id]
+        draft.baseline = model.archive.events; draft.sourceBaseline = model.archive.sources
+        check(draft.commit(model: model) && model.archive.events.contains { $0.id == importedEvent.id && $0.state == .approved }, "Preview commits selected dated events in one operation")
+        model.undoImport()
+        check(model.archive.events.contains { $0.id == importedEvent.id && $0.state == .rejected }, "Undo retains a rejection for safe Calendar cleanup")
+        if var undone = model.archive.events.first(where: { $0.id == importedEvent.id }) {
+            undone.state = .approved; model.update(undone)
+            check(model.archive.events.first(where: { $0.id == importedEvent.id })?.importUndone == nil, "A manual decision clears the temporary undo marker")
+        }
+        draft.baseline = []; check(!draft.commit(model: model), "Stale previews cannot overwrite a changed timeline")
+        let desktopPreferences = DesktopCardPreferences(persists: false)
+        desktopPreferences.mode = .expanded; desktopPreferences.pinned = true; desktopPreferences.locked = true
+        check(desktopPreferences.mode == .expanded && desktopPreferences.pinned && desktopPreferences.locked && desktopPreferences.savedFrame == nil, "Desktop mode and controls support isolated preferences")
+        do { let restored = try model.store.load(); check(restored.courseAppearances?[fallCourse.id]?.alias == "My systems" && restored.academicCalendars?.first?.id == school.id, "Customization and school calendars survive reload") } catch { fail(error.localizedDescription) }
         Snapshot.log("SELFTEST complete")
         NSApp.terminate(nil)
     }

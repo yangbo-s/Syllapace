@@ -81,6 +81,6 @@ struct CourseScopeView: View {
                 }
                 if course.name != course.code { Text(course.name).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
             }.frame(maxWidth: .infinity, alignment: .leading)
-        }.toggleStyle(.checkbox).disabled(model.busy).padding(.vertical, 12)
+        }.toggleStyle(.checkbox).tint(Palette.actionAccent).disabled(model.busy).padding(.vertical, 12)
     }
 }

@@ -16,6 +16,20 @@ enum Snapshot {
             guard let main = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) else { return }
             let originalFrame = main.frame
             defer { main.setFrame(originalFrame, display: false) }
+            if ProcessInfo.processInfo.environment["APP_SNAPSHOT_CONTROLS"] == "1" {
+                for dark in [false, true] {
+                    NSApp.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                    for width in [940, 1120] {
+                        main.setContentSize(NSSize(width: width, height: 760))
+                        model.prepareCourseSelection(termID: model.archive.canvasSelection?.termID)
+                        try? await Task.sleep(for: .milliseconds(700))
+                        if let sheet = main.attachedSheet { await captureActive(sheet, path: "\(dir)/course-scope-\(width)-\(dark ? "dark" : "light").png") }
+                        model.showCourseSelection = false
+                        try? await Task.sleep(for: .milliseconds(500))
+                    }
+                }
+                log("SNAPSHOT done \(dir)"); NSApp.terminate(nil); return
+            }
             if ProcessInfo.processInfo.environment["APP_SNAPSHOT_EMPTY"] == "1" {
                 await captureEmptyStates(model: model, window: main, directory: dir, openSettings: openSettings)
                 log("SNAPSHOT done \(dir)")
@@ -50,6 +64,19 @@ enum Snapshot {
                 if let sheet = main.attachedSheet { await captureActive(sheet, path: "\(dir)/import-\(mode).png") }
                 model.showImport = false
                 try? await Task.sleep(for: .milliseconds(400))
+                for fixture in 1...3 {
+                    model.importFixtureMode = fixture; model.showImport = true
+                    try? await Task.sleep(for: .milliseconds(600))
+                    if let sheet = main.attachedSheet { await captureActive(sheet, path: "\(dir)/import-\(fixture)-\(mode).png") }
+                    model.showImport = false
+                    try? await Task.sleep(for: .milliseconds(400))
+                }
+                model.importFixtureMode = nil
+                model.editingCourse = model.scopedCourses.first
+                try? await Task.sleep(for: .milliseconds(600))
+                if let sheet = main.attachedSheet { await captureActive(sheet, path: "\(dir)/course-display-\(mode).png") }
+                model.editingCourse = nil
+                try? await Task.sleep(for: .milliseconds(400))
                 model.readingSource = model.archive.sources.first { $0.kind == .announcement }
                 try? await Task.sleep(for: .milliseconds(600))
                 if let sheet = main.attachedSheet { await captureActive(sheet, path: "\(dir)/source-reader-\(mode).png") }
@@ -69,18 +96,25 @@ enum Snapshot {
                 try? await Task.sleep(for: .milliseconds(500))
                 model.showDesktop()
                 try? await Task.sleep(for: .milliseconds(300))
-                if let panel = model.panel { panel.level = .floating; panel.makeKeyAndOrderFront(nil); await captureActive(panel, path: "\(dir)/desktop-\(mode).png"); panel.orderOut(nil) }
+                if let panel = model.panel { panel.setMode(.compact); panel.level = .floating; panel.makeKeyAndOrderFront(nil); await captureActive(panel, path: "\(dir)/desktop-\(mode).png"); panel.setMode(.expanded); panel.level = .floating; await captureActive(panel, path: "\(dir)/desktop-expanded-\(mode).png"); panel.orderOut(nil) }
                 main.makeKeyAndOrderFront(nil)
                 if let settingsWindow { settingsWindow.makeKeyAndOrderFront(nil) }
                 else { openSettings() }
                 try? await Task.sleep(for: .milliseconds(1600))
                 if let settings = settingsWindow ?? NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain && $0 !== main && !($0 is NSPanel) }) {
                     settingsWindow = settings
-                    for tab in [3, 0, 1, 2] {
+                    for tab in [3, 0, 1, 4, 2] {
                         model.settingsTab = tab
                         settings.makeKeyAndOrderFront(nil)
                         try? await Task.sleep(for: .milliseconds(500))
                         await captureActive(settings, path: "\(dir)/settings-\(tab)-\(mode).png")
+                        if tab == 0 {
+                            model.showSchoolSearch = true
+                            try? await Task.sleep(for: .milliseconds(600))
+                            if let sheet = settings.attachedSheet { await captureActive(sheet, path: "\(dir)/school-search-\(mode).png") }
+                            model.showSchoolSearch = false
+                            try? await Task.sleep(for: .milliseconds(400))
+                        }
                     }
                     settings.orderOut(nil)
                 }

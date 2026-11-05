@@ -29,18 +29,18 @@ public struct ArchiveStore: Sendable {
         let version: Int
         do { version = try JSONDecoder().decode(Version.self, from: data).schemaVersion }
         catch { throw ArchiveError.corrupt(backupAvailable: FileManager.default.fileExists(atPath: backupURL.path)) }
-        guard (1...2).contains(version) else { throw ArchiveError.unsupportedVersion(version) }
+        guard (1...3).contains(version) else { throw ArchiveError.unsupportedVersion(version) }
         var archive: AppArchive
         do { archive = try JSONDecoder().decode(AppArchive.self, from: data) }
         catch { throw ArchiveError.corrupt(backupAvailable: FileManager.default.fileExists(atPath: backupURL.path)) }
         // Optional fields load without inventing course scope. The original v1
         // file remains untouched until a successful save keeps it as a backup.
-        archive.schemaVersion = 2
+        archive.schemaVersion = 3
         return archive
     }
 
     public func save(_ archive: AppArchive) throws {
-        guard archive.schemaVersion == 2 else { throw ArchiveError.unsupportedVersion(archive.schemaVersion) }
+        guard archive.schemaVersion == 3 else { throw ArchiveError.unsupportedVersion(archive.schemaVersion) }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(archive)
@@ -48,7 +48,16 @@ public struct ArchiveStore: Sendable {
         if FileManager.default.fileExists(atPath: url.path) {
             // Never replace the last good backup with a corrupt archive.
             _ = try load()
-            try Data(contentsOf: url).write(to: backupURL, options: .atomic)
+            let previous = try Data(contentsOf: url)
+            struct Version: Decodable { var schemaVersion: Int }
+            let oldVersion = try JSONDecoder().decode(Version.self, from: previous).schemaVersion
+            if oldVersion < 3 {
+                let migrationBackup = url.appendingPathExtension("schema-\(oldVersion).backup")
+                if !FileManager.default.fileExists(atPath: migrationBackup.path) {
+                    try previous.write(to: migrationBackup, options: [.withoutOverwriting, .completeFileProtectionUnlessOpen])
+                }
+            }
+            try previous.write(to: backupURL, options: .atomic)
         }
         try data.write(to: url, options: [.atomic, .completeFileProtectionUnlessOpen])
     }

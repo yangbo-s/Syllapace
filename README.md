@@ -2,7 +2,7 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-A native macOS semester planner for Canvas courses, class schedules, assignments, and projects, with local storage, a desktop card, and Apple Calendar sync.
+A native macOS semester planner for Canvas courses, academic calendars, classes, and deadlines. Import documents, text, or links; bring your own AI key; and keep confirmed dates in Apple Calendar.
 
 Syllapace runs on your Mac. Connect your own Canvas account, choose the semester and courses you want to see, and review dates alongside their source text. Bring your own model API key for optional extraction, and keep confirmed events in Apple Calendar. A compact desktop card puts upcoming work within reach.
 
@@ -12,7 +12,7 @@ This is an early release. See [acceptance evidence](docs/ACCEPTANCE.md) for auto
 
 Download the **DMG** from [GitHub Releases](https://github.com/yangbo-s/Syllapace/releases), drag Syllapace to Applications, and open it there. Syllapace supports **Apple Silicon and macOS 26+**. A ZIP and SHA-256 checksums are also provided.
 
-The package is ad hoc signed and **not notarized by Apple**. If macOS blocks the first launch, use [Apple's per-app opening instructions](https://support.apple.com/en-us/102445) after checking the source and checksum; see the [release notes](docs/releases/0.2.0.md). An update signature protects subsequent downloads, but does not replace Apple notarization.
+The package is ad hoc signed and **not notarized by Apple**. If macOS blocks the first launch, use [Apple's per-app opening instructions](https://support.apple.com/en-us/102445) after checking the source and checksum; see the [release notes](docs/releases/0.3.0.md). An update signature protects subsequent downloads, but does not replace Apple notarization.
 
 ## Language and updates
 
@@ -44,19 +44,23 @@ To inspect the interface with fictional courses and deadlines:
 
 Demo events are generated in memory and are not saved to your real library. Canvas, model extraction, EventKit access and update checks are disabled in demo mode. Quit the demo and open the app normally to configure your own workspace.
 
-## Start with a syllabus
+## Add documents, text, or links
 
-1. Choose **File → Import Syllabus…** (`⌘O`). Choose the course and academic year before importing.
-2. Import a text-based PDF, DOCX, UTF-8 TXT, Markdown, or HTML file. [`fixtures/syllabus.md`](fixtures/syllabus.md) is a synthetic example.
-3. Open **Review**. Inspect the evidence, edit unresolved dates, then approve or reject each candidate.
-4. Confirmed events appear in **Today** and **Timeline**. Search by event or course, filter by course or event type, and mark work complete.
-5. Use **Sources** to inspect imported text or explicitly request model extraction.
+1. Choose **File → Add Material…** (`⌘O`). Add up to ten files, paste text, or enter a public link.
+2. Choose the course or academic calendar, year, and time zone. You can create a local course in the same sheet.
+3. Enable **Use AI** to parse with your selected provider and optional instructions, such as “Only deadlines for Fall 2026.” Leave it off for local rule extraction.
+4. Choose **Parse & preview**. Check each candidate against the original evidence, edit uncertain dates, and select what to add. Only selected, confirmed events enter the timeline; materials can also be saved without events.
+5. Use **Undo import** to undo the last committed import while preserving later edits. Existing Calendar edits remain protected by the usual conflict checks.
 
-Rules preserve date-only events and leave ambiguous dates unresolved. A sentence containing multiple dates is not assumed to identify the deadline correctly. The academic year is supplied by the import setting. Source changes produce reviewable conflicts instead of silently replacing an approved date or user edit.
+Supported files include text-based PDF, DOCX, XLSX, CSV, UTF-8 TXT, Markdown, and HTML. XLSX import reads cell values, shared strings, sheets, date serials, and stored formula results; it never calculates formulas or follows spreadsheet links. Scanned PDFs still require OCR elsewhere. [`fixtures/syllabus.md`](fixtures/syllabus.md) is a synthetic example.
+
+Public pages, PDF links, and public Google Sheets can be read without a browser session. For a private page or spreadsheet, paste the relevant text or import an exported file. Local rule extraction preserves date-only events and leaves ambiguity for review. Source changes do not silently replace approved dates or user edits.
+
+**Sources → Extract** remains available for an already saved source; those results enter Review. Model parsing is always an explicit action.
 
 ## Connect Canvas
 
-1. Open **Settings → Canvas** and enter your institution's Canvas address, such as `https://canvas.example.edu`. Use the origin only, without a course path, query parameters, or credentials in the URL.
+1. Open **Settings → Canvas → Find your school…** to search Instructure’s public school directory, or enter your Canvas address directly, such as `https://canvas.example.edu`. The lookup sends only the school-name query, without a Canvas token. Use the origin only, without a course path, query parameters, or credentials in the URL.
 2. Paste your own access token and choose **Save connection**, then **Sync now**. Saving checks the input format; the first sync verifies access and discovers course and semester metadata.
 3. Choose a semester, check the courses you want, and select **Save & sync**. Course content is fetched only after this selection. Portal and other course spaces without a named semester are optional.
 4. Change the selection through the semester menu in the sidebar or **Settings → Canvas → Manage courses…**.
@@ -69,23 +73,37 @@ For selected courses, the connector reads Assignments and submission/grade state
 
 **Sources** preserves text and links from course materials. Referenced attachments and likely syllabus/schedule files can be imported explicitly. A hidden or inaccessible Files directory does not prevent other accessible sources from syncing; individual attachments still require permission.
 
-For an external schedule link, use **Import link** to read a public document or Google Sheets export. These requests use no Canvas token or browser cookies. If a source requires a separate sign-in, its link remains available to open in a browser; you can also import an exported file. Private Google authorization and complete Gradescope/Piazza connectors are not included. Gradescope-linked work is limited to the dates and grades actually available in Canvas; individual extensions may remain solely in Gradescope.
+For an external schedule link, use **Add Material → Link** or the source’s **Import link** action to read a public document or Google Sheets export. These requests use no Canvas token or browser cookies. If a source requires a separate sign-in, its link remains available to open in a browser; you can also import an exported file. Private Google authorization and complete Gradescope/Piazza connectors are not included. Gradescope-linked work is limited to the dates and grades actually available in Canvas; individual extensions may remain solely in Gradescope.
 
 **Refresh every 10 minutes while running** is opt-in. The app must remain running to fetch changes. Partial failures preserve existing data and report the affected resources. Unchanged source content is skipped during background refresh, without moving the current view. Attachments and external documents are imported on request, rather than downloaded again on each refresh.
 
-**Renew token automatically** is enabled by default in Canvas settings. While the app is open, it checks the saved personal token and requests an expiry extension near the end of its lifetime, when the institution permits it. This is an active expiry-extension request, not OAuth refresh or automatic renewal from token usage. The renewal period is no longer than the first observed lifetime and is capped at 30 days; the token value and permissions remain unchanged. Version 0.2.0 accepts more server token-mask formats and distinguishes an identification failure from a rejected or unconfirmed extension. Successful metadata retrieval alone does not prove renewal is allowed. You can switch renewal off. If the app stays closed until expiry, or Canvas refuses renewal, generate a replacement in Canvas and save it in Settings. Course sync and saved data do not depend on renewal succeeding.
+**Renew token automatically** is enabled by default in Canvas settings. While the app is open, it checks the saved personal token and requests an expiry extension near the end of its lifetime, when the institution permits it. This is an active expiry-extension request, not OAuth refresh or automatic renewal from token usage. The renewal period is no longer than the first observed lifetime and is capped at 30 days; the token value and permissions remain unchanged. The token matcher handles server mask formats and distinguishes an identification failure from a rejected or unconfirmed extension. Successful metadata retrieval alone does not prove renewal is allowed. You can switch renewal off. If the app stays closed until expiry, or Canvas refuses renewal, generate a replacement in Canvas and save it in Settings. Course sync and saved data do not depend on renewal succeeding.
 
-## Use your own model
+## Choose a model
 
-Open **Settings → Extraction** and supply:
+Open **Settings → Models**:
 
-- An HTTPS API base URL, for example `https://provider.example/v1`.
-- The provider's exact model identifier.
-- Your API key.
+1. Choose **OpenAI**, **Anthropic · Claude**, **DeepSeek**, or **Custom service**. Official providers supply their API address; a custom service accepts an HTTPS base URL.
+2. Enter your API key and choose **Load models**. Syllapace queries that provider’s model API, saves a successfully used key in macOS Keychain, and offers a searchable model list.
+3. Select a model and choose **Save model**. Refresh the list when needed. If a compatible service does not list models, enable **Enter a model identifier manually**.
 
-The adapter uses an OpenAI-compatible **chat completions** endpoint. It appends `/chat/completions` to a supplied base path unless already present. The provider must support JSON response format. Recognized reasoning models use `max_completion_tokens` without `temperature`; older and other models retain the legacy token-limit parameters. A definite unsupported-parameter response may trigger one compatibility retry. Failed generations, authentication errors, rate limits, and network errors are not automatically retried. Compatibility with every provider or model is not guaranteed. HTTP endpoints, including ordinary local HTTP model servers, are not supported by this adapter.
+Anthropic uses its native Messages API with a JSON schema; an optional Workspace ID is available for keys that require it. OpenAI, DeepSeek, and custom services use chat completions with JSON response format. Known non-text model families are excluded from the list. A listed model can still have account-specific access or API compatibility restrictions; list retrieval does not run a paid generation. The existing endpoint and Keychain account are retained when upgrading an older custom configuration.
 
-Choose **Extract** for an individual source to send that document's text directly to the configured provider. Extraction is never automatic. The key is stored in Keychain and scoped to the configured endpoint. The document request contains no Canvas token and gives the model no tools. Responses are schema-checked, matched to actual evidence excerpts, and always enter Review. Matching an excerpt does not establish that a model interpreted the date correctly: inspect candidates before confirming them. Provider usage may incur charges under your own account.
+The adapter gives models no tools and validates returned fields, dates, and evidence against the selected source. Materials and your optional instructions go directly to your chosen provider only after you request extraction; no Canvas token is included. Matched evidence does not prove the date was interpreted correctly, so review candidates before confirmation. Provider usage may incur charges under your own account.
+
+For compatible chat endpoints, recognized reasoning models use `max_completion_tokens` without `temperature`; a definite unsupported-parameter error permits one compatibility retry. Authentication, rate-limit, network, and incomplete-generation errors are not automatically retried. Plain HTTP endpoints and providers requiring a different protocol are not supported.
+
+## Academic calendars
+
+Open **Settings → Academic calendars** to add an ICS subscription or a calendar based on imported documents. Give it a name, semester, time zone, and date range, then save it. **Sync dates** fetches a saved ICS subscription on request. You can also choose **Import calendar document…** to parse a PDF, spreadsheet, text, or public link with the same evidence-review workflow.
+
+A **CMU Academic Calendar** preset links to the official feed and the 2026–2027 PDF. The feed may contain only upcoming dates; the full-year document can fill gaps. Check the source’s campus and program coverage before relying on it.
+
+Academic milestones and holidays have their own event types and sidebar group. They stay distinct from classes, assignments, and projects. A holiday never automatically cancels a class meeting. Supported ICS recurrence rules expand only inside the chosen range; unsupported rules or ambiguous times produce warnings instead of guessed dates. Missing or source-cancelled items preserve saved history for review. ICS subscriptions are read into Syllapace, not installed as an Apple Calendar subscription URL.
+
+## Customize course names
+
+Use **Settings → General → Course display** to choose course code, course name, code plus name, or a custom name. Right-click a course in the sidebar and choose **Customize display…** for a per-course override and preview. This changes display labels without rewriting Canvas identities or source evidence.
 
 ## Apple Calendar
 
@@ -93,7 +111,7 @@ Open **Settings → Calendar → Connect & sync calendar**. Syllapace requests f
 
 The current implementation uses a local **On My Mac** calendar only. If the local source is unavailable, first choose **File → New Calendar → On My Mac** in Apple Calendar, then reconnect. It does not silently create an iCloud calendar or host a subscription URL.
 
-- Only approved events within the selected course scope, with valid dates and time zones, are published. Explicit end times are preserved.
+- Only approved events within the selected course and academic-calendar scope, with valid dates and time zones, are published. Explicit end times and multi-day all-day ranges are preserved.
 - Repeated syncs reuse event mappings. Confirmed date changes update the existing event.
 - External edits or deletions are reported as conflicts. **Use Syllapace version** requires an explicit confirmation before replacing an edit or recreating a deleted event. There is no automatic reverse import of Calendar edits into Syllapace.
 - Rejecting a previously published event in the current scope can remove its owned Calendar counterpart, provided it has not been changed externally. Missing sources, failed fetches, and switching semesters do not imply deletion.
@@ -103,12 +121,12 @@ Portable `.ics` export is also available from the File menu (`⇧⌘E`) or Calen
 
 ## Desktop card and shortcuts
 
-Show the desktop card with `⇧⌘D` or the menu bar item. Drag the card by its background, toggle the pin to keep it above other windows, and click an event to open the timeline. This is an AppKit panel, not a WidgetKit extension.
+Show the desktop card with `⇧⌘D` or the menu bar item. Its compact view separates **Next class** from **Next deadline**; expand it to see the next seven days. Drag its background to move it, use the menu to pin it above windows, lock its position, or snap to screen edges, and click an event to open the timeline. The card follows your chosen semester and courses. This release ships an AppKit desktop panel; a WidgetKit extension in the macOS widget gallery is deferred.
 
 | Action | Shortcut |
 | --- | --- |
 | New event | `⌘N` |
-| Import syllabus | `⌘O` |
+| Add material | `⌘O` |
 | Sync Canvas | `⌘R` |
 | Export ICS | `⇧⌘E` |
 | Show desktop card | `⇧⌘D` |
@@ -116,9 +134,9 @@ Show the desktop card with `⇧⌘D` or the menu bar item. Drag the card by its 
 
 ## Data and privacy
 
-The library is an atomically written JSON archive at `~/Library/Application Support/Syllapace/archive.json`. `archive.json.backup` retains the previous readable archive. Version 0.2.0 reads existing schema-1 libraries and writes schema 2 on the next successful save, backing up the previous file first. Older app versions cannot read schema 2. EventKit bindings are stored separately in `calendar-mapping.json` alongside it. Credentials are in Keychain; connection addresses and nonsecret preferences use UserDefaults.
+The library is an atomically written JSON archive at `~/Library/Application Support/Syllapace/archive.json`. `archive.json.backup` retains the previous readable archive. Version 0.3.0 reads schema-1 and schema-2 libraries and writes schema 3 on the next successful save, keeping a one-time `archive.json.schema-<old-version>.backup` as well as the rolling backup. Older versions cannot read schema 3; preserve the backup before attempting a downgrade. EventKit bindings are stored separately in `calendar-mapping.json` alongside it. Credentials are in Keychain; connection addresses and nonsecret preferences use UserDefaults.
 
-Imported text and evidence are stored locally without additional application-level encryption. Original local documents remain where you selected them. Downloaded temporary files are cleaned up after ingestion. No Syllapace account, telemetry service, or backend is required. A model request sends the selected source text to the provider you configured.
+Imported text and evidence are stored locally without additional application-level encryption. Original local documents remain where you selected them. Downloaded temporary files are cleaned up after ingestion. No Syllapace account, telemetry service, or backend is required. A model request sends the selected source text and any extraction instructions to the provider you configured. School search sends a school-name query to Instructure; model discovery sends your key only to the configured provider. Public document and academic-calendar requests use no Canvas or model credentials.
 
 Set `APP_STORE` to an alternate archive path for isolated development runs. If the archive is corrupt or has an unknown schema, the app reports it and refuses to overwrite it. Back up the application-support directory before manually restoring files; a calendar mapping should not be discarded casually, because it preserves event ownership and duplicate prevention.
 
@@ -141,10 +159,10 @@ The tests use synthetic PDFs/DOCX documents, mocked network responses, and calen
 ## Current limits
 
 - Import limits: 20 MB per document, 150 PDF pages, and 2 MB extracted text. Scanned/image-only PDFs need OCR elsewhere first. Complex PDF layouts can lose reading order; DOCX parsing preserves basic row/cell associations rather than visual layout.
-- Model extraction accepts up to 64,000 Swift string characters of source text and up to 300 returned candidates. It is optional and requires a compatible HTTPS provider.
+- Each model extraction accepts up to 64,000 Swift string characters of source text, 2,000 instruction characters, and up to 300 returned candidates. It requires a compatible HTTPS provider. Larger files may be stored locally but must be shortened for model extraction.
 - File discovery follows accessible course references and syllabus/schedule-style filenames. Files and public external links are explicitly imported; previously downloaded documents are not automatically re-downloaded on every Canvas refresh. Import a revised source again to review its changes.
 - Canvas access depends on course configuration and your account permissions. Private Google Sheets, Piazza posts, complete Gradescope content, and New Quizzes question content are outside the current connector coverage.
-- Recurring timetable expansion and academic holiday exceptions are not supported; add or review individual class meetings explicitly.
+- Structured ICS recurrence is bounded to the selected date range, with warnings for unsupported rules. Recurring class timetables in prose are not automatically expanded, and holidays do not automatically remove course sessions.
 - Rule extraction is conservative, primarily for English academic event wording and explicit dates. It is not a complete multilingual date parser.
 - Similar cross-source titles are flagged for review; the app does not prove two differently named milestones are the same event.
 - The app has no unattended background agent, OAuth setup, OCR, Windows build, or other-LMS integration.

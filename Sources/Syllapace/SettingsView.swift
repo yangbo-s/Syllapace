@@ -5,7 +5,6 @@ struct SettingsView: View {
     @ObservedObject var updater: UpdateController
     @AppStorage("appLanguage") private var languagePreference = AppLanguage.system.rawValue
     @State private var canvasToken = ""
-    @State private var apiKey = ""
     @State private var result: String?
     @State private var resolving: AcademicEvent?
     @State private var saving = false
@@ -14,6 +13,7 @@ struct SettingsView: View {
             generalSettings.tabItem { Label(L10n.string("General"), systemImage: "gearshape") }.tag(3)
             Form {
                 Section(L10n.string("Your Canvas account")) {
+                    Button(L10n.string("Find your school…")) { model.showSchoolSearch = true }
                     TextField(L10n.string("Canvas address"), text: $model.canvasHost, prompt: Text("https://canvas.your-university.edu")).disabled(saving)
                         .onChange(of: model.canvasHost) { _, _ in model.invalidateCanvasConnection() }
                     SecureField(L10n.string("Access token"), text: $canvasToken, prompt: Text(L10n.string("Leave blank to keep the saved token"))).disabled(saving)
@@ -36,16 +36,8 @@ struct SettingsView: View {
                 }
                 if let result { Text(result).font(.caption).textSelection(.enabled) }
             }.formStyle(.grouped).tabItem { Label("Canvas", systemImage: "graduationcap") }.tag(0)
-            Form {
-                Section(L10n.string("Your model")) {
-                    TextField(L10n.string("API base URL"), text: $model.modelEndpoint).disabled(saving)
-                    TextField(L10n.string("Model"), text: $model.modelName, prompt: Text(L10n.string("Model identifier"))).disabled(saving)
-                    SecureField(L10n.string("API key"), text: $apiKey, prompt: Text(L10n.string("Leave blank to keep the saved key"))).disabled(saving)
-                    Button(L10n.string("Save model")) { saveModel() }.disabled(model.isDemo || saving || model.busy)
-                }
-                Section { Text(L10n.string("Use a provider with an OpenAI-compatible chat completions API. Only the document you choose is sent when you select Extract. Nothing is uploaded automatically.")).font(.caption).foregroundStyle(.secondary) }
-                if let result { Text(result).font(.caption) }
-            }.formStyle(.grouped).tabItem { Label(L10n.string("Extraction"), systemImage: "sparkles") }.tag(1)
+            ModelSettingsView(model: model).tabItem { Label(L10n.string("Models"), systemImage: "sparkles") }.tag(1)
+            AcademicCalendarSettingsView(model: model).tabItem { Label(L10n.string("Academic calendars"), systemImage: "building.columns") }.tag(4)
             Form {
                 Section(L10n.string("Apple Calendar")) {
                     Text(L10n.string("Keep confirmed events in a dedicated Syllapace calendar."))
@@ -68,7 +60,7 @@ struct SettingsView: View {
                 Section(L10n.string("Portable calendar")) { Button(L10n.string("Export ICS…")) { model.exportICS() } }
                 if let notice = model.notice { Text(notice).font(.caption).textSelection(.enabled) }
             }.formStyle(.grouped).tabItem { Label(L10n.string("Calendar"), systemImage: "calendar") }.tag(2)
-        }.padding(16).frame(width: 580, height: 400).background(CalmFocus()).tint(Palette.accent)
+        }.padding(16).frame(width: 640, height: 560).background(CalmFocus()).tint(Palette.accent)
         .onChange(of: languagePreference) { _, value in
             // This preference is scoped to Syllapace, not the macOS language.
             if value == AppLanguage.system.rawValue { UserDefaults.standard.removeObject(forKey: "AppleLanguages") }
@@ -77,6 +69,7 @@ struct SettingsView: View {
             model.notice = nil
             model.error = nil
         }
+        .sheet(isPresented: $model.showSchoolSearch) { SchoolSearchView(onSelect: { url in model.canvasHost = url.absoluteString }) }
         .confirmationDialog(L10n.string("Replace the Calendar version?"), isPresented: Binding(get: { resolving != nil }, set: { if !$0 { resolving = nil } })) {
             Button(L10n.string("Use Syllapace version")) { if let event = resolving { model.resolveCalendar(event) }; resolving = nil }
         } message: { Text(L10n.string("This will replace edits or recreate a deleted event in the dedicated Syllapace calendar. Other calendars are unaffected.")) }
@@ -92,6 +85,12 @@ struct SettingsView: View {
                 }.id("app-language-\(languagePreference)")
                 Text(L10n.string("System menus and update windows use the new language after reopening Syllapace."))
                     .font(.caption).foregroundStyle(.secondary)
+            }
+            Section(L10n.string("Course display")) {
+                Picker(L10n.string("Default display"), selection: Binding(get: { model.archive.courseDisplayMode ?? .code }, set: { model.archive.courseDisplayMode = $0; model.save() })) {
+                    ForEach(CourseDisplayMode.allCases, id: \.self) { Text(L10n.string($0.label)).tag($0) }
+                }
+                Text(L10n.string("Right-click a course in the sidebar to customize its display.")).font(.caption).foregroundStyle(.secondary)
             }
             Section(L10n.string("Updates")) {
                 LabeledContent(L10n.string("Version"), value: appVersion)
@@ -136,22 +135,6 @@ struct SettingsView: View {
                 }
                 UserDefaults.standard.set(host, forKey: "canvasHost"); canvasToken = ""; result = L10n.string("Connection saved.")
                 model.checkCanvasToken(force: true)
-            } catch { result = error.localizedDescription }
-        }
-    }
-    private func saveModel() {
-        let endpoint = model.modelEndpoint
-        let name = model.modelName
-        let key = apiKey
-        let account = model.modelCredentialAccount
-        saving = true
-        Task {
-            defer { saving = false }
-            do {
-                _ = try LLMClient(endpoint: endpoint, key: key.isEmpty ? "validation" : key, model: name)
-                if !key.isEmpty { try await CredentialStore.saveAsync(key, account: account) }
-                guard model.modelEndpoint == endpoint, model.modelName == name else { return }
-                UserDefaults.standard.set(endpoint, forKey: "modelEndpoint"); UserDefaults.standard.set(name, forKey: "modelName"); apiKey = ""; result = L10n.string("Model saved.")
             } catch { result = error.localizedDescription }
         }
     }

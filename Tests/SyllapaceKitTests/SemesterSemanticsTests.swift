@@ -44,7 +44,7 @@ struct SemesterSemanticsTests {
         let store = ArchiveStore(url: folder.appendingPathComponent("archive.json"))
         try Data(legacy.utf8).write(to: store.url)
         let migrated = try store.load()
-        #expect(migrated.schemaVersion == 2)
+        #expect(migrated.schemaVersion == 3)
         #expect(try String(contentsOf: store.url, encoding: .utf8) == legacy)
         try store.save(migrated)
         #expect(try String(contentsOf: store.backupURL, encoding: .utf8) == legacy)

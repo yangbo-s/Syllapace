@@ -1,7 +1,7 @@
 import Foundation
 
 public enum ICSExporter {
-    public static func export(events: [AcademicEvent], courses: [Course], exportedAt: Date = .now) -> String {
+    public static func export(events: [AcademicEvent], courses: [Course], exportedAt: Date = .now, calendars: [AcademicCalendarSubscription] = []) -> String {
         var lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Syllapace//Academic Timeline//EN", "CALSCALE:GREGORIAN", "X-WR-CALNAME:Syllapace"]
         let names = Dictionary(courses.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
         let instant = DateFormatter()
@@ -20,13 +20,13 @@ public enum ICSExporter {
                 formatter.timeZone = calendar.timeZone
                 formatter.dateFormat = "yyyyMMdd"
                 lines.append("DTSTART;VALUE=DATE:\(formatter.string(from: date))")
-                if let end = calendar.date(byAdding: .day, value: 1, to: date) { lines.append("DTEND;VALUE=DATE:\(formatter.string(from: end))") }
+                if let end = event.endsAt.flatMap({ $0 > date ? $0 : nil }) ?? calendar.date(byAdding: .day, value: 1, to: date) { lines.append("DTEND;VALUE=DATE:\(formatter.string(from: end))") }
             } else {
                 lines.append("DTSTART:\(instant.string(from: date))")
                 if let end = event.endsAt, end >= date { lines.append("DTEND:\(instant.string(from: end))") }
             }
             if let location = event.location, !location.isEmpty { lines.append("LOCATION:\(escape(location))") }
-            var description = names[event.courseID] ?? ""
+            var description = event.academicCalendarID.flatMap { id in calendars.first { $0.id == id }?.name } ?? names[event.courseID] ?? ""
             if !event.evidence.isEmpty { description += "\n\n" + event.evidence }
             if !description.isEmpty { lines.append("DESCRIPTION:\(escape(description))") }
             if let raw = event.sourceURL, let url = safeURL(raw) { lines.append("URL:\(url)") }

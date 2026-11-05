@@ -28,14 +28,14 @@ struct ContentView: View {
                     }
                 }
                 if let notice = model.notice {
-                    HStack(alignment: .top, spacing: 8) { Image(systemName: "info.circle"); ScrollView { Text(notice).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 80); Spacer(); Button { model.notice = nil } label: { Image(systemName: "xmark") }.buttonStyle(.plain).help(L10n.string("Dismiss message")) }.font(.caption).foregroundStyle(.secondary).padding(12).background(.quaternary.opacity(0.35))
+                    HStack(alignment: .top, spacing: 8) { Image(systemName: "info.circle"); ScrollView { Text(notice).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 80); Spacer(); if model.lastImportUndo != nil { Button(L10n.string("Undo import")) { model.undoImport() }.disabled(model.busy) }; Button { model.notice = nil } label: { Image(systemName: "xmark") }.buttonStyle(.plain).help(L10n.string("Dismiss message")) }.font(.caption).foregroundStyle(.secondary).padding(12).background(.quaternary.opacity(0.35))
                 }
             }
             .background(Palette.canvas)
             .toolbar {
                 ToolbarItemGroup {
                     Button { model.syncCanvas() } label: { Label(L10n.string("Sync Canvas"), systemImage: "arrow.triangle.2.circlepath") }.disabled(model.busy).help(L10n.string("Sync Canvas (⌘R)"))
-                    Button { model.showImport = true } label: { Label(L10n.string("Import syllabus"), systemImage: "square.and.arrow.down") }.disabled(model.busy).help(L10n.string("Import syllabus (⌘O)"))
+                    Button { model.showImport = true } label: { Label(L10n.string("Add material"), systemImage: "square.and.arrow.down") }.disabled(model.busy).help(L10n.string("Add material (⌘O)"))
                     Button { model.newEvent() } label: { Label(L10n.string("New event"), systemImage: "plus") }.help(L10n.string("New event (⌘N)"))
                 }
                 ToolbarItem { Button { model.showDesktop() } label: { Label(L10n.string("Desktop card"), systemImage: "rectangle.on.rectangle") }.help(L10n.string("Show desktop card")) }
@@ -45,6 +45,7 @@ struct ContentView: View {
         .tint(Palette.accent)
         .frame(minWidth: 940, minHeight: 620).background(CalmFocus())
         .sheet(item: $model.editor) { event in EventEditor(model: model, original: event).tint(Palette.accent) }
+        .sheet(item: $model.editingCourse) { course in CourseAppearanceView(model: model, course: course) }
         .sheet(isPresented: $model.showImport) { ImportSheet(model: model) }
         .sheet(isPresented: $model.showCourseSelection) { CourseScopeView(model: model) }
         .alert(L10n.string("Something needs attention"), isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button(L10n.string("OK")) { model.error = nil } } message: { Text(model.error ?? "") }
@@ -82,11 +83,20 @@ struct ContentView: View {
                     }
                 }
                 Section(L10n.string("Courses")) {
-                    Button { model.courseFilter = nil } label: { HStack { Text(L10n.string("All courses")); Spacer(); if model.courseFilter == nil { Image(systemName: "checkmark").font(.caption) } } }.buttonStyle(.plain).padding(.vertical, 4)
+                    Button { model.courseFilter = nil; model.academicCalendarFilter = nil } label: { HStack { Text(L10n.string("All courses")); Spacer(); if model.courseFilter == nil && model.academicCalendarFilter == nil { Image(systemName: "checkmark").font(.caption) } } }.buttonStyle(.plain).padding(.vertical, 4)
                     ForEach(model.scopedCourses) { course in
-                        Button { model.courseFilter = model.courseFilter == course.id ? nil : course.id; if model.page == .sources { model.page = .timeline } } label: {
-                            HStack(spacing: 8) { Circle().fill(Palette.course(course.color)).frame(width: 8, height: 8); Text(course.localizedCode).lineLimit(1); Spacer(); if model.courseFilter == course.id { Image(systemName: "checkmark").font(.caption) } }
-                        }.buttonStyle(.plain).padding(.vertical, 4).help(course.localizedName)
+                        Button { model.academicCalendarFilter = nil; model.courseFilter = model.courseFilter == course.id ? nil : course.id; if model.page == .sources { model.page = .timeline } } label: {
+                            HStack(spacing: 8) { Circle().fill(Palette.course(course.color)).frame(width: 8, height: 8); Text(model.courseTitle(course)).lineLimit(2); Spacer(); if model.courseFilter == course.id { Image(systemName: "checkmark").font(.caption) } }
+                        }.buttonStyle(.plain).padding(.vertical, 4).help(course.localizedName).contextMenu { Button(L10n.string("Customize display…")) { model.editingCourse = course } }
+                    }
+                }
+                if !model.scopedAcademicCalendars.isEmpty {
+                    Section(L10n.string("Academic calendars")) {
+                        ForEach(model.scopedAcademicCalendars) { calendar in
+                            Button {
+                                model.courseFilter = nil; model.academicCalendarFilter = model.academicCalendarFilter == calendar.id ? nil : calendar.id
+                            } label: { HStack(spacing: 8) { Image(systemName: "building.columns").foregroundStyle(Palette.accent); Text(calendar.name).lineLimit(2); Spacer(); if model.academicCalendarFilter == calendar.id { Image(systemName: "checkmark").font(.caption) } } }.buttonStyle(.plain).padding(.vertical, 4)
+                        }
                     }
                 }
             }.listStyle(.sidebar)
@@ -136,7 +146,7 @@ struct ContentView: View {
                 } description: {
                     Text(filtered ? L10n.string("Try another search or show all your courses.") : model.page == .review ? L10n.string("New dates and schedule changes will appear here.") : L10n.string("Import a syllabus, connect Canvas, or add your first event."))
                 } actions: {
-                    if filtered { Button(L10n.string("Clear filters")) { model.search = ""; model.courseFilter = nil; model.kindFilter = nil } } else if model.page != .review { Button(L10n.string("Import a syllabus")) { model.showImport = true } }
+                    if filtered { Button(L10n.string("Clear filters")) { model.search = ""; model.courseFilter = nil; model.academicCalendarFilter = nil; model.kindFilter = nil } } else if model.page != .review { Button(L10n.string("Add material")) { model.showImport = true } }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .gridProbe("empty-state", area: "content-column")
@@ -154,7 +164,7 @@ struct ContentView: View {
             }
         }
     }
-    private var filtered: Bool { !model.search.isEmpty || model.courseFilter != nil || model.kindFilter != nil }
+    private var filtered: Bool { !model.search.isEmpty || model.courseFilter != nil || model.academicCalendarFilter != nil || model.kindFilter != nil }
     private var grouped: [(String, [AcademicEvent])] {
         var result: [(String, [AcademicEvent])] = []
         for event in model.events {
@@ -194,10 +204,10 @@ struct EventRow: View {
         let _ = languagePreference
         Button { model.selectedID = event.id } label: {
             HStack(spacing: 16) {
-                Image(systemName: event.completed ? "checkmark.circle.fill" : eventSymbol).font(.system(size: 17, weight: .light)).foregroundStyle(event.completed ? .secondary : Palette.course(model.course(event.courseID).color)).frame(width: 28)
+                Image(systemName: event.completed ? "checkmark.circle.fill" : eventSymbol).font(.system(size: 17, weight: .light)).foregroundStyle(event.completed ? .secondary : Palette.course(model.eventColor(event))).frame(width: 28)
                 VStack(alignment: .leading, spacing: 8) {
                     Text(event.title).font(.system(size: 14, weight: .medium)).foregroundStyle(.primary).strikethrough(event.completed).lineLimit(2)
-                    HStack(spacing: 8) { Text(model.course(event.courseID).localizedCode); Text("·"); Text(event.kind.localizedName); if event.state == .conflict { Label(L10n.string("Changed"), systemImage: "arrow.triangle.2.circlepath").foregroundStyle(Palette.warning) } }.font(.caption).foregroundStyle(.secondary)
+                    HStack(spacing: 8) { Text(model.eventOwnerName(event) + " · " + event.kind.localizedName).lineLimit(1).truncationMode(.middle); if event.state == .conflict { Label(L10n.string("Changed"), systemImage: "arrow.triangle.2.circlepath").foregroundStyle(Palette.warning) } }.font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
                 Text(event.presentationDate.map { event.dateOnly ? L10n.string("All day") : $0.formatted(.dateTime.hour().minute().locale(L10n.locale)) } ?? L10n.string("Needs a date")).font(.caption).foregroundStyle(.secondary)
@@ -219,6 +229,8 @@ struct EventRow: View {
         case .quiz: "questionmark.square"
         case .exam: "graduationcap"
         case .presentation: "person.wave.2"
+        case .academic: "building.columns"
+        case .holiday: "sun.max"
         case .other: "calendar"
         }
     }
@@ -235,7 +247,7 @@ struct EventInspector: View {
             VStack(alignment: .leading, spacing: 24) {
                 HStack { Text(L10n.string("Event details")).font(.headline); Spacer(); Button { model.selectedID = nil } label: { Image(systemName: "xmark") }.buttonStyle(.plain).help(L10n.string("Close details")) }.gridProbe("inspector-heading", area: "inspector")
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(model.course(event.courseID).localizedName).font(.caption).foregroundStyle(.secondary)
+                    Text(model.eventOwnerName(event)).font(.caption).foregroundStyle(.secondary)
                     Text(event.title).font(.system(size: 22, weight: .medium, design: .rounded)).fixedSize(horizontal: false, vertical: true)
                     Label(event.state == .approved ? L10n.string("Confirmed") : event.state == .conflict ? L10n.string("Schedule changed") : L10n.string("Needs review"), systemImage: event.state == .approved ? "checkmark.seal" : "questionmark.circle").font(.caption).foregroundStyle(event.state == .approved ? Palette.accent : Palette.warning)
                 }.gridProbe("inspector-title", area: "inspector")
