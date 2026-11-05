@@ -57,8 +57,8 @@ IF-001：课程、来源和事件ID稳定；来源hash仅版本指纹。API失�
 |---|---|---|
 | `CanvasClient.sync()` | UI → Kit → Canvas REST v1；读取课程、作业、日历事件、大纲与文件。返回 courses/events/sources/files/warnings。 | HTTPS、同源分页、有限响应和分页数；每课程/资源错误进入 warnings，成功结果保留。GET 可重试；无自动无限重试或远程写入。 |
 | `CanvasClient.download(file:)` | 用户选择文件后下载到临时 URL，再交 DocumentReader。 | 下载重定向不转发 Bearer，拒绝非法目的地和超限内容；调用方最终清理临时文件。 |
-| `LLMClient.extract(source:year:timeZone:)` | POST `<base>/chat/completions`，JSON messages + model/temperature/max_tokens/response_format。输出 pending 事件数组，≤300项。 | 输入≤64000字符，JSON输出/日期/时区/证据校验；不完整输出或无依据片段整体拒绝，不把模型结果直接确认为事件。请求由用户触发，失败不自动重复计费请求。 |
-| `ArchiveStore.load/save` | UI → 原子 JSON 文件，schemaVersion=1；成功保存保留上次有效备份。 | 不存在返回空资料库；损坏/未知 schema 抛错，拒绝覆写；新版本迁移尚未实现。 |
+| `LLMClient.extract(source:year:timeZone:)` | POST `<base>/chat/completions`，JSON messages + model/response_format，按模型使用 max_tokens 或 max_completion_tokens，reasoning 模型省略 temperature。输出 pending 事件数组，≤300项。 | 输入≤64000字符，JSON输出/日期/时区/证据校验；不完整输出或无依据片段整体拒绝，不把模型结果直接确认为事件。请求由用户触发；仅明确的 400 unsupported_parameter 做一次参数兼容重试，认证/网络/限流/不完整生成不重试。 |
+| `ArchiveStore.load/save` | UI → 原子 JSON 文件，schemaVersion=2；安全读取 v1，成功保存保留上次有效备份。 | 不存在返回空资料库；损坏/未知 schema 抛错，拒绝覆写；v1 读取时只在内存迁移，下次成功保存写入 v2。 |
 | `CalendarBridge.connect/sync` | UI → EventKit；保存 calendarID、稳定事件映射及未完成操作意图。 | 同步/连接互斥；未授权、本地来源缺失、映射损坏显示可处理错误。写入后映射失败通过意图和归属标识恢复。外部修改阻止覆盖。 |
 
 具体错误类型为 `ConnectorError`、`DocumentError`、`ArchiveError`和 `CalendarBridgeError`（以源码枚举/类型为准）；UI 显示本地可诊断消息，不显示 Authorization 内容。网络错误、取消和部分成功区别处理。模型/网络工作的 async 边界不持有 SwiftUI View；应用状态归主 actor，系统日历由独立适配层管理。
@@ -106,3 +106,21 @@ GOAL-002：使本地客户端可供中英文用户安装使用，并持续从项
 REQ-013 复用 MOD-006 与 IF-004 的发布和更新契约。FUNC-013：本轮将已实现的 token 续期和布局修复发布为 0.1.1 (2)，维持同一 Sparkle 公钥与更新源；公开包版本及签名一致，旧版本可按更新源发现新版。用户本机保持 0.1.0 (1)，检测和安装由用户亲自验证。
 
 TC-014 / AC-013（P1，发布联调）：运行正式构建、自测和打包器；从公开地址回读四个附件，比较 SHA-256、更新签名、ZIP 与 DMG 内容及版本，确认 latest feed 指向 build 2。发布前后只读核对已安装应用的文件指纹。自然自动检查、下载安装和重启未发生时明确标记待用户验证；具体流程与完成边界见 `RELEASING.md`。
+
+## 0.2.0 学期范围与 Canvas 内容修复
+
+GOAL-003：按用户选择的学期和课程整理 Canvas 原生资料，修复连接兼容性，发布可由已有安装发现的新版本。
+
+| 需求 / 验收 | 实现边界与测试 |
+| --- | --- |
+| REQ-014 / AC-014 | 首次/旧版升级先发现 term 元数据，再确认学期和课程；未选课程不获取正文，所有视图、来源与新增日历输出遵守同一选择；旧 archive 无损读取，切换不删除历史与 Calendar。TC-015：旧 schema 解码、空选择、跨学期范围、UI 自测。 |
+| REQ-015 / AC-015 | 选定课程读取 Announcements、Modules、Pages、syllabus 链接和附件引用；原生 Quiz/Assignment 通过 ID 关联；403 分来源呈现且成功数据保留。TC-016：分页、引用循环/范围限制、缺权限、重复入口。 |
+| REQ-016 / AC-016 | 上课/作业/Project/Quiz/Exam 分类，保留明确起止/地点及提交/成绩状态；不把发布日期或可用时段当截止日，缺少分数不是零分。TC-017：分类、去重、改期冲突与起止导出。 |
+| REQ-017 / AC-017 | PAT 唯一识别兼容服务端掩码格式，无法确认不发 PUT；现代 OpenAI 请求不使用不支持的 token 参数，凭据读取不阻塞主线程。TC-018：掩码安全边界、明确错误后的有限兼容重试、合成模型实测。 |
+| REQ-013 / AC-013 | 发布 0.2.0 (3) DMG/ZIP、同密钥签名 feed 和 SHA256SUMS，公开回读验证；本机旧安装与更新偏好保持不变。TC-019：构建、自测、截图、签名与公开资产验证。 |
+
+IN-003：学生课程 API 的 term、course ID、用户明确选定的 courseIDs；可选字段缺失保留未知。OUT-004：读取旧版并迁移到 schema 2 的扩展字段（term/selection/links/status/end），旧数据解码为 nil，不清空资料库。
+ADR-005：轻量课程发现与选定课程内容同步分离，使用 Canvas course/term 稳定 ID；Default Term 仅显式加入。来源类型与事项类型分别建模，原生结构化数据直接接入，非结构化正文继续经用户触发提取和审核。
+MOD-014：Kit 负责课程元数据、来源链接与日程语义；AppModel 统一应用 scope，SwiftUI 提供确认清单。IF-006：discoverCourses() 返回元数据；sync(courses:) 只访问传入课程；部分失败返回 warnings、保留成功数据，无删除语义。
+CON-003：同源鉴权、有界分页/链接发现/响应大小；课程资料和凭据不进入公共仓库。OOS-003：本轮不实现私有 Google OAuth、Gradescope/Piazza 独立内容抓取、OCR、后台常驻续期进程或 Apple 公证。外部需要登录的来源保留入口与明确状态。
+门禁：接口与迁移 → 模块测试 → 集成/真实窗口中英浅深色 → 正式构建和发布验证。验收与100分证据评分记录到 docs/ACCEPTANCE.md。

@@ -14,6 +14,12 @@ import UniformTypeIdentifiers
     var error: String?
     var editor: AcademicEvent?
     var showImport = false
+    var readingSource: SourceDocument?
+    var showCourseSelection = false
+    var draftTermID: String?
+    var draftCourseIDs: Set<String> = []
+    var discoveredCanvasCourses: [Course]?
+    var kindFilter: EventKind?
     var importCourseID = "personal"
     var importYear = Calendar.current.component(.year, from: .now)
     var remoteFiles: [CanvasFile] = []
@@ -31,14 +37,42 @@ import UniformTypeIdentifiers
     let tokenRenewal = CanvasTokenRenewal()
     let isDemo: Bool
     @ObservationIgnored private var syncTask: Task<Void, Never>?
+    @ObservationIgnored private var canvasGeneration = UUID()
     @ObservationIgnored let store: ArchiveStore
     @ObservationIgnored var revealMain: () -> Void = {}
     @ObservationIgnored var panel: DesktopPanel?
-    var selectedEvent: AcademicEvent? { archive.events.first { $0.id == selectedID } }
-    var pendingCount: Int { archive.events.filter { $0.state == .pending || $0.state == .conflict }.count }
+    var scopedCourses: [Course] {
+        archive.courses.filter { !$0.isCanvas || archive.canvasSelection?.includes($0) == true }
+    }
+    var scopedCourseIDs: Set<String> { Set(scopedCourses.map(\.id)) }
+    var scopedEvents: [AcademicEvent] { let ids = scopedCourseIDs; return archive.events.filter { ids.contains($0.courseID) } }
+    var scopedSources: [SourceDocument] { let ids = scopedCourseIDs; return archive.sources.filter { ids.contains($0.courseID) && (courseFilter == nil || $0.courseID == courseFilter) } }
+    var scopedRemoteFiles: [CanvasFile] { let ids = scopedCourseIDs; return remoteFiles.filter { ids.contains($0.courseID) && (courseFilter == nil || $0.courseID == courseFilter) } }
+    var selectedEvent: AcademicEvent? { scopedEvents.first { $0.id == selectedID } }
+    var pendingCount: Int { scopedEvents.filter { $0.state == .pending || $0.state == .conflict }.count }
+    var canvasCourses: [Course] {
+        if let discoveredCanvasCourses { return discoveredCanvasCourses }
+        guard !isDemo, let origin = try? ConnectorURL.canvasOrigin(canvasHost), let host = origin.host else { return archive.courses.filter(\.isCanvas) }
+        let prefix = "canvas:\(host.lowercased()):\(origin.port ?? 443):course:"
+        return archive.courses.filter { $0.id.hasPrefix(prefix) }
+    }
+    var availableTerms: [AcademicTerm] {
+        var seen = Set<String>()
+        return canvasCourses.compactMap(\.term).filter { seen.insert($0.id).inserted }.sorted {
+            if $0.startAt != $1.startAt { return ($0.startAt ?? .distantPast) > ($1.startAt ?? .distantPast) }
+            return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+        }
+    }
+    var selectedSemesterName: String {
+        guard let selection = archive.canvasSelection else { return L10n.string("Choose semester") }
+        guard let id = selection.termID else { return L10n.string("All semesters") }
+        return archive.courses.compactMap(\.term).first { $0.id == id }?.name ?? L10n.string("Selected semester")
+    }
+    var needsCourseSelection: Bool { archive.canvasSelection == nil && (!canvasHost.isEmpty || archive.courses.contains(where: \.isCanvas)) }
     var events: [AcademicEvent] {
-        archive.events.filter { e in
+        scopedEvents.filter { e in
             (courseFilter == nil || e.courseID == courseFilter) &&
+            (kindFilter == nil || e.kind == kindFilter) &&
             (search.isEmpty || e.title.localizedCaseInsensitiveContains(search) || course(e.courseID).localizedName.localizedCaseInsensitiveContains(search)) &&
             (page == .review ? (e.state == .pending || e.state == .conflict) : (e.state == .approved || (e.state == .conflict && e.wasApproved == true))) &&
             (page != .today || (!e.completed && (e.presentationDate.map { $0 >= Calendar.current.startOfDay(for: .now) && $0 < Calendar.current.date(byAdding: .day, value: 8, to: .now)! } ?? false)))
@@ -50,6 +84,11 @@ import UniformTypeIdentifiers
         let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Syllapace")
         let url = env["APP_STORE"].map { URL(fileURLWithPath: $0) } ?? (isDemo ? URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Syllapace-demo/archive.json") : folder.appendingPathComponent("archive.json"))
         store = ArchiveStore(url: url)
+        if isDemo || env["APP_SELFTEST"] == "1" {
+            canvasHost = "https://canvas.example.edu"
+            modelEndpoint = "https://api.openai.com/v1"; modelName = "example-model"
+            canvasAutoSync = false; calendarAutoSync = false
+        }
         if isDemo { archive = DemoData.make() } else {
             do { archive = try store.load() } catch { self.error = L10n.format("Could not open your saved data. %@", error.localizedDescription) }
         }
@@ -67,7 +106,7 @@ import UniformTypeIdentifiers
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(600)) } catch { return }
                 guard let self else { return }
-                if self.canvasAutoSync && !self.canvasHost.isEmpty { self.syncCanvas() }
+                if self.canvasAutoSync && !self.canvasHost.isEmpty { self.syncCanvas(promptForSelection: false) }
             }
         }
     }
@@ -77,7 +116,7 @@ import UniformTypeIdentifiers
         tokenRenewal.start(host: canvasHost, account: canvasCredentialAccount, force: force)
     }
     func resolveCalendar(_ event: AcademicEvent) {
-        guard !busy, !isDemo else { return }; busy = true
+        guard !busy, !isDemo, scopedCourseIDs.contains(event.courseID) else { return }; busy = true
         Task {
             defer { busy = false }
             do { notice = try await calendar.resolveUsingApp(event: event) }
@@ -90,7 +129,7 @@ import UniformTypeIdentifiers
         calendarTask = Task {
             do {
                 try await Task.sleep(for: .seconds(1))
-                notice = try await calendar.sync(events: archive.events)
+                notice = try await calendar.sync(events: scopedEvents)
             } catch is CancellationError {} catch { self.error = error.localizedDescription }
         }
     }
@@ -107,7 +146,7 @@ import UniformTypeIdentifiers
     }
     func reject(_ event: AcademicEvent) { var e = event; e.state = .rejected; update(e) }
     func toggleComplete(_ event: AcademicEvent) { var e = event; e.completed.toggle(); update(e) }
-    func newEvent() { editor = AcademicEvent(courseID: courseFilter ?? archive.courses.first!.id, title: "", date: Calendar.current.startOfDay(for: .now), state: .approved, evidence: "Added manually") }
+    func newEvent() { editor = AcademicEvent(courseID: courseFilter ?? scopedCourses.first?.id ?? "personal", title: "", date: Calendar.current.startOfDay(for: .now), state: .approved, evidence: "Added manually") }
     func showDesktop() {
         if panel == nil { panel = DesktopPanel(model: self) }
         panel?.toggle()
@@ -119,10 +158,11 @@ import UniformTypeIdentifiers
     func ingest(_ source: SourceDocument, navigate: Bool = true) {
         if !navigate, !source.hash.isEmpty, archive.sources.contains(where: { $0.id == source.id && $0.hash == source.hash }) { return }
         if let i = archive.sources.firstIndex(where: { $0.id == source.id }) { archive.sources[i] = source } else { archive.sources.append(source) }
-        let found = RuleExtractor.extract(source: source, year: importYear, timeZone: TimeZone.current.identifier)
+        // Structured Canvas assignments already have their own identity and due date.
+        let found = source.kind == .assignment ? [] : RuleExtractor.extract(source: source, year: course(source.courseID).term?.academicYear ?? importYear, timeZone: course(source.courseID).timeZone ?? TimeZone.current.identifier)
         archive.events = Reconciler.merge(existing: archive.events, incoming: found)
         notice = found.isEmpty ? L10n.string("Document imported. Use AI extraction or add an event manually.") : L10n.format("Ready to review: %ld.", found.count)
-        save(); if navigate { page = found.isEmpty ? .sources : .review }
+        if navigate { save(); page = found.isEmpty ? .sources : .review }
     }
     func chooseDocument() {
         let picker = NSOpenPanel(); picker.allowsMultipleSelection = false
@@ -135,50 +175,159 @@ import UniformTypeIdentifiers
             catch { self.error = error.localizedDescription }
         }
     }
-    func syncCanvas() {
+    func syncCanvas(promptForSelection: Bool = true) {
         guard !busy else { return }
         guard !isDemo else { notice = L10n.string("Demo data stays separate from your accounts."); return }
-        checkCanvasToken()
+        let host = canvasHost
+        let account = canvasCredentialAccount
+        let generation = canvasGeneration
         busy = true
         syncTask = Task {
-            defer { busy = false }
+            defer { if canvasGeneration == generation { busy = false; syncTask = nil } }
             do {
-                guard let token = try CredentialStore.read(canvasCredentialAccount), !token.isEmpty else { throw AppError.message(L10n.string("Add your Canvas address and token in Settings first.")) }
-                let result = try await CanvasClient(host: canvasHost, token: token).sync()
+                guard let token = try await CredentialStore.readAsync(account), !token.isEmpty else { throw AppError.message(L10n.string("Add your Canvas address and token in Settings first.")) }
+                try Task.checkCancellation()
+                let client = try CanvasClient(host: host, token: token)
+                let discovered = try await client.discoverCourses()
+                guard canvasGeneration == generation, canvasHost == host else { return }
+                discoveredCanvasCourses = discovered
+                mergeCourses(discovered)
+                let selected = discovered.filter { archive.canvasSelection?.courseIDs.contains($0.id) == true }
+                guard archive.canvasSelection != nil else {
+                    if promptForSelection { prepareCourseSelection(termID: recommendedTermID) }
+                    notice = L10n.string("Choose a semester and courses before syncing Canvas content.")
+                    save()
+                    return
+                }
+                // A changed account has a separate set of course identities.
+                if selected.isEmpty, archive.canvasSelection?.courseIDs.isEmpty == false {
+                    if promptForSelection { prepareCourseSelection(termID: recommendedTermID) }
+                    notice = L10n.string("Your selected courses are unavailable. Review your course selection.")
+                    save()
+                    return
+                }
+                let result = try await client.sync(courses: selected)
+                guard canvasGeneration == generation, canvasHost == host else { return }
                 for course in result.courses {
                     if let i = archive.courses.firstIndex(where: { $0.id == course.id }) { archive.courses[i] = course } else { archive.courses.append(course) }
                 }
                 archive.events = Reconciler.merge(existing: archive.events, incoming: result.events)
                 for source in result.sources { ingest(source, navigate: false) }
                 remoteFiles = result.files
-                if result.warnings.isEmpty { archive.lastSync = .now }
+                archive.lastSync = .now
                 save()
-                notice = result.warnings.isEmpty ? L10n.string("Canvas is up to date.") : result.warnings.joined(separator: "\n")
-            } catch { self.error = error.localizedDescription }
+                var messages = result.warnings
+                let missing = (archive.canvasSelection?.courseIDs ?? []).subtracting(Set(discovered.map(\.id)))
+                if !missing.isEmpty { messages.insert(L10n.string("Some selected courses are unavailable. Their saved materials have been kept."), at: 0) }
+                notice = messages.isEmpty ? L10n.string("Canvas is up to date.") : messages.joined(separator: "\n")
+                checkCanvasToken()
+            } catch is CancellationError { }
+            catch { if canvasGeneration == generation { self.error = error.localizedDescription } }
         }
     }
+    private func mergeCourses(_ courses: [Course]) {
+        for course in courses {
+            if let i = archive.courses.firstIndex(where: { $0.id == course.id }) { archive.courses[i] = course }
+            else { archive.courses.append(course) }
+        }
+    }
+    private var recommendedTermID: String? {
+        let terms = availableTerms.filter { $0.name.caseInsensitiveCompare("Default Term") != .orderedSame }
+        return terms.first { ($0.startAt ?? .distantPast) <= .now && ($0.endAt ?? .distantFuture) >= .now }?.id ?? terms.first?.id
+    }
+    func prepareCourseSelection(termID: String?) {
+        draftTermID = termID
+        if let selection = archive.canvasSelection, selection.termID == termID {
+            draftCourseIDs = selection.courseIDs.intersection(Set(canvasCourses.map(\.id)))
+        } else {
+            draftCourseIDs = Set(canvasCourses.filter { termID != nil && $0.term?.id == termID }.map(\.id))
+        }
+        showCourseSelection = true
+    }
+    func manageCanvasCourses() {
+        guard !busy else { return }
+        if discoveredCanvasCourses == nil && !isDemo { discoverCanvasCourses() }
+        else { prepareCourseSelection(termID: archive.canvasSelection == nil ? recommendedTermID : archive.canvasSelection?.termID) }
+    }
+    func discoverCanvasCourses() {
+        guard !busy, !isDemo else { return }
+        let host = canvasHost
+        let account = canvasCredentialAccount
+        let generation = canvasGeneration
+        busy = true
+        syncTask = Task {
+            defer { if canvasGeneration == generation { busy = false; syncTask = nil } }
+            do {
+                guard let token = try await CredentialStore.readAsync(account), !token.isEmpty else { throw AppError.message(L10n.string("Add your Canvas address and token in Settings first.")) }
+                try Task.checkCancellation()
+                let courses = try await CanvasClient(host: host, token: token).discoverCourses()
+                guard canvasGeneration == generation, canvasHost == host else { return }
+                discoveredCanvasCourses = courses
+                mergeCourses(courses)
+                save()
+                prepareCourseSelection(termID: archive.canvasSelection == nil ? recommendedTermID : archive.canvasSelection?.termID)
+            } catch is CancellationError { }
+            catch { if canvasGeneration == generation { self.error = error.localizedDescription } }
+        }
+    }
+    func applyCanvasSelection(sync: Bool = true) {
+        guard !busy else { return }
+        archive.canvasSelection = CanvasSelection(termID: draftTermID, courseIDs: draftCourseIDs.intersection(Set(canvasCourses.map(\.id))))
+        selectedID = nil; courseFilter = nil; kindFilter = nil; search = ""
+        if let year = availableTerms.first(where: { $0.id == draftTermID })?.academicYear { importYear = year }
+        showCourseSelection = false
+        save()
+        if sync && !isDemo { syncCanvas() }
+    }
+    func invalidateCanvasConnection() {
+        canvasGeneration = UUID()
+        if syncTask != nil { syncTask?.cancel(); syncTask = nil; busy = false }
+        discoveredCanvasCourses = nil
+        remoteFiles = []
+        tokenRenewal.cancel()
+    }
     func fetch(_ file: CanvasFile) {
-        guard !busy else { return }; busy = true
+        guard !busy, scopedCourseIDs.contains(file.courseID), !isDemo else { return }
+        let host = canvasHost, account = canvasCredentialAccount, generation = canvasGeneration
+        busy = true
         Task {
             defer { busy = false }
             do {
-                guard let token = try CredentialStore.read(canvasCredentialAccount) else { throw AppError.message(L10n.string("Connect Canvas in Settings first.")) }
-                let url = try await CanvasClient(host: canvasHost, token: token).download(file: file)
+                guard let token = try await CredentialStore.readAsync(account) else { throw AppError.message(L10n.string("Connect Canvas in Settings first.")) }
+                guard generation == canvasGeneration, host == canvasHost else { return }
+                let url = try await CanvasClient(host: host, token: token).download(file: file)
                 defer { try? FileManager.default.removeItem(at: url) }
                 var source = try await DocumentReader.read(url: url, courseID: file.courseID)
                 source.id = file.id; source.title = file.title; source.url = file.sourceURL
+                guard generation == canvasGeneration, host == canvasHost, scopedCourseIDs.contains(file.courseID) else { return }
                 ingest(source)
             } catch { self.error = error.localizedDescription }
         }
     }
+    func importExternal(_ link: SourceLink, courseID: String) {
+        guard !busy, scopedCourseIDs.contains(courseID) else { return }
+        guard !isDemo else { notice = L10n.string("Demo data stays separate from your accounts."); return }
+        busy = true
+        Task {
+            defer { busy = false }
+            do { ingest(try await PublicDocumentClient().read(link: link, courseID: courseID)) }
+            catch { self.error = error.localizedDescription }
+        }
+    }
     func extractAI(_ source: SourceDocument) {
-        guard !busy else { return }; busy = true
+        guard !busy, scopedCourseIDs.contains(source.courseID) else { return }
+        let endpoint = modelEndpoint, name = modelName, account = modelCredentialAccount
+        let year = course(source.courseID).term?.academicYear ?? importYear
+        let zone = course(source.courseID).timeZone ?? TimeZone.current.identifier
+        busy = true
         Task {
             defer { busy = false }
             do {
                 guard !isDemo else { throw AppError.message(L10n.string("AI requests are disabled in demo mode.")) }
-                guard let key = try CredentialStore.read(modelCredentialAccount), !key.isEmpty else { throw AppError.message(L10n.string("Configure your model and API key in Settings first.")) }
-                let candidates = try await LLMClient(endpoint: modelEndpoint, key: key, model: modelName).extract(source: source, year: importYear, timeZone: TimeZone.current.identifier)
+                guard let key = try await CredentialStore.readAsync(account), !key.isEmpty else { throw AppError.message(L10n.string("Configure your model and API key in Settings first.")) }
+                guard endpoint == modelEndpoint, name == modelName, account == modelCredentialAccount else { return }
+                let candidates = try await LLMClient(endpoint: endpoint, key: key, model: name).extract(source: source, year: year, timeZone: zone)
+                guard endpoint == modelEndpoint, name == modelName, scopedCourseIDs.contains(source.courseID) else { return }
                 archive.events = Reconciler.merge(existing: archive.events, incoming: candidates)
                 save(); page = .review; notice = L10n.format("AI candidates ready to review: %ld.", candidates.count)
             } catch { self.error = error.localizedDescription }
@@ -188,14 +337,14 @@ import UniformTypeIdentifiers
         guard !busy else { return }; busy = true
         Task {
             defer { busy = false }
-            do { try await calendar.connect(); notice = try await calendar.sync(events: archive.events) }
+            do { try await calendar.connect(); notice = try await calendar.sync(events: scopedEvents) }
             catch { self.error = error.localizedDescription }
         }
     }
     func exportICS() {
         let picker = NSSavePanel(); picker.nameFieldStringValue = "Syllapace.ics"; picker.allowedContentTypes = [UTType(filenameExtension: "ics") ?? .plainText]
         guard picker.runModal() == .OK, let url = picker.url else { return }
-        do { try ICSExporter.export(events: archive.events, courses: archive.courses).write(to: url, atomically: true, encoding: .utf8); notice = L10n.string("Calendar exported.") }
+        do { try ICSExporter.export(events: scopedEvents, courses: scopedCourses).write(to: url, atomically: true, encoding: .utf8); notice = L10n.string("Calendar exported.") }
         catch { self.error = error.localizedDescription }
     }
 }

@@ -8,18 +8,22 @@ struct SettingsView: View {
     @State private var apiKey = ""
     @State private var result: String?
     @State private var resolving: AcademicEvent?
+    @State private var saving = false
     var body: some View {
         TabView(selection: $model.settingsTab) {
             generalSettings.tabItem { Label(L10n.string("General"), systemImage: "gearshape") }.tag(3)
             Form {
                 Section(L10n.string("Your Canvas account")) {
-                    TextField(L10n.string("Canvas address"), text: $model.canvasHost, prompt: Text("https://canvas.your-university.edu"))
-                        .onChange(of: model.canvasHost) { _, _ in model.tokenRenewal.cancel() }
-                    SecureField(L10n.string("Access token"), text: $canvasToken, prompt: Text(L10n.string("Leave blank to keep the saved token")))
+                    TextField(L10n.string("Canvas address"), text: $model.canvasHost, prompt: Text("https://canvas.your-university.edu")).disabled(saving)
+                        .onChange(of: model.canvasHost) { _, _ in model.invalidateCanvasConnection() }
+                    SecureField(L10n.string("Access token"), text: $canvasToken, prompt: Text(L10n.string("Leave blank to keep the saved token"))).disabled(saving)
                     HStack {
-                        Button(L10n.string("Save connection")) { saveCanvas() }.disabled(model.isDemo || model.canvasHost.isEmpty)
-                        Button(L10n.string("Sync now")) { model.syncCanvas() }.disabled(model.isDemo || model.busy)
+                        Button(L10n.string("Save connection")) { saveCanvas() }.disabled(model.isDemo || model.canvasHost.isEmpty || saving || model.busy)
+                        Button(L10n.string("Sync now")) { model.syncCanvas() }.disabled(model.isDemo || model.busy || saving)
                     }
+                }
+                Section(L10n.string("Courses")) {
+                    HStack { Text(model.selectedSemesterName); Spacer(); Button(L10n.string("Manage courses…")) { model.revealMain(); model.manageCanvasCourses() }.disabled(model.busy) }
                 }
                 Section { Toggle(L10n.string("Refresh every 10 minutes while running"), isOn: $model.canvasAutoSync).onChange(of: model.canvasAutoSync) { _, value in UserDefaults.standard.set(value, forKey: "canvasAutoSync") }; Text(L10n.string("Your token is stored in macOS Keychain. Requests go directly to your Canvas instance.")).font(.caption).foregroundStyle(.secondary) }
                 Section {
@@ -34,10 +38,10 @@ struct SettingsView: View {
             }.formStyle(.grouped).tabItem { Label("Canvas", systemImage: "graduationcap") }.tag(0)
             Form {
                 Section(L10n.string("Your model")) {
-                    TextField(L10n.string("API base URL"), text: $model.modelEndpoint)
-                    TextField(L10n.string("Model"), text: $model.modelName, prompt: Text(L10n.string("Model identifier")))
-                    SecureField(L10n.string("API key"), text: $apiKey, prompt: Text(L10n.string("Leave blank to keep the saved key")))
-                    Button(L10n.string("Save model")) { saveModel() }.disabled(model.isDemo)
+                    TextField(L10n.string("API base URL"), text: $model.modelEndpoint).disabled(saving)
+                    TextField(L10n.string("Model"), text: $model.modelName, prompt: Text(L10n.string("Model identifier"))).disabled(saving)
+                    SecureField(L10n.string("API key"), text: $apiKey, prompt: Text(L10n.string("Leave blank to keep the saved key"))).disabled(saving)
+                    Button(L10n.string("Save model")) { saveModel() }.disabled(model.isDemo || saving || model.busy)
                 }
                 Section { Text(L10n.string("Use a provider with an OpenAI-compatible chat completions API. Only the document you choose is sent when you select Extract. Nothing is uploaded automatically.")).font(.caption).foregroundStyle(.secondary) }
                 if let result { Text(result).font(.caption) }
@@ -46,16 +50,16 @@ struct SettingsView: View {
                 Section(L10n.string("Apple Calendar")) {
                     Text(L10n.string("Keep confirmed events in a dedicated Syllapace calendar."))
                     Text(model.calendar.status).font(.caption).foregroundStyle(.secondary)
-                    Button(L10n.string("Connect & sync calendar")) { model.syncCalendar() }.disabled(model.isDemo || model.busy)
+                    Button(L10n.string("Connect & sync calendar")) { model.syncCalendar() }.disabled(model.isDemo || model.busy || saving)
                     Text(L10n.string("Full calendar access is needed to update your events and detect edits. Syllapace only manages its own calendar; local storage is the default.")).font(.caption).foregroundStyle(.secondary)
                 }
                 Section {
                     Toggle(L10n.string("Sync confirmed changes automatically"), isOn: $model.calendarAutoSync)
                         .onChange(of: model.calendarAutoSync) { _, value in UserDefaults.standard.set(value, forKey: "calendarAutoSync"); if value { model.scheduleCalendarSync() } }
                     ForEach(Array(model.calendar.conflicts.enumerated()), id: \.offset) { index, message in
-                        VStack(alignment: .leading) {
-                            Text(message).font(.caption).foregroundStyle(Palette.warning)
-                            if index < model.calendar.conflictEventIDs.count, let event = model.archive.events.first(where: { $0.id == model.calendar.conflictEventIDs[index] }) {
+                        if index < model.calendar.conflictEventIDs.count, let event = model.scopedEvents.first(where: { $0.id == model.calendar.conflictEventIDs[index] }) {
+                            VStack(alignment: .leading) {
+                                Text(message).font(.caption).foregroundStyle(Palette.warning)
                                 Button(L10n.string("Use Syllapace version")) { resolving = event }.disabled(model.busy)
                             }
                         }
@@ -115,18 +119,40 @@ struct SettingsView: View {
         return "\(version) (\(build))"
     }
     private func saveCanvas() {
-        do {
-            _ = try CanvasClient(host: model.canvasHost, token: canvasToken.isEmpty ? "validation" : canvasToken)
-            if !canvasToken.isEmpty { try CredentialStore.save(canvasToken, account: model.canvasCredentialAccount); canvasToken = "" }
-            UserDefaults.standard.set(model.canvasHost, forKey: "canvasHost"); result = L10n.string("Connection saved.")
-            model.checkCanvasToken(force: true)
-        } catch { result = error.localizedDescription }
+        let host = model.canvasHost
+        let token = canvasToken
+        let account = model.canvasCredentialAccount
+        saving = true
+        Task {
+            defer { saving = false }
+            do {
+                _ = try CanvasClient(host: host, token: token.isEmpty ? "validation" : token)
+                if !token.isEmpty { try await CredentialStore.saveAsync(token, account: account) }
+                guard model.canvasHost == host else { return }
+                if UserDefaults.standard.string(forKey: "canvasHost") != host {
+                    model.archive.canvasSelection = nil
+                    model.selectedID = nil; model.courseFilter = nil
+                    model.save()
+                }
+                UserDefaults.standard.set(host, forKey: "canvasHost"); canvasToken = ""; result = L10n.string("Connection saved.")
+                model.checkCanvasToken(force: true)
+            } catch { result = error.localizedDescription }
+        }
     }
     private func saveModel() {
-        do {
-            _ = try LLMClient(endpoint: model.modelEndpoint, key: "validation", model: model.modelName)
-            if !apiKey.isEmpty { try CredentialStore.save(apiKey, account: model.modelCredentialAccount); apiKey = "" }
-            UserDefaults.standard.set(model.modelEndpoint, forKey: "modelEndpoint"); UserDefaults.standard.set(model.modelName, forKey: "modelName"); result = L10n.string("Model saved.")
-        } catch { result = error.localizedDescription }
+        let endpoint = model.modelEndpoint
+        let name = model.modelName
+        let key = apiKey
+        let account = model.modelCredentialAccount
+        saving = true
+        Task {
+            defer { saving = false }
+            do {
+                _ = try LLMClient(endpoint: endpoint, key: key.isEmpty ? "validation" : key, model: name)
+                if !key.isEmpty { try await CredentialStore.saveAsync(key, account: account) }
+                guard model.modelEndpoint == endpoint, model.modelName == name else { return }
+                UserDefaults.standard.set(endpoint, forKey: "modelEndpoint"); UserDefaults.standard.set(name, forKey: "modelName"); apiKey = ""; result = L10n.string("Model saved.")
+            } catch { result = error.localizedDescription }
+        }
     }
 }

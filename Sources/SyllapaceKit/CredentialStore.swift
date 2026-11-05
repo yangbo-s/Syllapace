@@ -5,6 +5,31 @@ public enum CredentialStore {
     public static let canvasToken = "canvas-token"
     public static let modelKey = "model-key"
     private static let service = "app.syllapace.credentials"
+    /// Security.framework can wait for a system authorization dialog. Keep that
+    /// blocking operation off the UI actor, including when the user cancels.
+    public static func readAsync(_ account: String) async throws -> String? {
+        try await offMain { try read(account) }
+    }
+    public static func saveAsync(_ value: String, account: String) async throws {
+        try await offMain { try save(value, account: account) }
+    }
+    public static func deleteAsync(_ account: String) async throws {
+        try await offMain { try delete(account) }
+    }
+    private static func offMain<Value: Sendable>(_ operation: @escaping @Sendable () throws -> Value) async throws -> Value {
+        try Task.checkCancellation()
+        let work = Task.detached(priority: .userInitiated) {
+            try Task.checkCancellation()
+            return try operation()
+        }
+        return try await withTaskCancellationHandler {
+            let value = try await work.value
+            try Task.checkCancellation()
+            return value
+        } onCancel: {
+            work.cancel()
+        }
+    }
     public static func read(_ account: String) throws -> String? {
         var query = base(account)
         query[kSecReturnData as String] = true

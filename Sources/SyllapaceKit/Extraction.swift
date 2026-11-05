@@ -38,7 +38,8 @@ public enum RuleExtractor {
     }
     private static func eventKind(_ text: String) -> EventKind {
         let value = text.lowercased()
-        if value.contains("exam") || value.contains("midterm") || value.contains("quiz") || value.contains("final") { return .exam }
+        if value.contains("exam") || value.contains("midterm") || value.contains("final") { return .exam }
+        if value.contains("quiz") { return .quiz }
         if value.contains("presentation") { return .presentation }
         if value.contains("project") || value.contains("milestone") { return .project }
         return .assignment

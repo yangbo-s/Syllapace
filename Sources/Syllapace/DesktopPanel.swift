@@ -20,7 +20,7 @@ struct DesktopCard: View {
     @State private var pinned = false
     @AppStorage(L10n.preferenceKey) private var languagePreference = AppLanguage.system.rawValue
     @Environment(\.openWindow) private var openWindow
-    var upcoming: [AcademicEvent] { model.archive.events.filter { $0.state == .approved && !$0.completed && ($0.presentationDate ?? .distantPast) >= Calendar.current.startOfDay(for: .now) }.sorted { $0.presentationDate! < $1.presentationDate! } }
+    var upcoming: [AcademicEvent] { model.scopedEvents.filter { $0.state == .approved && !$0.completed && ($0.presentationDate ?? .distantPast) >= Calendar.current.startOfDay(for: .now) }.sorted { $0.presentationDate! < $1.presentationDate! } }
     var body: some View {
         // Reading the preference invalidates this independent NSHostingView too.
         let _ = languagePreference

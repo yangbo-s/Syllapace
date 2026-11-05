@@ -33,9 +33,13 @@ public struct CalendarEventPayload: Codable, Sendable, Equatable {
             timeZone = calendarTimeZone.identifier
         } else {
             start = date
-            end = date
+            guard event.endsAt.map({ $0.timeIntervalSince1970.isFinite && $0 >= date }) ?? true else { return nil }
+            end = event.endsAt ?? date
         }
         notes = event.evidence
+        // Location is included in the notes to preserve the existing Calendar
+        // fingerprint schema and leave Calendar-owned location edits intact.
+        if let location = event.location, !location.isEmpty { notes += "\n\nLocation: \(location)" }
         if let source = event.sourceURL, let url = URL(string: source), url.scheme == "https",
            url.user == nil, url.password == nil, url.query == nil {
             notes += "\n\nSource: \(source)"

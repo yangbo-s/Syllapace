@@ -28,6 +28,7 @@ public enum DocumentReader {
         let data = try Data(contentsOf: url, options: .mappedIfSafe)
         guard data.count <= maxBytes else { throw DocumentError.tooLarge }
         let text: String
+        var links: [SourceLink]?
         switch url.pathExtension.lowercased() {
         case "pdf":
             guard data.starts(with: Data("%PDF".utf8)), let document = PDFDocument(data: data), !document.isLocked else { throw DocumentError.invalidDocument }
@@ -57,7 +58,11 @@ public enum DocumentReader {
         case "txt", "md", "markdown", "html", "htm":
             guard data.count <= maxTextBytes else { throw DocumentError.tooLarge }
             guard let raw = String(data: data, encoding: .utf8) else { throw DocumentError.unreadable }
-            text = ["html", "htm"].contains(url.pathExtension.lowercased()) ? plainText(html: raw) : raw
+            if ["html", "htm"].contains(url.pathExtension.lowercased()) {
+                let parsed = CanvasHTML.parse(raw, baseURL: url)
+                guard !parsed.truncated else { throw DocumentError.tooLarge }
+                text = parsed.text; links = parsed.links
+            } else { text = raw }
         default: throw DocumentError.unsupported
         }
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw DocumentError.noText }
@@ -67,7 +72,7 @@ public enum DocumentReader {
             courseID: courseID,
             title: url.deletingPathExtension().lastPathComponent,
             text: text,
-            hash: SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+            hash: SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined(), kind: .file, links: links
         )
     }
 

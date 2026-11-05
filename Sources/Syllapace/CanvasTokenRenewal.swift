@@ -4,7 +4,7 @@ import CryptoKit
 import SyllapaceKit
 
 @Observable final class CanvasTokenRenewal {
-    enum Status { case idle, checking, valid, renewed, unavailable, expired, retrying, missing }
+    enum Status { case idle, checking, valid, renewed, unidentified, notExtended, unavailable, expired, retrying, missing }
     private(set) var enabled = UserDefaults.standard.object(forKey: "canvasAutoRenewToken") as? Bool ?? true
     private(set) var status = Status.idle
     private(set) var lease: CanvasTokenLease?
@@ -22,6 +22,8 @@ import SyllapaceKit
             let date = expiry.formatted(.dateTime.year().month().day().hour().minute().locale(L10n.locale))
             return L10n.format(status == .renewed ? "Token renewed until %@." : "Token expires %@.", date)
         case .unavailable: return L10n.string("Automatic renewal is unavailable for this token. Replace it before it expires.")
+        case .unidentified: return L10n.string("Canvas token metadata could not be matched safely. No renewal was attempted.")
+        case .notExtended: return L10n.string("Canvas did not confirm a later expiration date. Replace the token before it expires.")
         case .expired: return L10n.string("The token is expired or invalid. Generate a new token in Canvas and save it here.")
         case .retrying: return L10n.string("Token expiry could not be checked. Syllapace will retry while open.")
         case .missing: return L10n.string("Save a Canvas token to enable automatic renewal.")
@@ -50,7 +52,8 @@ import SyllapaceKit
         task = Task {
             defer { if generation == run { task = nil } }
             do {
-                guard let token = try CredentialStore.read(account), !token.isEmpty else { status = .missing; return }
+                guard let token = try await CredentialStore.readAsync(account), !token.isEmpty else { if generation == run { status = .missing }; return }
+                guard !Task.isCancelled, generation == run, enabled else { return }
                 let origin = try ConnectorURL.canvasOrigin(host)
                 let key = "canvasTokenLease." + Self.digest(origin.absoluteString)
                 let fingerprint = Self.digest(token)
@@ -77,7 +80,11 @@ import SyllapaceKit
                         switch error {
                         case ConnectorError.http(401), CanvasTokenRenewalError.expired:
                             status = .expired; delay = 24 * 60 * 60
-                        case ConnectorError.http(400), ConnectorError.http(403), ConnectorError.http(404), ConnectorError.http(405), ConnectorError.http(422), CanvasTokenRenewalError.unverifiable, CanvasTokenRenewalError.notExtended:
+                        case CanvasTokenRenewalError.unverifiable:
+                            status = .unidentified; delay = 24 * 60 * 60
+                        case CanvasTokenRenewalError.notExtended:
+                            status = .notExtended; delay = 24 * 60 * 60
+                        case ConnectorError.http(400), ConnectorError.http(403), ConnectorError.http(404), ConnectorError.http(405), ConnectorError.http(422):
                             status = .unavailable; delay = 24 * 60 * 60
                         default: status = .retrying
                         }

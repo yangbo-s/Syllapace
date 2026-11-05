@@ -17,25 +17,32 @@ public enum Reconciler {
             if let index = match {
                 var current = result[index]
                 if current.state == .approved { current.wasApproved = true }
-                let sourceChanged = current.observedSourceDate != observation.date || (current.observedSourceDateOnly ?? current.dateOnly) != observation.dateOnly || (current.observedSourceTimeZone ?? current.timeZone) != observation.timeZone
+                let sourceChanged = current.observedSourceDate != observation.date || (current.observedSourceDateOnly ?? current.dateOnly) != observation.dateOnly || (current.observedSourceTimeZone ?? current.timeZone) != observation.timeZone || current.observedSourceEndsAt != observation.endsAt
                 current.observedSourceDate = observation.date
                 current.observedSourceDateOnly = observation.dateOnly
                 current.observedSourceTimeZone = observation.timeZone
+                current.observedSourceEndsAt = observation.endsAt
                 if sourceChanged {
                     if current.state == .pending && !current.userEdited {
                         current.date = observation.date
                         current.dateOnly = observation.dateOnly
                         current.timeZone = observation.timeZone
+                        current.endsAt = observation.endsAt
                     } else if current.state != .rejected {
                         current.previousDate = current.date
                         current.proposedDate = observation.date
                         current.proposedDateOnly = observation.dateOnly
                         current.proposedTimeZone = observation.timeZone
+                        current.proposedEndsAt = observation.endsAt
                         current.state = .conflict
                     }
                     current.revision += 1
                 }
-                if !current.userEdited { current.title = observation.title; current.kind = observation.kind }
+                if !current.userEdited { current.title = observation.title; current.kind = observation.kind; current.location = observation.location }
+                if observation.submission != current.submission, observation.submission != nil {
+                    current.submission = observation.submission
+                    current.completed = observation.completed
+                }
                 current.evidence = observation.evidence
                 current.sourceURL = observation.sourceURL
                 result[index] = current
@@ -43,6 +50,7 @@ public enum Reconciler {
                 var candidate = observation
                 let duplicate = result.first {
                     $0.courseID == observation.courseID && $0.sourceID != observation.sourceID &&
+                    !($0.id.hasPrefix("canvas:") && observation.id.hasPrefix("canvas:")) &&
                     normalized($0.title) == normalized(observation.title) && $0.kind == observation.kind &&
                     $0.state != .rejected
                 }

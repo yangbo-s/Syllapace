@@ -23,8 +23,9 @@ public enum ICSExporter {
                 if let end = calendar.date(byAdding: .day, value: 1, to: date) { lines.append("DTEND;VALUE=DATE:\(formatter.string(from: end))") }
             } else {
                 lines.append("DTSTART:\(instant.string(from: date))")
-                // A deadline is a point in time. No invented event duration.
+                if let end = event.endsAt, end >= date { lines.append("DTEND:\(instant.string(from: end))") }
             }
+            if let location = event.location, !location.isEmpty { lines.append("LOCATION:\(escape(location))") }
             var description = names[event.courseID] ?? ""
             if !event.evidence.isEmpty { description += "\n\n" + event.evidence }
             if !description.isEmpty { lines.append("DESCRIPTION:\(escape(description))") }

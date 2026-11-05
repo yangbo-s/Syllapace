@@ -25,15 +25,22 @@ public struct ArchiveStore: Sendable {
 
     private func decode(from location: URL) throws -> AppArchive {
         let data = try Data(contentsOf: location)
-        let archive: AppArchive
+        struct Version: Decodable { var schemaVersion: Int }
+        let version: Int
+        do { version = try JSONDecoder().decode(Version.self, from: data).schemaVersion }
+        catch { throw ArchiveError.corrupt(backupAvailable: FileManager.default.fileExists(atPath: backupURL.path)) }
+        guard (1...2).contains(version) else { throw ArchiveError.unsupportedVersion(version) }
+        var archive: AppArchive
         do { archive = try JSONDecoder().decode(AppArchive.self, from: data) }
         catch { throw ArchiveError.corrupt(backupAvailable: FileManager.default.fileExists(atPath: backupURL.path)) }
-        guard archive.schemaVersion == 1 else { throw ArchiveError.unsupportedVersion(archive.schemaVersion) }
+        // Optional fields load without inventing course scope. The original v1
+        // file remains untouched until a successful save keeps it as a backup.
+        archive.schemaVersion = 2
         return archive
     }
 
     public func save(_ archive: AppArchive) throws {
-        guard archive.schemaVersion == 1 else { throw ArchiveError.unsupportedVersion(archive.schemaVersion) }
+        guard archive.schemaVersion == 2 else { throw ArchiveError.unsupportedVersion(archive.schemaVersion) }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(archive)

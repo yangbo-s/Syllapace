@@ -38,6 +38,36 @@ enum SelfTest {
         updater.startIfNeeded()
         check(!updater.isAvailable && !updater.canCheckForUpdates,
               "Isolated self-test cannot start update checks")
+        let fall = AcademicTerm(id: "fixture:fall", name: "Fall 2026")
+        let spring = AcademicTerm(id: "fixture:spring", name: "Spring 2026")
+        let fallCourse = Course(id: "canvas:fixture:course:fall", name: "Fall fixture", code: "FALL", term: fall)
+        let springCourse = Course(id: "canvas:fixture:course:spring", name: "Spring fixture", code: "SPRING", term: spring)
+        model.archive.courses += [fallCourse, springCourse]
+        model.discoveredCanvasCourses = [fallCourse, springCourse]
+        model.archive.events += [AcademicEvent(id: "scope-fall", courseID: fallCourse.id, title: "Fall deadline", date: .now, state: .pending), AcademicEvent(id: "scope-spring", courseID: springCourse.id, title: "Spring deadline", date: .now, state: .pending)]
+        model.archive.sources += [SourceDocument(id: "source-fall", courseID: fallCourse.id, title: "Fall syllabus", text: ""), SourceDocument(id: "source-spring", courseID: springCourse.id, title: "Spring syllabus", text: "")]
+        model.archive.canvasSelection = nil
+        check(!model.scopedEvents.contains { $0.id.hasPrefix("scope-") }, "Legacy Canvas data waits for course selection")
+        model.prepareCourseSelection(termID: fall.id)
+        model.applyCanvasSelection(sync: false)
+        check(model.scopedEvents.contains { $0.id == "scope-fall" } && !model.scopedEvents.contains { $0.id == "scope-spring" }, "Semester selection scopes events")
+        check(model.scopedSources.contains { $0.id == "source-fall" } && !model.scopedSources.contains { $0.id == "source-spring" }, "Semester selection scopes sources")
+        model.page = .review
+        check(model.events.contains { $0.id == "scope-fall" } && !model.events.contains { $0.id == "scope-spring" }, "Review respects semester selection")
+        model.prepareCourseSelection(termID: spring.id)
+        model.applyCanvasSelection(sync: false)
+        check(model.scopedEvents.contains { $0.id == "scope-spring" } && !model.scopedEvents.contains { $0.id == "scope-fall" }
+              && model.archive.events.contains { $0.id == "scope-fall" }, "Switching semesters preserves history")
+        guard !model.busy, !model.isDemo, let outOfScope = model.archive.events.first(where: { $0.id == "scope-fall" }) else {
+            fail("Out-of-scope Calendar check requires an idle, non-demo fixture"); return
+        }
+        let priorNotice = model.notice, priorError = model.error
+        model.resolveCalendar(outOfScope)
+        // The synchronous scope guard must return before scheduling any task
+        // that could enter EventKit. This check never needs calendar permission.
+        check(!model.busy && model.notice == priorNotice && model.error == priorError,
+              "Calendar conflict resolution ignores events outside the selected scope")
+        do { let restored = try model.store.load(); check(restored.canvasSelection == model.archive.canvasSelection, "Course selection survives reload") } catch { fail(error.localizedDescription) }
         Snapshot.log("SELFTEST complete")
         NSApp.terminate(nil)
     }
