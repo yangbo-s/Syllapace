@@ -2,7 +2,7 @@ import Foundation
 import CoreFoundation
 
 /// The web workspace is a projection of native state, never a second database.
-public enum WorkspaceViewMode: String, Codable, Sendable, CaseIterable { case list, kanban, gantt, calendar }
+public enum WorkspaceViewMode: String, Codable, Sendable, CaseIterable { case list, gantt, calendar }
 public enum WorkspaceCategory: String, Codable, Sendable { case meeting, deadline, assessment, academic }
 public enum WorkspaceProgress: String, Codable, Sendable { case todo, doing, done }
 
@@ -31,6 +31,8 @@ public struct WorkspaceEvent: Codable, Sendable, Equatable {
     public var timeZone: String
     public var progress: WorkspaceProgress
     public var plannedStart: String?
+    public var releasedAt: String?
+    public var releaseDateOnly: Bool?
     public var location: String?
     public var evidence: String
     public var sourceURL: String?
@@ -38,18 +40,19 @@ public struct WorkspaceEvent: Codable, Sendable, Equatable {
 
     public init(id: String, courseID: String, courseLabel: String, title: String, category: WorkspaceCategory,
                 subtype: String, start: String?, end: String?, dateOnly: Bool, timeZone: String,
-                progress: WorkspaceProgress, plannedStart: String? = nil, location: String? = nil,
+                progress: WorkspaceProgress, plannedStart: String? = nil, releasedAt: String? = nil, releaseDateOnly: Bool? = nil, location: String? = nil,
                 evidence: String = "", sourceURL: String? = nil, revision: Int) {
         self.id = id; self.courseID = courseID; self.courseLabel = courseLabel; self.title = title
         self.category = category; self.subtype = subtype; self.start = start; self.end = end
         self.dateOnly = dateOnly; self.timeZone = timeZone; self.progress = progress
+        self.releasedAt = releasedAt; self.releaseDateOnly = releaseDateOnly
         self.plannedStart = plannedStart; self.location = location; self.evidence = evidence
         self.sourceURL = sourceURL; self.revision = revision
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, courseID, courseLabel, title, category, subtype, start, end, dateOnly, timeZone
-        case progress, plannedStart, location, evidence, sourceURL, revision
+        case progress, plannedStart, releasedAt, releaseDateOnly, location, evidence, sourceURL, revision
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -60,6 +63,8 @@ public struct WorkspaceEvent: Codable, Sendable, Equatable {
         try values.encode(start, forKey: .start); try values.encode(end, forKey: .end)
         try values.encode(dateOnly, forKey: .dateOnly); try values.encode(timeZone, forKey: .timeZone)
         try values.encode(progress, forKey: .progress); try values.encode(plannedStart, forKey: .plannedStart)
+        try values.encode(releasedAt, forKey: .releasedAt)
+        try values.encode(releaseDateOnly, forKey: .releaseDateOnly)
         try values.encode(location, forKey: .location); try values.encode(evidence, forKey: .evidence)
         try values.encode(sourceURL, forKey: .sourceURL); try values.encode(revision, forKey: .revision)
     }
@@ -69,6 +74,7 @@ public struct WorkspaceSnapshot: Codable, Sendable, Equatable {
     public let schemaVersion = 1
     public var revision: Int
     public var language: String
+    public var theme: [String: String]?
     public var appearance: String
     public var view: WorkspaceViewMode
     public var scope: String
@@ -77,15 +83,16 @@ public struct WorkspaceSnapshot: Codable, Sendable, Equatable {
     public var now: String
     public var courses: [WorkspaceCourse]
     public var events: [WorkspaceEvent]
-    public init(revision: Int, language: String, appearance: String, view: WorkspaceViewMode,
+    public init(revision: Int, language: String, appearance: String, theme: [String: String]? = nil, view: WorkspaceViewMode,
                 scope: String, loading: Bool = false, needsSemester: Bool = false, now: String,
                 courses: [WorkspaceCourse], events: [WorkspaceEvent]) {
+        self.theme = theme
         self.revision = revision; self.language = language; self.appearance = appearance; self.view = view
         self.scope = scope; self.loading = loading; self.needsSemester = needsSemester
         self.now = now; self.courses = courses; self.events = events
     }
     private enum CodingKeys: String, CodingKey {
-        case revision, language, appearance, view, scope, loading, needsSemester, now, courses, events
+        case revision, language, appearance, theme, view, scope, loading, needsSemester, now, courses, events
         case schemaVersion
     }
     public init(from decoder: any Decoder) throws {
@@ -94,6 +101,7 @@ public struct WorkspaceSnapshot: Codable, Sendable, Equatable {
         revision = try values.decode(Int.self, forKey: .revision)
         language = try values.decode(String.self, forKey: .language)
         appearance = try values.decode(String.self, forKey: .appearance)
+        theme = try values.decodeIfPresent([String: String].self, forKey: .theme)
         view = try values.decode(WorkspaceViewMode.self, forKey: .view)
         scope = try values.decode(String.self, forKey: .scope)
         loading = try values.decode(Bool.self, forKey: .loading)

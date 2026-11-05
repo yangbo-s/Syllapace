@@ -598,7 +598,7 @@ function GanttView({
       const weight = (nextDay.getTime() - cursor.getTime()) / (24 * 60 * 60000)
       units.push({
         key: getDayKey(cursor, timeZone),
-        label: format(zoned, "EEE d", { locale: settings.locale }),
+        label: format(zoned, scale === "month" ? "d" : "EEE d", { locale: settings.locale }),
         ms: cursor.getTime(),
         weight,
         isToday: getDayKey(cursor, timeZone) === todayDayKey,
@@ -2315,7 +2315,8 @@ function GanttView({
         // grow (not just min-h-full) so the body reaches the bottom of the
         // pane: the columns then run the full height and the empty space
         // below the last row becomes pannable canvas instead of dead area
-        "flex min-h-full w-max min-w-full grow flex-col",
+        "flex min-h-full min-w-full grow flex-col",
+        viewConfig.infiniteScroll ? "w-max" : "w-full",
         customScrollbars && "pb-2.5"
       )}
     >
@@ -2395,7 +2396,8 @@ function GanttView({
                 data-today={unit.isToday || undefined}
                 data-off={unit.isOff || undefined}
                 className={cn(
-                  "flex min-w-0 items-center justify-center truncate px-1.5 text-center",
+                  "flex min-w-0 items-center justify-center truncate text-center",
+                  scale !== "month" && "px-1.5",
                   "text-muted-foreground",
                   unit.isToday && "text-primary font-medium"
                 )}
@@ -2403,7 +2405,7 @@ function GanttView({
               >
                 {/* today reads as a soft pill, not just tinted text */}
                 {unit.isToday ? (
-                  <span className="bg-primary/10 truncate rounded-full px-1.5 py-px">
+                  <span className={cn("bg-primary/10 truncate rounded-full py-px", scale !== "month" && "px-1.5")}>
                     {unit.label}
                   </span>
                 ) : (
@@ -3821,7 +3823,7 @@ const GanttTimelineRow = memo(function GanttTimelineRow({
             ? laneHeightRem
             : (to - from) * trackRemWidth
           const wantsOutside =
-            milestone ||
+            (milestone && viewConfig.barLabel !== "none") ||
             viewConfig.barLabel === "outside" ||
             (viewConfig.barLabel === "auto" &&
               barRemWidth <
@@ -3882,7 +3884,7 @@ const GanttTimelineRow = memo(function GanttTimelineRow({
             >
               <GanttBar
                 segment={segment}
-                labelOutside={placement !== "inside"}
+                labelOutside={placement !== "inside" || viewConfig.barLabel === "none"}
                 rowTitle={row.resource.title}
                 className="h-full"
               />

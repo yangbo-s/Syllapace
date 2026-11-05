@@ -228,7 +228,7 @@ function EventCalendarEvent<TData = unknown>({
       {!occurrence.allDay &&
         segment.isStart &&
         (view === "month" ? (
-          <span className="text-muted-foreground shrink-0">
+          <span className="text-muted-foreground hidden shrink-0 @[9rem]:inline">
             {format(
               toZoned(occurrence.start, settings.timeZone),
               settings.i18n.formats.eventTime,

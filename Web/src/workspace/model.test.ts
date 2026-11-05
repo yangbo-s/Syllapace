@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  boardColumns,
   displayDate,
   planFromDisplay,
   eventDate,
@@ -9,7 +8,7 @@ import {
   filteredEvents,
   ganttBounds,
   planStartToday,
-  urgency,
+  scheduleStatus,
 } from "./model";
 import type { AcademicEvent } from "./types";
 
@@ -33,12 +32,13 @@ function event(patch: Partial<AcademicEvent> = {}): AcademicEvent {
   };
 }
 describe("shared event projections", () => {
-  it("defaults Gantt to tasks and exams while allowing an explicit Classes filter", () => {
+  it("includes meetings, tasks and exams in the monthly timeline", () => {
     const task = event(),
       meeting = event({ id: "lecture", category: "meeting" }),
       exam = event({ id: "exam", category: "assessment" });
     expect(eventsForView([task, meeting, exam], "gantt", "all")).toEqual([
       task,
+      meeting,
       exam,
     ]);
     expect(eventsForView([meeting], "gantt", "meeting")).toEqual([meeting]);
@@ -48,8 +48,8 @@ describe("shared event projections", () => {
   });
   it("formats timed events in the shared display timezone while preserving all-day civil dates", () => {
     const timed = event({ start: "2026-11-04T16:00:00Z" });
-    expect(formatDate(timed, "en", "America/New_York")).toContain("11:00 AM");
-    expect(formatDate(timed, "en", "America/Los_Angeles")).toContain("8:00 AM");
+    expect(formatDate(timed, "en", "America/New_York")).toContain("11:00");
+    expect(formatDate(timed, "en", "America/Los_Angeles")).toContain("08:00");
     expect(
       formatDate(
         event({ start: "2026-11-04", dateOnly: true }),
@@ -71,15 +71,25 @@ describe("shared event projections", () => {
     );
   });
 
-  it("keeps progress independent from urgency", () => {
-    const e = event({ progress: "doing" });
-    expect(urgency(e, new Date("2026-11-04T12:00:00-05:00"))).toBe("today");
-    expect(boardColumns([e]).doing).toEqual([e]);
+  it("derives phase from availability and due date regardless of saved completion", () => {
+    const now = new Date("2026-11-04T17:00:00Z");
+    for (const progress of ["todo", "doing", "done"] as const) {
+      expect(scheduleStatus(event({ progress, releasedAt: "2026-11-03T10:00:00Z" }), now)).toBe("active");
+      expect(scheduleStatus(event({ progress, releasedAt: "2026-11-04T20:00:00Z" }), now)).toBe("upcoming");
+      expect(scheduleStatus(event({ progress }), now)).toBe("upcoming");
+    }
+    expect(scheduleStatus(event({ start: null }), now)).toBe("undated");
   });
-  it("does not mark an all-day deadline overdue before the day ends in its timezone", () => {
-    const e = event({ start: "2026-11-04", dateOnly: true });
-    expect(urgency(e, new Date("2026-11-05T03:00:00Z"))).toBe("today");
-    expect(urgency(e, new Date("2026-11-05T05:01:00Z"))).toBe("overdue");
+  it("keeps civil due dates through the end of the local day", () => {
+    const e = event({ start: "2026-11-04", dateOnly: true, releasedAt: "2026-11-01", releaseDateOnly: true });
+    expect(scheduleStatus(e, new Date("2026-11-05T03:00:00Z"))).toBe("active");
+    expect(scheduleStatus(e, new Date("2026-11-05T05:01:00Z"))).toBe("historical");
+  });
+  it("uses meeting end times and exclusive all-day ends", () => {
+    const e = event({ category: "meeting", start: "2026-11-04T16:00:00Z", end: "2026-11-04T18:00:00Z" });
+    expect(scheduleStatus(e, new Date("2026-11-04T17:00:00Z"))).toBe("active");
+    expect(scheduleStatus(e, new Date("2026-11-04T18:00:00Z"))).toBe("historical");
+    expect(scheduleStatus(event({ category: "academic", dateOnly: true, start: "2026-11-03", end: "2026-11-05" }), new Date("2026-11-05T05:00:00Z"))).toBe("historical");
   });
   it("preserves date-only local dates across DST", () => {
     expect(
@@ -89,48 +99,34 @@ describe("shared event projections", () => {
   it("never fabricates gantt work duration for a deadline", () => {
     const bounds = ganttBounds(event())!;
     expect(bounds.start).toEqual(bounds.end);
-    expect(bounds.isPlan).toBe(false);
+    expect(bounds.isRelease).toBe(false);
   });
-  it("only shows a duration when a real plan exists and keeps the source deadline", () => {
+  it("does not use legacy personal plans as source availability, and meetings are points", () => {
     const e = event({ plannedStart: "2026-11-02T15:00:00Z" });
-    const bounds = ganttBounds(e)!;
-    expect(bounds.start.valueOf()).toBe(new Date(e.plannedStart!).valueOf());
-    expect(bounds.end).toEqual(eventDate(e));
-    expect(bounds.isPlan).toBe(true);
+    expect(ganttBounds(e)?.start).toEqual(eventDate(e));
+    const bounds = ganttBounds(event({ category: "meeting", end: "2026-11-05T01:00:00-05:00" }))!;
+    expect(bounds.end).toEqual(bounds.start);
   });
-  it("rejects reversed plans and keeps confirmed meetings as actual intervals", () => {
-    expect(
-      ganttBounds(event({ plannedStart: "2027-01-01T00:00:00Z" }))?.isPlan,
-    ).toBe(false);
-    const bounds = ganttBounds(
-      event({ category: "meeting", end: "2026-11-05T01:00:00-05:00" }),
-    )!;
-    expect(bounds.end > bounds.start).toBe(true);
+  it("uses verified availability for a deadline interval and never expands an exam", () => {
+    const e = event({ releasedAt: "2026-11-01T15:00:00Z", releaseDateOnly: false });
+    expect(ganttBounds(e)?.start).toEqual(new Date(e.releasedAt!));
+    expect(ganttBounds(e)?.isRelease).toBe(true);
+    expect(ganttBounds(event({ ...e, category: "assessment" }))?.start).toEqual(eventDate(e));
+    expect(ganttBounds(event({ releasedAt: "2027-01-01T00:00:00Z" }))?.start).toEqual(eventDate(e));
   });
-  it("applies the same course/title/type/urgency filters without losing undated tasks", () => {
-    const now = new Date("2026-11-04T12:00:00-05:00");
-    const list = [
-      event(),
-      event({ id: "later", start: null }),
-      event({ id: "done", progress: "done" }),
-      event({ id: "exam", category: "assessment" }),
-    ];
-    expect(
-      filteredEvents(list, "15-451", "deadline", "open", now).map((e) => e.id),
-    ).toEqual(["deadline-1", "later"]);
-    expect(
-      filteredEvents(list, "", "all", "soon", now).map((e) => e.id),
-    ).toEqual(["deadline-1", "exam"]);
+  it("all past dates are historical regardless of progress or import timing", () => {
+    const now = new Date("2027-01-01T00:00:00Z");
+    for (const category of ["deadline", "meeting", "assessment", "academic"] as const)
+      expect(scheduleStatus(event({ category, progress: "doing" }), now)).toBe("historical");
+  });
+  it("filters title/course/type without losing undated or previously completed tasks", () => {
+    const list = [event(), event({ id: "later", start: null }), event({ id: "done", progress: "done" }), event({ id: "exam", category: "assessment" })];
+    expect(filteredEvents(list, "15-451", "deadline").map(e => e.id)).toEqual(["deadline-1", "done", "later"]);
   });
   it("allows a same-day plan for all-day deadlines in the event timezone", () => {
     const e = event({ dateOnly: true, start: "2026-11-04" });
     expect(planStartToday(e, new Date("2026-11-05T03:00:00Z")).valueOf()).toBe(
       eventDate(e)?.valueOf(),
     );
-  });
-  it("a completed task is never overdue", () => {
-    expect(
-      urgency(event({ progress: "done" }), new Date("2027-01-01T00:00:00Z")),
-    ).toBe("done");
   });
 });

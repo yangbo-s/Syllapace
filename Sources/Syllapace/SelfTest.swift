@@ -48,7 +48,7 @@ enum SelfTest {
         let source = SourceDocument(id: "selftest-source", courseID: courseID, title: "Synthetic syllabus", text: "Final project due November 20, 2026", hash: "v1")
         model.importYear = 2026
         model.ingest(source)
-        check(model.page == .timeline && model.archive.events.isEmpty && model.archive.sources.count == 1, "Import saves material without creating keyword clutter")
+        check(model.page == .list && model.archive.events.isEmpty && model.archive.sources.count == 1, "Import saves material without creating keyword clutter")
         func curate(_ value: SourceDocument, day: String) throws -> CurationResult {
             let payload: [String: Any] = ["events": [["title": "Final project", "kind": "project", "date": day, "dateOnly": true, "timeZone": "America/New_York", "evidence": value.text]], "issues": []]
             return try LLMClient.parseCuration(content: String(decoding: JSONSerialization.data(withJSONObject: payload), as: UTF8.self), source: value, year: 2026, timeZone: "America/New_York")
@@ -88,9 +88,9 @@ enum SelfTest {
         check(model.workspaceEvents.filter { $0.sourceID == source.id }.count == 1
               && result.state == .conflict && result.proposedDate != nil,
               "A renamed source task stays unique and retains its proposed date conflict")
-        model.page = .timeline
+        model.page = .list
         model.ingest(changed, navigate: false)
-        check(model.page == .timeline, "Unchanged background source does not navigate")
+        check(model.page == .list, "Unchanged background source does not navigate")
         do { let restored = try model.store.load(); check(restored.events == model.archive.events, "Archive survives reload") } catch { fail(error.localizedDescription) }
         check(model.error == nil, "No persistence error")
         check(L10n.string("Today", language: .english) == "Today"
@@ -215,7 +215,7 @@ enum SelfTest {
         check(model.saveEditedEvent(freshDraft, replacing: backgroundUpdate), "A refreshed editor can save its changes")
         freshDraft.revision += 1
         do { let restored = try model.store.load(); check(restored.events.first(where: { $0.id == editorOriginal.id }) == freshDraft, "Fresh editor save preserves background fields and persists a new revision") } catch { fail(error.localizedDescription) }
-        model.page = .timeline
+        model.page = .list
         model.courseFilter = nil; model.academicCalendarFilter = nil
         guard let task = model.workspaceEvents.first(where: { $0.category == .deadline }) else { fail("Missing workspace task"); return }
         let update = await model.handleWorkspace(.setProgress(eventID: task.id, expectedRevision: task.revision, progress: .doing), dark: false)
@@ -254,16 +254,45 @@ enum SelfTest {
             fail("No isolated WKWebView is available for interaction tests"); return
         }
         func check(_ condition: Bool, _ text: String) { if condition { Snapshot.log("PASS \(text)") } else { fail(text) } }
+        webView.window?.setContentSize(NSSize(width: 940, height: 620))
         let chinese = model.workspaceSnapshot(dark: false).language == "zh-Hans"
-        let tabs: [(WorkspaceViewMode, String)] = [(.kanban, chinese ? "看板" : "Board"), (.gantt, chinese ? "甘特图" : "Gantt"),
-                                                 (.calendar, chinese ? "日历" : "Calendar"), (.list, chinese ? "列表" : "List")]
         do {
-            for (view, label) in tabs {
-                try await clickWorkspace(webView, selector: "[role=tab]", text: label)
-                check(await waitForWorkspace(model, until: { model.workspaceView == view }), "WKWebView \(view.rawValue) tab writes back to native selection")
-                let selected = try await webView.callAsyncJavaScript("return Array.from(document.querySelectorAll('[role=tab][aria-selected=true]')).some(element => element.textContent.trim() === label)", arguments: ["label": label], in: nil, contentWorld: .page)
-                check(selected as? Bool == true, "WKWebView \(view.rawValue) tab renders the acknowledged selection")
+            for view in WorkspaceViewMode.allCases {
+                model.page = AppPage(view: view)
+                check(await waitForWorkspace(model, until: { WorkspaceWebViewState.shared.renderedView == view }), "Native sidebar opens \(view.rawValue)")
+                let selected = try await webView.callAsyncJavaScript("return document.querySelector('main')?.dataset.view === view && !document.querySelector('[role=tab]')", arguments: ["view": view.rawValue], in: nil, contentWorld: .page)
+                check(selected as? Bool == true, "Workspace renders \(view.rawValue) without duplicate navigation")
+                if view == .gantt {
+                    let fits = try await webView.callAsyncJavaScript("""
+                        const axis = document.querySelector('[data-gantt-axis]');
+                        const pane = document.querySelector('[data-slot=gantt-timeline-pane] [data-slot=scroll-area-viewport]');
+                        if (!axis || !pane) return false;
+                        const start = new Date(Number(axis.dataset.ganttRangeStart));
+                        const end = new Date(Number(axis.dataset.ganttRangeEnd));
+                        return start.getDate() === 1 && end.getDate() === 1 && end > start && axis.getBoundingClientRect().width <= pane.clientWidth + 1;
+                        """, arguments: [:], in: nil, contentWorld: .page)
+                    check(fits as? Bool == true, "Timeline opens to a complete month without horizontal scrolling")
+                }
+                if view == .calendar {
+                    let month = try await webView.callAsyncJavaScript("return !!document.querySelector('[data-slot=event-calendar-month-view]')", arguments: [:], in: nil, contentWorld: .page)
+                    check(month as? Bool == true, "Calendar opens to month view")
+                }
+
             }
+            model.page = .list
+            check(await waitForWorkspace(model, until: { WorkspaceWebViewState.shared.renderedView == .list }), "Native List selection is rendered")
+            let previousNotice = model.notice
+            model.notice = nil
+            try await Task.sleep(for: .milliseconds(350))
+            let scheduleFrame = webView.convert(webView.bounds, to: nil)
+            model.notice = L10n.format("Imported %ld events. You can undo this import.", 12)
+            try await Task.sleep(for: .milliseconds(350))
+            check(webView.convert(webView.bounds, to: nil) == scheduleFrame, "Import feedback preserves the schedule viewport")
+            model.showActivity = true
+            try await Task.sleep(for: .milliseconds(500))
+            check(webView.convert(webView.bounds, to: nil) == scheduleFrame, "Activity details do not displace the schedule")
+            model.showActivity = false
+            model.notice = previousNotice
             // A rolling future deadline keeps the test valid after this release.
             let fixture = AcademicEvent(id: "wk-interaction-task", courseID: model.archive.courses[0].id,
                                         title: "WK interaction fixture", kind: .project, date: Date.now.addingTimeInterval(7 * 86_400),
@@ -271,21 +300,28 @@ enum SelfTest {
             model.update(fixture)
             check(await waitForWorkspace(model, until: { WorkspaceWebViewState.shared.renderedSnapshot?.events.contains { $0.id == fixture.id } == true }),
                   "Native task appears in the bundled workspace")
-            try await clickWorkspace(webView, selector: "button[aria-label]", attribute: "aria-label", text: fixture.title + (chinese ? ": 进度" : ": Progress"))
-            try await clickWorkspace(webView, selector: "[role=menuitem]", text: chinese ? "已完成" : "Done")
-            check(await waitForWorkspace(model, until: {
-                model.archive.events.first { $0.id == fixture.id }?.progress == .done
-                    && WorkspaceWebViewState.shared.renderedSnapshot?.events.first { $0.id == fixture.id }?.progress == .done
-            }), "WKWebView progress control updates native data and the rendered snapshot")
-            try await clickWorkspace(webView, selector: "button[aria-label]", attribute: "aria-label", text: (chinese ? "打开事项: " : "Open event: ") + fixture.title)
-            try await clickWorkspace(webView, selector: "[role=menuitem]", text: chinese ? "开始安排 · 今天" : "Start work · Today")
-            check(await waitForWorkspace(model, until: {
-                model.archive.events.first { $0.id == fixture.id }?.plannedStart != nil
-                    && WorkspaceWebViewState.shared.renderedSnapshot?.events.first { $0.id == fixture.id }?.plannedStart != nil
-            }), "WKWebView work-plan control updates native data and the rendered snapshot")
+            let past = AcademicEvent(id: "wk-history-fixture", courseID: fixture.courseID,
+                                     title: "WK history fixture", kind: .exam, date: Date.now.addingTimeInterval(-7 * 86_400),
+                                     dateOnly: false, state: .approved, userEdited: true)
+            model.update(past)
+            check(await waitForWorkspace(model, until: { WorkspaceWebViewState.shared.renderedSnapshot?.events.contains { $0.id == past.id } == true }), "Historical source remains in the native snapshot")
+            let hidden = try await webView.callAsyncJavaScript("return !document.querySelector('main').textContent.includes(title) && !document.querySelector('[aria-label$=Progress]')", arguments: ["title": past.title], in: nil, contentWorld: .page)
+            check(hidden as? Bool == true, "History is hidden by default without completion controls")
+            try await clickWorkspace(webView, selector: "button[aria-label]", attribute: "aria-label", text: chinese ? "显示历史" : "Show history")
+            // Click the historical row after React commits, exercising real keyboard-accessible controls.
+            try await clickWorkspace(webView, selector: "button", text: past.title)
+            check(await waitForWorkspace(model, until: { model.editor?.id == past.id }), "History toggle reveals a past event and opens its native editor")
+            model.editor = nil
+            let appearance = AppAppearance.shared
+            let originalAccent = appearance.accentHex
+            appearance.accentHex = "346ABE"
+            let nativeAccent = appearance.webTokens(dark: false)["primary"]
+            check(await waitForWorkspace(model, until: { WorkspaceWebViewState.shared.renderedSnapshot?.theme?["primary"] == nativeAccent }), "Custom accent reaches the actual WKWebView")
+            let css = try await webView.callAsyncJavaScript("return getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()", arguments: [:], in: nil, contentWorld: .page)
+            check(css as? String == nativeAccent, "Rendered CSS uses the native custom accent")
+            appearance.accentHex = originalAccent
             let saved = try model.store.load().events.first { $0.id == fixture.id }
-            check(saved?.progress == .done && saved?.plannedStart != nil && saved?.date == fixture.date,
-                  "WKWebView edits survive reload without moving the deadline")
+            check(saved?.date == fixture.date && saved?.progress == .todo, "Viewing schedule history does not change source dates or saved progress")
         } catch { fail("WKWebView interaction: \(error.localizedDescription)") }
     }
 

@@ -119,6 +119,9 @@ public struct AcademicEvent: Identifiable, Codable, Sendable, Equatable {
     public var subtype: EventSubtype?
     public var taskProgress: TaskProgress?
     public var plannedStart: Date?
+    /// Source-provided availability, distinct from the user's work plan.
+    public var releasedAt: Date?
+    public var releaseDateOnly: Bool?
     public var curationVersion: Int?
     public var curationExcluded: Bool?
     public var relatedSourceIDs: [String]?

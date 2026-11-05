@@ -42,15 +42,17 @@ extension AppModel {
             return WorkspaceEvent(id: event.id, courseID: event.academicCalendarID.map { "calendar:" + $0 } ?? event.courseID,
                 courseLabel: eventOwnerName(event), title: event.title, category: category,
                 subtype: event.subtype?.rawValue ?? EventCuration.subtype(for: event.title, kind: event.kind)?.rawValue ?? event.kind.rawValue,
-                start: wireDate(event.presentationDate), end: wireDate(event.endsAt), dateOnly: event.dateOnly, timeZone: event.timeZone,
+                start: wireDate(event.date), end: wireDate(event.endsAt), dateOnly: event.dateOnly, timeZone: event.timeZone,
                 progress: WorkspaceProgress(rawValue: event.progress.rawValue) ?? .todo,
-                plannedStart: event.plannedStart.map(WorkspaceWireDate.instant), location: event.location,
+                plannedStart: event.plannedStart.map(WorkspaceWireDate.instant),
+                releasedAt: event.releasedAt.map { event.releaseDateOnly == true ? WorkspaceWireDate.dateOnly($0, timeZone: event.timeZone) : WorkspaceWireDate.instant($0) },
+                releaseDateOnly: event.releaseDateOnly, location: event.location,
                 evidence: String(event.evidence.prefix(4_000)), sourceURL: event.sourceURL.flatMap { URL(string: $0) }.flatMap(WorkspaceNavigation.externalURL)?.absoluteString, revision: event.revision)
         }
         let scope = academicCalendarFilter.flatMap { id in scopedAcademicCalendars.first { $0.id == id }?.name }
             ?? courseFilter.map { courseTitle(course($0)) } ?? (archive.canvasSelection == nil ? L10n.string("Workspace") : selectedSemesterName)
         return WorkspaceSnapshot(revision: workspaceRevision, language: L10n.language.rawValue,
-            appearance: dark ? "dark" : "light", view: workspaceView, scope: scope,
+            appearance: dark ? "dark" : "light", theme: AppAppearance.shared.webTokens(dark: dark), view: workspaceView, scope: scope,
             loading: busy || curationTask != nil, needsSemester: needsCourseSelection,
             now: WorkspaceWireDate.instant(.now), courses: courses, events: items)
     }
@@ -67,8 +69,7 @@ extension AppModel {
         switch command {
         case .ready: break
         case .setView(let view):
-            workspaceView = view
-            if !isDemo && ProcessInfo.processInfo.environment["APP_SELFTEST"] != "1" { UserDefaults.standard.set(view.rawValue, forKey: "workspaceView") }
+            selectWorkspaceView(view)
         case .setProgress(let id, let expectedRevision, let progress):
             guard var item = event(id), item.category == .deadline else { return failure("This task is no longer available in the selected courses.") }
             guard item.revision == expectedRevision else { return failure("This task changed. The latest version has been loaded; try again.") }

@@ -99,7 +99,7 @@ extension AppModel {
         }
         guard save() else { archive = before; return false }
         lastImportUndo = ImportUndo(before: before, after: archive)
-        page = .timeline
+        page = .list
         courseFilter = nil; academicCalendarFilter = nil
         notice = L10n.format("Imported %ld events. You can undo this import.", candidates.count)
         return true

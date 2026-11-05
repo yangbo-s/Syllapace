@@ -67,10 +67,13 @@ public enum CanvasHTML {
 enum CanvasClassification {
     static func kind(title: String, group: String? = nil, quiz: Bool = false, calendar: Bool = false) -> EventKind {
         let value = title + " " + (group ?? "")
+        if EventCuration.isPracticeAssessment(title) { return .other }
         if calendar && EventCuration.matches(#"\boffice hours\b|咨询时间"#, value) { return .other }
         if calendar && EventCuration.matches(#"\b(lecture|class|lab|laboratory|recitation|seminar|demo)\b|上课|实验课|讨论课"#, value),
            !EventCuration.matches(#"\b(due|deadline|submit)\b|截止|提交"#, value) { return .session }
-        if matches(#"\b(exam|midterm|final exam|test)\b|考试|期中|期末"#, value) { return .exam }
+        if matches(#"\b(project|capstone|milestone|proposal)\b|项目|里程碑"#, title) { return .project }
+        if matches(#"\b(report|paper)\b|报告|论文"#, title) { return .assignment }
+        if matches(#"\b(exam|mid[- ]?term|final exam|test)\b|考试|期中|期末"#, value) { return .exam }
         if quiz || matches(#"\bquiz(?:zes)?\b|测验|小测"#, value) { return .quiz }
         if matches(#"\b(project|capstone|milestone|proposal)\b|项目|里程碑"#, value) { return .project }
         if matches(#"\b(presentation|presentations)\b|演示|答辩"#, value) { return .presentation }
@@ -86,6 +89,7 @@ struct CanvasTermDTO: Decodable, Sendable {
 struct CanvasGroupDTO: Decodable, Sendable { var id: Int64; var name: String }
 struct CanvasQuizDTO: Decodable, Sendable {
     var id: Int64; var title: String; var description: String?; var assignment_id: Int64?; var due_at: String?; var html_url: String?; var published: Bool?
+    var quiz_type: String?
 }
 struct CanvasAnnouncementDTO: Decodable, Sendable {
     var id: Int64; var title: String; var message: String?; var html_url: String?; var attachments: [CanvasFileDTO]?; var attachment: CanvasFileDTO?

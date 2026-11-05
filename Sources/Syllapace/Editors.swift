@@ -15,6 +15,9 @@ struct EventEditor: View {
     @State private var cancelConfirm = false
     @FocusState private var titleFocused: Bool
     @State private var hasEnd = false
+    @State private var hasRelease = false
+    @State private var releaseDate = Date.now
+    @State private var releaseDateOnly = true
     @State private var endDate = Date.now
     @State private var location = ""
     @State private var chosenZone = TimeZone.current.identifier
@@ -31,8 +34,15 @@ struct EventEditor: View {
                 if original.academicCalendarID != nil { LabeledContent(L10n.string("Academic calendar"), value: model.eventOwnerName(original)) } else { Picker(L10n.string("Course"), selection: $courseID) { ForEach(model.scopedCourses) { Text($0.localizedName).tag($0.id) } }.id("event-course-\(languagePreference)") }
                 Picker(L10n.string("Type"), selection: $kind) { ForEach(EventKind.allCases.filter { original.academicCalendarID != nil || ![.other, .academic, .holiday].contains($0) }, id: \.self) { Text($0.localizedName).tag($0) } }.id("event-kind-\(languagePreference)")
                 Toggle(L10n.string("Date only"), isOn: $dateOnly)
-                DatePicker(L10n.string("When"), selection: $date, displayedComponents: dateOnly ? [.date] : [.date, .hourAndMinute])
+                DatePicker(L10n.string(isDeadline ? "Due" : "When"), selection: $date, displayedComponents: dateOnly ? [.date] : [.date, .hourAndMinute])
                     .environment(\.locale, L10n.locale).id("import-course-\(languagePreference)")
+                if isDeadline {
+                    Toggle(L10n.string("Release date"), isOn: $hasRelease)
+                    if hasRelease {
+                        DatePicker(L10n.string("Available from"), selection: $releaseDate, in: ...date, displayedComponents: releaseDateOnly ? [.date] : [.date, .hourAndMinute])
+                        Toggle(L10n.string("Release date only"), isOn: $releaseDateOnly)
+                    }
+                }
                 Group {
                     Toggle(L10n.string("End time"), isOn: $hasEnd)
                     if hasEnd {
@@ -53,16 +63,19 @@ struct EventEditor: View {
                 Button(L10n.string("Save & confirm")) {
                     var event = original; event.title = title.trimmingCharacters(in: .whitespacesAndNewlines); event.date = date; event.dateOnly = dateOnly; event.courseID = courseID; event.kind = kind; event.state = .approved; event.wasApproved = true; event.userEdited = true; event.revision += 1; event.proposedDate = nil; event.proposedDateOnly = nil; event.proposedTimeZone = nil; event.timeZone = chosenZone
                     event.endsAt = hasEnd ? endDate : nil; event.location = location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : location.trimmingCharacters(in: .whitespacesAndNewlines); event.proposedEndsAt = nil
+                    event.releasedAt = isDeadline && hasRelease ? releaseDate : nil
+                    event.releaseDateOnly = event.releasedAt == nil ? nil : releaseDateOnly
                     if let onSave { onSave(event) }
                     else if !model.saveEditedEvent(event, replacing: original) {
                         saveError = model.error ?? L10n.string("Could not save changes. Try again."); model.error = nil
                         return
                     }
                     dismiss()
-                }.buttonStyle(.borderedProminent).tint(Palette.actionAccent).keyboardShortcut(.defaultAction).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (hasEnd && (dateOnly ? endDate <= date : endDate < date)))
+                }.buttonStyle(.borderedProminent).tint(Palette.actionAccent).keyboardShortcut(.defaultAction).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (hasEnd && (dateOnly ? endDate <= date : endDate < date)) || (isDeadline && hasRelease && releaseAfterDue))
             }.gridProbe("editor-actions", area: "event-editor")
         }.padding(28).frame(width: 480).gridArea("event-editor", inset: 28).background(CalmFocus(enabled: !original.title.isEmpty))
         .onAppear { title = original.title; date = original.date ?? .now; dateOnly = original.dateOnly; courseID = original.courseID; kind = original.kind; chosenZone = original.timeZone; hasEnd = original.endsAt != nil; endDate = original.endsAt ?? date; location = original.location ?? ""; titleFocused = original.title.isEmpty }
+        .onAppear { hasRelease = original.releasedAt != nil; releaseDate = original.releasedAt ?? min(.now, original.date ?? .now); releaseDateOnly = original.releaseDateOnly ?? true }
         .alert(L10n.string("Could not save changes. Try again."), isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
             Button(L10n.string("OK")) { saveError = nil }
         } message: { Text(saveError ?? "") }
@@ -72,6 +85,12 @@ struct EventEditor: View {
             else { saveError = model.error ?? L10n.string("Could not save changes. Try again."); model.error = nil }
         } } message: { Text(L10n.string("It will leave your timeline and be removed from the connected calendar on the next sync, if it has not been edited there.")) }
     }
+    private var releaseAfterDue: Bool {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: chosenZone) ?? .current
+        return (releaseDateOnly ? calendar.startOfDay(for: releaseDate) : releaseDate) > date
+    }
+    private var isDeadline: Bool { [.assignment, .project, .presentation].contains(kind) }
 }
 struct SourcesView: View {
     @AppStorage(L10n.preferenceKey) private var languagePreference = AppLanguage.system.rawValue

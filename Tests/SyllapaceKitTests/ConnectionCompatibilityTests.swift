@@ -16,7 +16,7 @@ private actor CompatibilityTransport: HTTPTransport {
 
 @Suite("Connection compatibility") struct ConnectionCompatibilityTests {
     private let token = "abcdEF0123-synthetic-credential"
-    private let source = SourceDocument(courseID: "test-course", title: "Test schedule", text: "Practice quiz is due November 20, 2026.")
+    private let source = SourceDocument(courseID: "test-course", title: "Test schedule", text: "Graded quiz is due November 20, 2026.")
 
     private func reply(_ object: Any, status: Int = 200) throws -> HTTPReply {
         HTTPReply(data: try JSONSerialization.data(withJSONObject: object), status: status)
@@ -145,7 +145,7 @@ private actor CompatibilityTransport: HTTPTransport {
         }
     }
     @Test func quizParsingKeepsOptionalFieldsBackwardCompatible() throws {
-        let content = #"{"events":[{"title":"Practice quiz","kind":"quiz","date":"2026-11-20","dateOnly":true,"evidence":"Practice quiz is due November 20, 2026."}]}"#
+        let content = #"{"events":[{"title":"Graded quiz","kind":"quiz","date":"2026-11-20","dateOnly":true,"evidence":"Graded quiz is due November 20, 2026."}]}"#
         let event = try #require(try LLMClient.parse(content: content, source: source, year: 2026, timeZone: "UTC").first)
         #expect(event.kind == .quiz)
         #expect(event.endsAt == nil)

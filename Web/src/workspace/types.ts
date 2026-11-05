@@ -1,4 +1,4 @@
-export type WorkspaceView = "list" | "kanban" | "gantt" | "calendar";
+export type WorkspaceView = "list" | "gantt" | "calendar";
 export type Progress = "todo" | "doing" | "done";
 export type Category = "meeting" | "deadline" | "assessment" | "academic";
 export type Language = "en" | "zh-Hans";
@@ -22,6 +22,8 @@ export interface AcademicEvent {
   timeZone: string;
   progress: Progress;
   plannedStart: string | null;
+  releasedAt?: string | null;
+  releaseDateOnly?: boolean | null;
   location?: string | null;
   evidence: string;
   sourceURL?: string | null;
@@ -32,6 +34,7 @@ export interface WorkspaceSnapshot {
   revision: number;
   language: Language;
   appearance: "light" | "dark";
+  theme?: Record<string, string>;
   view: WorkspaceView;
   scope: string;
   loading: boolean;

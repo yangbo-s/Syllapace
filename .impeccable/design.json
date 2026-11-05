@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-04T22:02:52Z",
+  "generatedAt": "2026-11-05T05:19:12.955Z",
   "title": "Design System: Syllapace",
   "extensions": {
     "colorMeta": {
@@ -66,17 +66,17 @@
       },
       "on-accent-dark": {
         "role": "neutral",
-        "displayName": "Deep teal ink",
-        "canonical": "rgb(5% 17% 15%)",
+        "displayName": "Near-black accent ink",
+        "canonical": "rgb(4% 4% 4%)",
         "tonalRamp": [
-          "oklch(0.1500 0.0112 180.63)",
-          "oklch(0.2643 0.0198 180.63)",
-          "oklch(0.3786 0.0284 180.63)",
-          "oklch(0.4929 0.0369 180.63)",
-          "oklch(0.6071 0.0375 180.63)",
-          "oklch(0.7214 0.0375 180.63)",
-          "oklch(0.8357 0.0246 180.63)",
-          "oklch(0.9500 0.0075 180.63)"
+          "oklch(0.1500 0.0000 89.88)",
+          "oklch(0.2643 0.0000 89.88)",
+          "oklch(0.3786 0.0000 89.88)",
+          "oklch(0.4929 0.0000 89.88)",
+          "oklch(0.6071 0.0000 89.88)",
+          "oklch(0.7214 0.0000 89.88)",
+          "oklch(0.8357 0.0000 89.88)",
+          "oklch(0.9500 0.0000 89.88)"
         ]
       },
       "warning-light": {
@@ -93,40 +93,178 @@
           "oklch(0.8357 0.0797 54.46)",
           "oklch(0.9500 0.0243 54.46)"
         ]
+      },
+      "course-blue-light": {
+        "role": "secondary",
+        "displayName": "Course blue light",
+        "canonical": "#4774B8",
+        "tonalRamp": [
+          "oklch(0.1500 0.0352 258.43)",
+          "oklch(0.2643 0.0620 258.43)",
+          "oklch(0.3786 0.0888 258.43)",
+          "oklch(0.4929 0.1157 258.43)",
+          "oklch(0.6071 0.1173 258.43)",
+          "oklch(0.7214 0.1173 258.43)",
+          "oklch(0.8357 0.0771 258.43)",
+          "oklch(0.9500 0.0235 258.43)"
+        ]
+      },
+      "course-blue-dark": {
+        "role": "secondary",
+        "displayName": "Course blue dark",
+        "canonical": "#81A8E1",
+        "tonalRamp": [
+          "oklch(0.1500 0.0282 257.77)",
+          "oklch(0.2643 0.0496 257.77)",
+          "oklch(0.3786 0.0710 257.77)",
+          "oklch(0.4929 0.0925 257.77)",
+          "oklch(0.6071 0.0938 257.77)",
+          "oklch(0.7214 0.0938 257.77)",
+          "oklch(0.8357 0.0617 257.77)",
+          "oklch(0.9500 0.0188 257.77)"
+        ]
+      },
+      "course-ochre-light": {
+        "role": "secondary",
+        "displayName": "Course ochre light",
+        "canonical": "#A96824",
+        "tonalRamp": [
+          "oklch(0.1500 0.0347 62.42)",
+          "oklch(0.2643 0.0611 62.42)",
+          "oklch(0.3786 0.0875 62.42)",
+          "oklch(0.4929 0.1139 62.42)",
+          "oklch(0.6071 0.1156 62.42)",
+          "oklch(0.7214 0.1156 62.42)",
+          "oklch(0.8357 0.0759 62.42)",
+          "oklch(0.9500 0.0231 62.42)"
+        ]
+      },
+      "course-ochre-dark": {
+        "role": "secondary",
+        "displayName": "Course ochre dark",
+        "canonical": "#DBAC70",
+        "tonalRamp": [
+          "oklch(0.1500 0.0284 72.46)",
+          "oklch(0.2643 0.0501 72.46)",
+          "oklch(0.3786 0.0718 72.46)",
+          "oklch(0.4929 0.0934 72.46)",
+          "oklch(0.6071 0.0948 72.46)",
+          "oklch(0.7214 0.0948 72.46)",
+          "oklch(0.8357 0.0623 72.46)",
+          "oklch(0.9500 0.0190 72.46)"
+        ]
+      },
+      "course-purple-light": {
+        "role": "secondary",
+        "displayName": "Course purple light",
+        "canonical": "#825BA6",
+        "tonalRamp": [
+          "oklch(0.1500 0.0360 306.81)",
+          "oklch(0.2643 0.0635 306.81)",
+          "oklch(0.3786 0.0909 306.81)",
+          "oklch(0.4929 0.1184 306.81)",
+          "oklch(0.6071 0.1201 306.81)",
+          "oklch(0.7214 0.1201 306.81)",
+          "oklch(0.8357 0.0789 306.81)",
+          "oklch(0.9500 0.0240 306.81)"
+        ]
+      },
+      "course-purple-dark": {
+        "role": "secondary",
+        "displayName": "Course purple dark",
+        "canonical": "#BA92D6",
+        "tonalRamp": [
+          "oklch(0.1500 0.0316 310.74)",
+          "oklch(0.2643 0.0557 310.74)",
+          "oklch(0.3786 0.0798 310.74)",
+          "oklch(0.4929 0.1039 310.74)",
+          "oklch(0.6071 0.1054 310.74)",
+          "oklch(0.7214 0.1054 310.74)",
+          "oklch(0.8357 0.0693 310.74)",
+          "oklch(0.9500 0.0211 310.74)"
+        ]
+      },
+      "course-rose-light": {
+        "role": "secondary",
+        "displayName": "Course rose light",
+        "canonical": "#AA5A74",
+        "tonalRamp": [
+          "oklch(0.1500 0.0325 0.39)",
+          "oklch(0.2643 0.0572 0.39)",
+          "oklch(0.3786 0.0819 0.39)",
+          "oklch(0.4929 0.1066 0.39)",
+          "oklch(0.6071 0.1082 0.39)",
+          "oklch(0.7214 0.1082 0.39)",
+          "oklch(0.8357 0.0711 0.39)",
+          "oklch(0.9500 0.0216 0.39)"
+        ]
+      },
+      "course-rose-dark": {
+        "role": "secondary",
+        "displayName": "Course rose dark",
+        "canonical": "#DA91AA",
+        "tonalRamp": [
+          "oklch(0.1500 0.0280 357.49)",
+          "oklch(0.2643 0.0493 357.49)",
+          "oklch(0.3786 0.0707 357.49)",
+          "oklch(0.4929 0.0920 357.49)",
+          "oklch(0.6071 0.0933 357.49)",
+          "oklch(0.7214 0.0933 357.49)",
+          "oklch(0.8357 0.0613 357.49)",
+          "oklch(0.9500 0.0187 357.49)"
+        ]
+      },
+      "course-green-light": {
+        "role": "secondary",
+        "displayName": "Course green light",
+        "canonical": "#557E48",
+        "tonalRamp": [
+          "oklch(0.1500 0.0277 138.44)",
+          "oklch(0.2643 0.0488 138.44)",
+          "oklch(0.3786 0.0700 138.44)",
+          "oklch(0.4929 0.0911 138.44)",
+          "oklch(0.6071 0.0924 138.44)",
+          "oklch(0.7214 0.0924 138.44)",
+          "oklch(0.8357 0.0607 138.44)",
+          "oklch(0.9500 0.0185 138.44)"
+        ]
+      },
+      "course-green-dark": {
+        "role": "secondary",
+        "displayName": "Course green dark",
+        "canonical": "#A1C391",
+        "tonalRamp": [
+          "oklch(0.1500 0.0235 135.80)",
+          "oklch(0.2643 0.0413 135.80)",
+          "oklch(0.3786 0.0592 135.80)",
+          "oklch(0.4929 0.0771 135.80)",
+          "oklch(0.6071 0.0782 135.80)",
+          "oklch(0.7214 0.0782 135.80)",
+          "oklch(0.8357 0.0514 135.80)",
+          "oklch(0.9500 0.0156 135.80)"
+        ]
       }
     },
     "typographyMeta": {
-      "heading": {
-        "displayName": "Workspace heading",
-        "purpose": "Main page heading in rounded system type."
+      "source-heading": {
+        "displayName": "Sources heading",
+        "purpose": "Native Sources page heading; no duplicate web heading."
+      },
+      "brand": {
+        "displayName": "Native wordmark",
+        "purpose": "Rounded system wordmark in the sidebar."
+      },
+      "body": {
+        "displayName": "Workspace body",
+        "purpose": "Regular workspace text and fields."
       },
       "event-title": {
         "displayName": "Event title",
-        "purpose": "Primary text in a timeline row; at most two lines."
+        "purpose": "Medium-weight table title; two-line limit in the list."
       },
-      "detail-title": {
-        "displayName": "Inspector title",
-        "purpose": "Selected event title with vertical expansion."
-      },
-      "evidence": {
-        "displayName": "Source evidence",
-        "purpose": "Selectable evidence text; native implementation adds five points of line spacing."
-      },
-      "group-label": {
-        "displayName": "Timeline group",
-        "purpose": "Date-group labels above event rows."
-      },
-      "date": {
-        "displayName": "Date numeral",
-        "purpose": "Neighboring days in the seven-day ribbon."
-      },
-      "date-current": {
-        "displayName": "Current date",
-        "purpose": "Today numeral in the ribbon."
-      },
-      "weekday": {
-        "displayName": "Weekday",
-        "purpose": "Compact weekday label in the ribbon."
+      "metadata": {
+        "displayName": "Workspace metadata",
+        "purpose": "Course codes, dates and date-derived phases."
       }
     },
     "shadows": [],
@@ -135,95 +273,107 @@
   },
   "components": [
     {
-      "name": "Native primary action",
+      "name": "Workspace primary action",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Portable approximation of the native prominent action; deep action teal and a white label apply in both appearances. Geometry and interaction states remain macOS-owned in the app.",
-      "html": "<button class=\"ds-primary\">Save &amp; confirm</button>",
-      "css": ".ds-primary {font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;background:rgb(15% 47% 43%);color:white;border:none;border-radius:6px;padding:6px 12px;font-size:13px;font-weight:500;cursor:pointer}.ds-primary:hover {filter:brightness(1.06)}.ds-primary:active {filter:brightness(.94)}.ds-primary:focus-visible {outline:2px solid rgb(15% 47% 43%);outline-offset:3px;}.ds-primary:disabled {opacity:.45;cursor:default}"
+      "description": "Installed filled workspace control, used for nearby empty-state actions. Live CSS tokens inherit the native theme; this specimen does not run the bridge.",
+      "html": "<button class=\"ds-primary\">Add material</button>",
+      "css": ".ds-primary{font-family:-apple-system,BlinkMacSystemFont,\"SF Pro Text\",\"Helvetica Neue\",sans-serif;font-size:13px;font-weight:500;height:32px;padding:0 10px;border:1px solid transparent;border-radius:10px;background:var(--primary,rgb(15% 47% 43%));color:var(--primary-foreground,white);cursor:pointer}.ds-primary:hover{background:color-mix(in srgb,var(--primary,rgb(15% 47% 43%)) 80%,transparent)}.ds-primary:active{transform:translateY(1px)}.ds-primary:disabled{opacity:.5;pointer-events:none}.ds-primary:focus-visible{outline:2px solid var(--ring,rgb(15% 47% 43%));outline-offset:2px}"
     },
     {
-      "name": "Search field",
+      "name": "Native primary action",
+      "kind": "button",
+      "refersTo": "button-native-primary",
+      "description": "Portable approximation of native prominent confirmation. Native geometry and interaction states remain macOS-owned; custom action colors are derived by Palette.actionAccent.",
+      "html": "<button class=\"ds-native-primary\">Save</button>",
+      "css": ".ds-native-primary{font-family:-apple-system,BlinkMacSystemFont,\"SF Pro Text\",\"Helvetica Neue\",sans-serif;font-size:13px;font-weight:500;padding:6px 12px;border:0;border-radius:6px;background:rgb(15% 47% 43%);color:white;cursor:pointer}.ds-native-primary:hover{filter:brightness(1.06)}.ds-native-primary:active{filter:brightness(.94)}.ds-native-primary:disabled{opacity:.5}.ds-native-primary:focus-visible{outline:2px solid var(--ring,rgb(15% 47% 43%));outline-offset:2px}"
+    },
+    {
+      "name": "Compact workspace tool",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Ghost icon control used for search, history and event-type menus. Native and web tool labels remain accessible without permanent explanatory captions.",
+      "html": "<button class=\"ds-tool\" aria-label=\"Search\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg></button>",
+      "css": ".ds-tool{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--foreground,CanvasText);cursor:pointer}.ds-tool:hover,.ds-tool[aria-pressed=true]{background:var(--muted,color-mix(in srgb,CanvasText 5.5%,Canvas))}.ds-tool:active{transform:translateY(1px)}.ds-tool:disabled{opacity:.5;pointer-events:none}.ds-tool:focus-visible{outline:2px solid var(--ring,rgb(15% 47% 43%));outline-offset:2px}"
+    },
+    {
+      "name": "Expanded workspace search",
       "kind": "input",
       "refersTo": "search",
-      "description": "Search inset and radius match the app; semantic Canvas colors approximate the native quaternary background.",
-      "html": "<label class=\"ds-search\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"m16 16 5 5\"/></svg><input aria-label=\"Find an event or course\" placeholder=\"Find an event or course\"></label>",
-      "css": ".ds-search {font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;display:flex;align-items:center;gap:8px;padding:12px;border-radius:8px;background:color-mix(in srgb,CanvasText 5%,Canvas);color:CanvasText}.ds-search input {font:inherit;color:inherit;border:0;background:transparent;width:100%;min-width:0;outline:none}.ds-search:hover {background:color-mix(in srgb,CanvasText 7%,Canvas)}.ds-search:focus-within {outline:2px solid rgb(15% 47% 43%);outline-offset:3px;}"
+      "description": "Compact in-place search geometry. Runtime Escape clearing/collapse belongs to App.tsx; the specimen demonstrates focus and hover only.",
+      "html": "<input class=\"ds-search\" type=\"search\" aria-label=\"Search events\" placeholder=\"Search events\">",
+      "css": ".ds-search{font-family:-apple-system,BlinkMacSystemFont,\"SF Pro Text\",\"Helvetica Neue\",sans-serif;font-size:13px;line-height:20px;width:176px;height:28px;padding:4px 10px;border:1px solid var(--input,color-mix(in srgb,CanvasText 15%,transparent));border-radius:10px;background:transparent;color:var(--foreground,CanvasText);caret-color:var(--primary,rgb(15% 47% 43%))}.ds-search::placeholder{color:var(--muted-foreground,color-mix(in srgb,CanvasText 64%,transparent))}.ds-search:hover{border-color:var(--muted-foreground,color-mix(in srgb,CanvasText 64%,transparent))}.ds-search:focus-visible{border-color:var(--ring,rgb(15% 47% 43%));outline:3px solid color-mix(in srgb,var(--ring,rgb(15% 47% 43%)) 50%,transparent)}.ds-search:disabled{opacity:.5;cursor:not-allowed}"
     },
     {
-      "name": "Sidebar selection",
+      "name": "Native workspace navigation",
       "kind": "nav",
       "refersTo": "sidebar",
-      "description": "Illustrates native page selection and review count. Actual selection, keyboard navigation and materials come from SwiftUI List.",
-      "html": "<nav class=\"ds-nav\" aria-label=\"Workspace\"><button class=\"ds-nav-item\">Today</button><button class=\"ds-nav-item\" aria-current=\"page\">Review <span>2</span></button><button class=\"ds-nav-item\">Sources</button></nav>",
-      "css": ".ds-nav {font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;width:212px;display:grid;gap:4px;color:CanvasText;background:Canvas}.ds-nav-item {font:inherit;display:flex;justify-content:space-between;text-align:left;padding:8px 12px;color:inherit;background:none;border:0;border-radius:6px;cursor:pointer}.ds-nav-item[aria-current] {background:color-mix(in srgb,rgb(15% 47% 43%) 14%,Canvas)}.ds-nav-item:hover {background:color-mix(in srgb,CanvasText 8%,Canvas)}.ds-nav-item:focus-visible {outline:2px solid rgb(15% 47% 43%);outline-offset:3px;}.ds-nav-item:active {background:color-mix(in srgb,CanvasText 12%,Canvas)}"
+      "description": "Portable navigation specimen showing the three native workspace destinations. SwiftUI List owns the real selection, accessibility, materials and keyboard behavior.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Workspace\"><button class=\"ds-nav-item\" aria-current=\"page\">List</button><button class=\"ds-nav-item\">Timeline</button><button class=\"ds-nav-item\">Calendar</button><button class=\"ds-nav-item\">Sources</button></nav>",
+      "css": ".ds-nav{font-family:-apple-system,BlinkMacSystemFont,\"SF Pro Text\",\"Helvetica Neue\",sans-serif;font-size:13px;width:212px;display:grid;gap:4px;color:var(--foreground,CanvasText);background:var(--background,Canvas)}.ds-nav-item{font:inherit;text-align:left;padding:8px 12px;border:0;border-radius:6px;background:transparent;color:inherit;cursor:pointer}.ds-nav-item[aria-current]{background:color-mix(in srgb,var(--primary,rgb(15% 47% 43%)) 14%,var(--background,Canvas))}.ds-nav-item:hover{background:var(--muted,color-mix(in srgb,CanvasText 5.5%,Canvas))}.ds-nav-item:active{background:color-mix(in srgb,var(--primary,rgb(15% 47% 43%)) 18%,var(--background,Canvas))}.ds-nav-item:focus-visible{outline:2px solid var(--ring,rgb(15% 47% 43%));outline-offset:2px}"
     },
     {
-      "name": "Current day",
-      "kind": "custom",
-      "refersTo": "date-current-light",
-      "description": "The current-day segment of the seven-day ribbon. The native ribbon is informational; dark appearance uses the mineral teal and deep ink pair.",
-      "html": "<div class=\"ds-day\" aria-label=\"Wednesday, November 4, event scheduled\"><span class=\"ds-day-weekday\">Wed</span><span class=\"ds-day-number\">4</span><span class=\"ds-day-dot\"></span></div>",
-      "css": ".ds-day {font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;width:72px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 0;border-radius:12px;background:rgb(15% 47% 43%);color:white}.ds-day-weekday {font-size:11px;font-weight:500}.ds-day-number {font-family:ui-rounded,system-ui,sans-serif;font-size:22px;font-weight:600}.ds-day-dot {width:4px;height:4px;border-radius:50%;background:currentColor}@media (prefers-color-scheme:dark) {.ds-day {background:rgb(46% 79% 73%);color:rgb(5% 17% 15%)}}"
+      "name": "Named course marker",
+      "kind": "chip",
+      "refersTo": "course-label",
+      "description": "Unboxed course label with a six-pixel named-color marker; course identity is never carried by the marker alone.",
+      "html": "<span class=\"ds-course\"><span class=\"ds-course-dot\" aria-hidden=\"true\"></span><span>PSY 210</span></span>",
+      "css": ".ds-course{font-family:-apple-system,BlinkMacSystemFont,\"SF Pro Text\",\"Helvetica Neue\",sans-serif;font-size:12px;line-height:16px;color:var(--muted-foreground,color-mix(in srgb,CanvasText 64%,transparent));display:inline-flex;align-items:center;gap:8px}.ds-course-dot{width:6px;height:6px;flex:none;border-radius:50%;background:var(--course-0,rgb(15% 47% 43%))}"
     },
     {
-      "name": "Source evidence",
-      "kind": "card",
-      "refersTo": "evidence",
-      "description": "Selectable source text in the inspector. The preview uses synthetic course evidence and approximates the native quaternary fill.",
-      "html": "<section class=\"ds-evidence\"><div class=\"ds-evidence-label\">Source evidence</div><p>Research synthesis is due November 18.</p></section>",
-      "css": ".ds-evidence {font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;padding:16px;border-radius:12px;color:CanvasText;background:color-mix(in srgb,CanvasText 6%,Canvas);max-width:244px}.ds-evidence-label {font-size:11px;opacity:.7;margin-bottom:12px}.ds-evidence p {font-size:13px;line-height:1.55;margin:0;user-select:text}"
-    },
-    {
-      "name": "Event row",
+      "name": "Academic list row",
       "kind": "custom",
       "refersTo": "event-row",
-      "description": "Plain selectable row with a title, named course/source and trailing date context. Hover and focus in this portable preview are illustrative; the native button owns runtime behavior.",
-      "html": "<button class=\"ds-row\"><span class=\"ds-row-marker\" aria-hidden=\"true\"></span><span class=\"ds-row-main\"><span class=\"ds-row-title\">Research synthesis</span><span class=\"ds-row-meta\">PSY 210 · Syllabus</span></span><span class=\"ds-row-time\">All day</span></button>",
-      "css": ".ds-row {font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;display:flex;align-items:center;gap:16px;width:100%;text-align:left;border:0;border-bottom:1px solid color-mix(in srgb,CanvasText 10%,Canvas);padding:16px 28px;color:CanvasText;background:Canvas;cursor:pointer}.ds-row-marker {width:8px;height:8px;background:rgb(15% 47% 43%);border-radius:50%;flex:none}.ds-row-main {display:grid;gap:8px;flex:1}.ds-row-title {font-size:14px;font-weight:500}.ds-row-meta,.ds-row-time {font-size:11px;opacity:.7}.ds-row:hover {background:color-mix(in srgb,rgb(15% 47% 43%) 5%,Canvas)}.ds-row:active {background:color-mix(in srgb,rgb(15% 47% 43%) 8%,Canvas)}.ds-row:focus-visible {outline:2px solid rgb(15% 47% 43%);outline-offset:3px;}"
+      "description": "Compact title-first list specimen. Date and schedule state are synthetic; the live table sorts, resizes columns and opens the native editor.",
+      "html": "<div class=\"ds-event-row\"><button class=\"ds-event-title\">Research synthesis</button><span class=\"ds-event-course\">PSY 210</span><time class=\"ds-event-date\" datetime=\"2026-11-18\">Wed, Nov 18</time><span class=\"ds-event-status\">Not started</span></div>",
+      "css": ".ds-event-row{display:grid;grid-template-columns:minmax(160px,1fr) 96px 160px 108px;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid var(--border,color-mix(in srgb,CanvasText 15%,transparent));background:var(--background,Canvas);color:var(--foreground,CanvasText);font-family:-apple-system,BlinkMacSystemFont,\"SF Pro Text\",\"Helvetica Neue\",sans-serif;font-size:13px;line-height:20px}.ds-event-title{font:inherit;font-weight:500;text-align:left;background:none;border:0;padding:0;color:inherit;cursor:pointer}.ds-event-title:hover{text-decoration:underline}.ds-event-title:active{opacity:.8}.ds-event-course,.ds-event-date,.ds-event-status{font-size:12px;line-height:16px;color:var(--muted-foreground,color-mix(in srgb,CanvasText 64%,transparent))}.ds-event-date{font-variant-numeric:tabular-nums}.ds-event-title:focus-visible{outline:2px solid var(--ring,rgb(15% 47% 43%));outline-offset:2px}"
     },
     {
       "name": "Compact desktop panel",
       "kind": "custom",
       "refersTo": "desktop",
-      "description": "Content specimen of the 360 by 420 point AppKit panel. Native title bar, window shadow, drag behavior and pinning are not simulated by this portable preview.",
+      "description": "Legacy desktop-card specimen retained outside the 0.5.0 workspace revision; its dimensions and behavior have not been reconciled with the separate DesktopPanel implementation. Content specimen of the 360 by 420 point AppKit panel. Native title bar, window shadow, drag behavior and pinning are not simulated by this portable preview.",
       "html": "<section class=\"ds-desktop\"><h2>Today</h2><p class=\"ds-desktop-date\">Wednesday, Nov 4</p><button class=\"ds-desktop-event\"><strong>Research synthesis</strong><span>PSY 210 · Nov 18</span></button><footer><span>Demo workspace</span><button>Open timeline</button></footer></section>",
       "css": ".ds-desktop {font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;width:312px;min-height:360px;padding:36px 24px 24px;display:flex;flex-direction:column;background:Canvas;color:CanvasText}.ds-desktop h2 {font-family:ui-rounded,system-ui,sans-serif;font-size:23px;font-weight:500;margin:0 0 20px}.ds-desktop-date {font-size:11px;opacity:.7;margin:0 0 20px}.ds-desktop-event {font:inherit;text-align:left;background:none;color:inherit;border:0;padding:0;display:grid;gap:8px;cursor:pointer}.ds-desktop-event strong {font-weight:500}.ds-desktop-event span {font-size:11px;opacity:.7}.ds-desktop footer {display:flex;justify-content:space-between;margin-top:auto;padding-top:24px;font-size:11px}.ds-desktop footer button {font:inherit;color:rgb(15% 47% 43%);background:none;border:none;padding:0;cursor:pointer}.ds-desktop button:hover {opacity:.8}.ds-desktop button:active {opacity:.65}.ds-desktop button:focus-visible {outline:2px solid rgb(15% 47% 43%);outline-offset:3px;}@media (prefers-color-scheme:dark) {.ds-desktop footer button {color:rgb(46% 79% 73%)}}"
     }
   ],
   "narrative": {
     "northStar": "The Quiet Library Study Desk",
-    "overview": "Syllapace feels like an orderly place to understand the semester: generous row rhythm, restrained teal, familiar Mac controls, and clear separation between a date and the evidence supporting it. Rounded system headings soften the workspace without weakening its information hierarchy.\n\nThe native window, sidebar, sheets and compact desktop panel carry the interaction. Content stays plain and readable; color identifies an action, a course or an unresolved decision. The user approved implementation directly in SwiftUI and inspection of the real light and dark interfaces.",
+    "overview": "Syllapace feels like an orderly academic desk: quiet, exact and compact, with restrained teal, readable system type and familiar Mac controls. Clear alignment lets course names, dates and source evidence carry the information without explanatory decoration.\n\nThe native window, sidebar, toolbar and settings establish one application around the offline WebKit workspace. Neutral semantic layers separate controls from data; color belongs to actions and named courses. The approved revision is code-led, with bilingual light and dark window inspection rather than a separate approved visual comp. Imagery and decorative motion are unnecessary to this direction.",
     "keyCharacteristics": [
-      "Native Mac controls and system typography.",
-      "Spacious rows with compact, purposeful metadata.",
-      "Adaptive teal with explicit foreground contrast.",
-      "Evidence and uncertainty visible at the point of review.",
-      "An original course-page mark with an aligned date grid and a separated turning corner, shared by the SVG logo and native app icon."
+      "Native Mac navigation and SF system typography.",
+      "Compact controls, readable metadata and title-first data layouts.",
+      "Shared semantic surfaces, adaptive accents and six named-course colors.",
+      "Trustworthy date presentation with explicit uncertainty."
     ],
     "rules": [
       {
         "name": "The Paired Accent Rule",
-        "body": "Custom accent-filled surfaces use the appearance-matched `on-accent` foreground. Native prominent buttons keep the deep `action-accent` and system white label in both appearances.",
+        "body": "Resolve accent and foreground together for the active appearance; native prominent actions retain a deep variant for the system white label.",
         "section": "colors"
       },
       {
         "name": "The Named Course Rule",
         "body": "Course color always accompanies a text label; it never carries identity alone.",
         "section": "colors"
+      },
+      {
+        "name": "The Readable Metadata Rule",
+        "body": "Keep essential workspace metadata at the documented metadata size and semantic contrast; use layout and weight to establish hierarchy before shrinking text.",
+        "section": "typography"
       }
     ],
     "dos": [
       "Do keep native window, form, button and keyboard behavior authoritative.",
-      "Do align headings and rows to the shared content inset.",
-      "Do pair custom accent fills with their appearance-specific foreground and use the deep action accent for native prominent buttons.",
-      "Do show course names and review states in text as well as color.",
-      "Do verify the actual light and dark Mac windows at the supported minimum size."
+      "Do let the title column take spare width and keep supporting columns compact.",
+      "Do resolve native and web appearance from the same semantic colors, accent variants and content scale.",
+      "Do show course names, schedule phases and review concerns in text as well as color.",
+      "Do verify bilingual light and dark Mac windows at the supported sizes and content scales."
     ],
     "donts": [
-      "Don't turn the timeline into a dashboard of decorative metric cards.",
+      "Don't turn the workspace into a dashboard of decorative metric cards or repeat native navigation inside the web content.",
       "Don't replace semantic system colors with sampled screenshot constants.",
-      "Don't invent a date, completion state or source confidence to make the layout look populated.",
+      "Don't invent a date, release duration, completion state or source confidence to make the layout look populated.",
       "Don't present portable HTML previews as proof of native runtime behavior."
     ]
   }

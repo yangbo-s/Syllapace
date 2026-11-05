@@ -2,17 +2,17 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-A local macOS semester planner that turns Canvas courses and your materials into organized classes, deadlines, and exams. Bring your own AI key and work across List, Board, Gantt, and Calendar views.
+A local macOS semester planner that turns Canvas courses and your materials into organized classes, deadlines, and exams. Bring your own AI key and work across List, Timeline, and Calendar views.
 
 Connect your own Canvas account and choose the semester and courses you want. AI filters irrelevant prose, organizes supported dates, and adds them automatically; source evidence stays available. A native SwiftUI shell hosts a bundled React/ReUI workspace in WebKit, while Swift handles storage, credentials, integrations, and the desktop card. There is no Syllapace server.
 
-This is an early release. See [acceptance evidence](docs/ACCEPTANCE-0.4.1.md) for automated checks, live integration results, and remaining verification limits.
+This is an early release. See [acceptance evidence](docs/ACCEPTANCE-0.5.0.md) for automated checks, live integration results, and remaining verification limits.
 
 ## Install
 
 Download the **DMG** from [GitHub Releases](https://github.com/yangbo-s/Syllapace/releases), drag Syllapace to Applications, and open it there. Syllapace supports **Apple Silicon and macOS 26+**. A ZIP and SHA-256 checksums are also provided.
 
-The package is ad hoc signed and **not notarized by Apple**. If macOS blocks the first launch, use [Apple's per-app opening instructions](https://support.apple.com/en-us/102445) after checking the source and checksum; see the [release notes](docs/releases/0.4.1.md). An update signature protects subsequent downloads, but does not replace Apple notarization.
+The package is ad hoc signed and **not notarized by Apple**. If macOS blocks the first launch, use [Apple's per-app opening instructions](https://support.apple.com/en-us/102445) after checking the source and checksum; see the [release notes](docs/releases/0.5.0.md). An update signature protects subsequent downloads, but does not replace Apple notarization.
 
 ## Language and updates
 
@@ -45,18 +45,19 @@ To inspect the interface with fictional courses and deadlines:
 
 Demo events are generated in memory and are not saved to your real library. Canvas, model extraction, EventKit access and update checks are disabled in demo mode. Quit the demo and open the app normally to configure your own workspace.
 
-## One workspace, four views
+## One workspace, three views
 
 The default course workspace admits three categories: **class meetings**, **submission deadlines**, and **exams/quizzes**. Lecture, Recitation, Lab, recurring Demo, Homework, Project, Midterm, and Final retain their specific meaning. Grading rubrics, learning objectives, grade announcements, and general prose remain source material rather than calendar events.
 
 | View | Purpose |
 | --- | --- |
-| List | Scan and filter events by course, type, date, and progress. |
-| Board | Move submission tasks between To do, In progress, and Done. Classes and exams remain in the other views. |
-| Gantt | Plan work around submission deadlines and assessments. Classes are available through the event-type filter. Without a work plan or source duration, an event stays a milestone. |
-| Calendar | See actual classes, deadlines, and assessments across month, week, or day. |
+| List | Scan, sort and filter events; course codes stay compact while titles get the available width. |
+| Timeline | Opens to a full month. Classes and assessments are points; tasks span an explicit release date to their due date. Without a release date, a task remains a point. |
+| Calendar | Opens to the month; week, day and agenda are also available. |
 
-These views share one native library. **Due soon** and **Overdue** are derived from time, separate from task progress. **Start work** adds your planned start; adjusting a plan does not move the source deadline. Completed tasks remain available through the Done filter. School calendars appear as a separate layer only when selected in the sidebar.
+The three views are separate native sidebar destinations and share one library. Status follows dates: **Not started**, **In progress**, then **Historical**. History is hidden by default; use the history button to include it. Unknown release dates are never guessed. Submission or saved completion flags do not determine schedule status. School calendars remain a separate sidebar layer.
+
+Settings → Appearance offers System, Light or Dark, a custom accent, and 90%, 100% or 115% interface size. Native content and the embedded workspace share the same colors and scale. Practice assessments remain source material instead of becoming formal exams.
 
 The former mandatory Review queue is now **Needs information**: only missing facts, failed organization, or source changes overlapping your edits need attention. A successful AI result enters the workspace without a per-event approval step.
 
@@ -180,9 +181,9 @@ APP_SNAPSHOT_CREDENTIALS=1 python3 tools/snap-review.py build/verification/crede
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift tools/check-layout.swift build/verification/visual-review/*/*-layout.json
 ```
 
-The review runner uses an isolated app copy and temporary data, leaving the installed version untouched. Full review expects 51 screenshots per language; workspace-only review expects 22, covering four views, two sizes, both appearances, empty data, a course filter, and the academic-calendar layer. It waits for the matching WebKit snapshot and fails on loading errors rather than capturing a placeholder. Native Settings forms use system layout; grid probes cover custom native surfaces, while WebKit layout is reviewed from real window captures. Use the emitted `*-layout.json` paths with the layout checker. The runner captures only the app's own windows. Screen Recording permission may be required for faithful window captures; a logged `view-render fallback` does not verify native materials or active window chrome.
+The review runner uses an isolated app copy and temporary data, leaving the installed version untouched. Full review expects 51 screenshots per language; workspace-only review expects 18, covering three views, two sizes, both appearances, empty data, a course filter, and the academic-calendar layer. It waits for the matching WebKit snapshot and fails on loading errors rather than capturing a placeholder. Native Settings forms use system layout; grid probes cover custom native surfaces, while WebKit layout is reviewed from real window captures. Use the emitted `*-layout.json` paths with the layout checker. The runner captures only the app's own windows. Screen Recording permission may be required for faithful window captures; a logged `view-render fallback` does not verify native materials or active window chrome.
 
-The tests use synthetic PDFs/DOCX documents, mocked network responses, and calendar snapshots. They do not request real credentials or write to your actual calendars. See [engineering requirements](docs/ENGINEERING.md), [EventKit decision](docs/decisions/0001-apple-calendar-eventkit.md), and [acceptance evidence](docs/ACCEPTANCE-0.4.1.md).
+The tests use synthetic PDFs/DOCX documents, mocked network responses, and calendar snapshots. They do not request real credentials or write to your actual calendars. See [engineering requirements](docs/ENGINEERING.md), [EventKit decision](docs/decisions/0001-apple-calendar-eventkit.md), and [acceptance evidence](docs/ACCEPTANCE-0.5.0.md).
 
 ## Current limits
 

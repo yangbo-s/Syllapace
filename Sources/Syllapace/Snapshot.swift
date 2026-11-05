@@ -7,7 +7,7 @@ enum Snapshot {
     static var started = false
     static func runIfRequested(model: AppModel, openSettings: OpenSettingsAction) {
         guard !started, let dir = ProcessInfo.processInfo.environment["APP_SNAPSHOT"], ProcessInfo.processInfo.environment["APP_STORE"] != nil else { return }
-        let modes = ["APP_SNAPSHOT_CONTROLS", "APP_SNAPSHOT_EMPTY", "APP_SNAPSHOT_WORKSPACE", "APP_SNAPSHOT_COPY", "APP_SNAPSHOT_CREDENTIALS"]
+        let modes = ["APP_SNAPSHOT_CONTROLS", "APP_SNAPSHOT_EMPTY", "APP_SNAPSHOT_WORKSPACE", "APP_SNAPSHOT_COPY", "APP_SNAPSHOT_CREDENTIALS", "APP_SNAPSHOT_APPEARANCE", "APP_SNAPSHOT_ACTIVITY"]
         guard modes.filter({ ProcessInfo.processInfo.environment[$0] == "1" }).count <= 1 else {
             log("Capture failed: choose only one snapshot mode"); exit(1)
         }
@@ -21,6 +21,30 @@ enum Snapshot {
             guard let main = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) else { return }
             let originalFrame = main.frame
             defer { main.setFrame(originalFrame, display: false) }
+            if ProcessInfo.processInfo.environment["APP_SNAPSHOT_ACTIVITY"] == "1" {
+                await captureActivity(model: model, window: main, directory: dir)
+                log("SNAPSHOT done \(dir)"); NSApp.terminate(nil); return
+            }
+            if ProcessInfo.processInfo.environment["APP_SNAPSHOT_APPEARANCE"] == "1" {
+                for dark in [false, true] {
+                    AppAppearance.shared.mode = dark ? "dark" : "light"
+                    AppAppearance.shared.accentHex = "346ABE"
+                    for scale in [0.9, 1.0, 1.15] {
+                        AppAppearance.shared.scale = scale
+                        model.workspaceView = .calendar
+                        main.setContentSize(NSSize(width: 1120 * scale, height: 760 * scale))
+                        await captureWorkspace(model: model, window: main, dark: dark, path: "\(dir)/appearance-\(Int((scale * 100).rounded()))-\(dark ? "dark" : "light").png")
+                    }
+                    model.settingsTab = 5
+                    openSettings()
+                    try? await Task.sleep(for: .milliseconds(700))
+                    if let settings = NSApp.windows.first(where: { $0 != main && $0.isVisible && $0.canBecomeMain && !($0 is NSPanel) }) {
+                        await captureActive(settings, path: "\(dir)/appearance-settings-\(dark ? "dark" : "light").png")
+                        settings.orderOut(nil)
+                    }
+                }
+                log("SNAPSHOT done \(dir)"); NSApp.terminate(nil); return
+            }
             if ProcessInfo.processInfo.environment["APP_SNAPSHOT_CREDENTIALS"] == "1" {
                 await captureCredentialSettings(model: model, window: main, directory: dir, openSettings: openSettings)
                 log("SNAPSHOT done \(dir)"); NSApp.terminate(nil); return
@@ -60,7 +84,7 @@ enum Snapshot {
                 NSApp.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
                 for page in AppPage.allCases {
                     model.page = page
-                    if page == .timeline {
+                    if page == .list {
                         model.selectedID = nil
                         for view in WorkspaceViewMode.allCases {
                             model.workspaceView = view
@@ -68,6 +92,7 @@ enum Snapshot {
                         }
                         continue
                     }
+                    if page.workspaceView != nil { continue }
                     try? await Task.sleep(for: .milliseconds(200))
                     if page == .review { model.selectedID = model.events.first?.id }
                     NSApp.activate(); main.makeKeyAndOrderFront(nil)
@@ -128,7 +153,7 @@ enum Snapshot {
                 try? await Task.sleep(for: .milliseconds(1600))
                 if let settings = settingsWindow ?? NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain && $0 !== main && !($0 is NSPanel) }) {
                     settingsWindow = settings
-                    for tab in [3, 0, 1, 4, 2] {
+                    for tab in [5, 3, 0, 1, 4, 2] {
                         model.settingsTab = tab
                         settings.makeKeyAndOrderFront(nil)
                         try? await Task.sleep(for: .milliseconds(500))
@@ -145,7 +170,7 @@ enum Snapshot {
                 }
 
             }
-            model.page = .timeline; model.workspaceView = .list
+            model.page = .list; model.workspaceView = .list
             model.courseFilter = "personal"
             main.makeKeyAndOrderFront(nil)
             await captureWorkspace(model: model, window: main, dark: true, path: "\(dir)/course-empty-dark.png")
@@ -158,7 +183,7 @@ enum Snapshot {
             await captureActive(main, path: "\(dir)/review-narrow-dark.png")
             model.selectedID = nil
             let originalArchive = model.archive
-            model.archive.events = []; model.archive.sources = []; model.page = .timeline; model.workspaceView = .list
+            model.archive.events = []; model.archive.sources = []; model.page = .list; model.workspaceView = .list
             main.makeKeyAndOrderFront(nil)
             await captureWorkspace(model: model, window: main, dark: true, path: "\(dir)/empty-dark.png")
             model.archive = originalArchive
@@ -166,6 +191,44 @@ enum Snapshot {
             main.setFrame(originalFrame, display: true)
             NSApp.terminate(nil)
         }
+    }
+
+    /// Foreground feedback fixtures; no import or background operation is started.
+    private static func captureActivity(model: AppModel, window: NSWindow, directory: String) async {
+        model.workspaceView = .calendar
+        window.setContentSize(NSSize(width: 940, height: 620))
+        var before = model.archive
+        before.events.removeFirst()
+        model.lastImportUndo = ImportUndo(before: before, after: model.archive)
+        for dark in [false, true] {
+            let mode = dark ? "dark" : "light"
+            AppAppearance.shared.mode = mode
+            model.notice = nil
+            try? await Task.sleep(for: .milliseconds(200))
+            model.notice = L10n.format("Imported %ld events. You can undo this import.", 12)
+            await captureWorkspace(model: model, window: window, dark: dark, path: "\(directory)/activity-summary-\(mode).png")
+            try? await Task.sleep(for: .seconds(6))
+            await captureActive(window, path: "\(directory)/activity-compact-\(mode).png")
+            await captureActivityDetails(model: model, window: window, path: "\(directory)/activity-details-\(mode).png")
+            model.curationStatus = L10n.format("Organizing material %ld of %ld…", 3, 12)
+            await captureActive(window, path: "\(directory)/activity-running-\(mode).png")
+            await captureActivityDetails(model: model, window: window, path: "\(directory)/activity-running-details-\(mode).png")
+            model.curationStatus = nil
+        }
+    }
+
+    private static func captureActivityDetails(model: AppModel, window: NSWindow, path: String) async {
+        let existing = Set(NSApp.windows.filter(\.isVisible).map(\.windowNumber))
+        model.showActivity = true
+        try? await Task.sleep(for: .milliseconds(800))
+        guard let popover = NSApp.windows.first(where: { $0.isVisible && !existing.contains($0.windowNumber) && $0.frame.width >= 392 }),
+              NSApp.isActive else { log("Capture failed: activity popover unavailable"); exit(1) }
+        // A native popover may leave its parent key. Capture that visible app-owned
+        // window without forcing key status or dismissing its transient presentation.
+        await captureExternal(popover, path: path)
+        model.showActivity = false
+        try? await Task.sleep(for: .milliseconds(300))
+        window.makeKeyAndOrderFront(nil)
     }
 
     /// Settings fixtures only: never reads real credentials or calls Keychain.
@@ -247,7 +310,7 @@ enum Snapshot {
         }
     }
 
-    /// 22 captures: four views × two sizes × two appearances, then three states × two appearances.
+    /// 18 captures: three views × two sizes × two appearances, then three states × two appearances.
     private static func captureWorkspaceStates(model: AppModel, window: NSWindow, directory: String) async {
         let originalArchive = model.archive
         let originalPage = model.page
@@ -261,7 +324,7 @@ enum Snapshot {
             model.courseFilter = originalCourse; model.academicCalendarFilter = originalCalendar
             model.selectedID = originalSelection; window.setFrame(originalFrame, display: true)
         }
-        model.page = .timeline; model.selectedID = nil
+        model.page = .list; model.selectedID = nil
         model.courseFilter = nil; model.academicCalendarFilter = nil
         for dark in [false, true] {
             let mode = dark ? "dark" : "light"
@@ -321,14 +384,14 @@ enum Snapshot {
                 model.search = ""
                 for page in AppPage.allCases {
                     model.page = page
-                    if page == .timeline {
+                    if page == .list {
                         await captureWorkspace(model: model, window: window, dark: dark, path: "\(directory)/empty-workspace-list-\(width)-\(mode).png")
                     } else {
                         await captureActive(window, path: "\(directory)/empty-\(page.rawValue.lowercased())-\(width)-\(mode).png")
                     }
                 }
                 model.archive = originalArchive
-                model.page = .timeline
+                model.page = .list
                 model.courseFilter = "personal"
                 await captureWorkspace(model: model, window: window, dark: dark, path: "\(directory)/empty-course-\(width)-\(mode).png")
                 model.courseFilter = nil
@@ -369,15 +432,8 @@ enum Snapshot {
             try? await Task.sleep(for: .milliseconds(600))
             if NSApp.isActive && window.isKeyWindow {
                 if ProcessInfo.processInfo.environment["APP_SNAPSHOT_EXTERNAL"] == "1" {
-                    GridProbes.shared.write(to: path.replacingOccurrences(of: ".png", with: "-layout.json"), window: window)
-                    // A permitted external runner captures this window only. Keep
-                    // its state stable until the PNG is written or capture fails.
-                    for _ in 0..<100 {
-                        if FileManager.default.fileExists(atPath: path) { log("SNAPSHOT \(path) (external window capture)"); return }
-                        try? await Task.sleep(for: .milliseconds(50))
-                    }
-                    log("Capture failed: external window capture timed out for \(path)")
-                    exit(1)
+                    await captureExternal(window, path: path)
+                    return
                 }
                 capture(window, path: path)
                 return
@@ -385,6 +441,14 @@ enum Snapshot {
         }
         log("Capture failed: window did not become active for \(path); active=\(NSApp.isActive), key=\(window.isKeyWindow), visible=\(window.isVisible), canKey=\(window.canBecomeKey)")
         exit(1)
+    }
+    private static func captureExternal(_ window: NSWindow, path: String) async {
+        GridProbes.shared.write(to: path.replacingOccurrences(of: ".png", with: "-layout.json"), window: window)
+        for _ in 0..<100 {
+            if FileManager.default.fileExists(atPath: path) { log("SNAPSHOT \(path) (external window capture)"); return }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        log("Capture failed: external window capture timed out for \(path)"); exit(1)
     }
     static func capture(_ window: NSWindow, path: String) {
         NSApp.unhideWithoutActivation(); window.makeKeyAndOrderFront(nil)

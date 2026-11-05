@@ -1373,7 +1373,7 @@ interface GanttViewConfig<TData = unknown> {
    * Bar title placement: "inside" (default) renders it in the bar, "outside"
    * beside the bar, "auto" moves it outside only when the bar is too short.
    */
-  barLabel: "inside" | "outside" | "auto"
+  barLabel: "inside" | "outside" | "auto" | "none"
   /** Edge chips that scroll to bars outside the visible timeline. Default true. */
   offscreenIndicators: boolean
   /**

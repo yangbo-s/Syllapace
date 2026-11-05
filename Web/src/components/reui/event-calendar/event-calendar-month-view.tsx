@@ -798,9 +798,10 @@ function EventCalendarMonthCell({
   // (hidden bars + timed past the cap), never the chips already visible in the
   // cell, so it never duplicates them. autoFit gives up one timed row to the
   // "+N more" indicator so the visible chips fit the clipped cell height.
+  const footerOverflow = autoFit && cap <= 1
   const staticOverflow = extraHidden > 0 || m > timedSlots
   const staticShown =
-    autoFit && staticOverflow ? Math.max(0, timedSlots - 1) : timedSlots
+    autoFit && !footerOverflow && staticOverflow ? Math.max(0, timedSlots - 1) : timedSlots
   const overflowSegments = [
     ...hiddenBarSegs,
     ...segments.timed.slice(staticShown),
@@ -831,7 +832,7 @@ function EventCalendarMonthCell({
     // rows for timed items INCLUDING the phantom, before the "+N more" row
     const vis = !dropOverflow
       ? m + 1
-      : autoFit
+      : autoFit && !footerOverflow
         ? Math.max(0, timedSlots - 1)
         : timedSlots
     placeholderAtMore = insertRank >= vis
@@ -932,7 +933,7 @@ function EventCalendarMonthCell({
         {placeholderIndex >= 0 &&
           placeholderIndex >= visibleTimed.length &&
           dropPlaceholder}
-        {overflowCount > 0 && (
+        {overflowCount > 0 && !footerOverflow && (
           <EventCalendarMoreIndicator
             day={day}
             count={overflowCount}
@@ -952,6 +953,7 @@ function EventCalendarMonthCell({
           viewConfig.classNames?.monthCellFooter
         )}
       >
+        {footerOverflow && overflowCount > 0 && <div className="min-w-0 flex-1"><EventCalendarMoreIndicator day={day} count={overflowCount} segments={overflowSegments} /></div>}
         {viewConfig.showDayAddButton && !isInteracting && (
           <button
             type="button"

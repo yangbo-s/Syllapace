@@ -6,45 +6,45 @@ colors:
   accent-dark: "rgb(46% 79% 73%)"
   action-accent: "rgb(15% 47% 43%)"
   on-accent-light: "white"
-  on-accent-dark: "rgb(5% 17% 15%)"
+  on-accent-dark: "rgb(4% 4% 4%)"
   warning-light: "rgb(59% 30% 3%)"
+  course-blue-light: "#4774B8"
+  course-blue-dark: "#81A8E1"
+  course-ochre-light: "#A96824"
+  course-ochre-dark: "#DBAC70"
+  course-purple-light: "#825BA6"
+  course-purple-dark: "#BA92D6"
+  course-rose-light: "#AA5A74"
+  course-rose-dark: "#DA91AA"
+  course-green-light: "#557E48"
+  course-green-dark: "#A1C391"
 typography:
-  heading:
-    fontFamily: "SF Pro Rounded, system-ui, sans-serif"
-    fontSize: "26px"
-    fontWeight: 500
-    letterSpacing: "-0.5px"
-  event-title:
+  source-heading:
     fontFamily: "SF Pro, system-ui, sans-serif"
-    fontSize: "14px"
-    fontWeight: 500
-  detail-title:
+    fontSize: "24px"
+    fontWeight: 600
+  brand:
     fontFamily: "SF Pro Rounded, system-ui, sans-serif"
-    fontSize: "22px"
-    fontWeight: 500
-  evidence:
-    fontFamily: "SF Pro, system-ui, sans-serif"
+    fontSize: "19px"
+    fontWeight: 600
+  body:
+    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif'
     fontSize: "13px"
     fontWeight: 400
-  group-label:
-    fontFamily: "SF Pro, system-ui, sans-serif"
-    fontSize: "12px"
-    fontWeight: 600
-  date:
-    fontFamily: "SF Pro Rounded, system-ui, sans-serif"
-    fontSize: "22px"
-    fontWeight: 400
-  date-current:
-    fontFamily: "SF Pro Rounded, system-ui, sans-serif"
-    fontSize: "22px"
-    fontWeight: 600
-  weekday:
-    fontFamily: "SF Pro, system-ui, sans-serif"
-    fontSize: "11px"
+    lineHeight: "20px"
+  event-title:
+    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif'
+    fontSize: "13px"
     fontWeight: 500
+    lineHeight: "20px"
+  metadata:
+    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif'
+    fontSize: "12px"
+    fontWeight: 400
+    lineHeight: "16px"
 rounded:
-  field: "8px"
-  surface: "12px"
+  compact-control: "8px"
+  workspace-control: "10px"
 spacing:
   micro: "4px"
   tight: "8px"
@@ -55,35 +55,41 @@ spacing:
   content: "28px"
 components:
   button-primary:
-    backgroundColor: "{colors.action-accent}"
-    textColor: "{colors.on-accent-light}"
-  search:
-    rounded: "{rounded.field}"
-    padding: "{spacing.compact}"
-  evidence:
-    typography: "{typography.evidence}"
-    rounded: "{rounded.surface}"
-    padding: "{spacing.row}"
-  event-row:
-    typography: "{typography.event-title}"
-    padding: "16px 28px"
-  date-current-light:
     backgroundColor: "{colors.accent-light}"
     textColor: "{colors.on-accent-light}"
-    typography: "{typography.date-current}"
-    rounded: "{rounded.surface}"
-    padding: "12px 0px"
-  date-current-dark:
-    backgroundColor: "{colors.accent-dark}"
-    textColor: "{colors.on-accent-dark}"
-    typography: "{typography.date-current}"
-    rounded: "{rounded.surface}"
-    padding: "12px 0px"
+    typography: "{typography.event-title}"
+    rounded: "{rounded.workspace-control}"
+    height: "32px"
+    padding: "0px 10px"
+  button-native-primary:
+    backgroundColor: "{colors.action-accent}"
+    textColor: "{colors.on-accent-light}"
+  button-ghost:
+    typography: "{typography.event-title}"
+    rounded: "{rounded.compact-control}"
+    size: "28px"
+  search:
+    typography: "{typography.body}"
+    rounded: "{rounded.workspace-control}"
+    height: "28px"
+    width: "176px"
+    padding: "4px 10px"
+  course-label:
+    typography: "{typography.metadata}"
+  schedule-status:
+    typography: "{typography.metadata}"
+  event-row:
+    typography: "{typography.event-title}"
+  workspace:
+    padding: "0px 16px 16px"
+  workspace-toolbar:
+    height: "44px"
   sidebar:
     width: "212px"
-  inspector:
-    width: "292px"
-    padding: "{spacing.panel}"
+  settings:
+    width: "640px"
+    height: "560px"
+    padding: "{spacing.row}"
   desktop:
     width: "360px"
     height: "420px"
@@ -96,85 +102,91 @@ components:
 
 **Creative North Star: "The Quiet Library Study Desk"**
 
-Syllapace feels like an orderly place to understand the semester: generous row rhythm, restrained teal, familiar Mac controls, and clear separation between a date and the evidence supporting it. Rounded system headings soften the workspace without weakening its information hierarchy.
+Syllapace feels like an orderly academic desk: quiet, exact and compact, with restrained teal, readable system type and familiar Mac controls. Clear alignment lets course names, dates and source evidence carry the information without explanatory decoration.
 
-The native window, sidebar, sheets and compact desktop panel carry the interaction. Content stays plain and readable; color identifies an action, a course or an unresolved decision. The user approved implementation directly in SwiftUI and inspection of the real light and dark interfaces.
+The native window, sidebar, toolbar and settings establish one application around the offline WebKit workspace. Neutral semantic layers separate controls from data; color belongs to actions and named courses. The approved revision is code-led, with bilingual light and dark window inspection rather than a separate approved visual comp. Imagery and decorative motion are unnecessary to this direction.
 
 **Key Characteristics:**
-- Native Mac controls and system typography.
-- Spacious rows with compact, purposeful metadata.
-- Adaptive teal with explicit foreground contrast.
-- Evidence and uncertainty visible at the point of review.
+- Native Mac navigation and SF system typography.
+- Compact controls, readable metadata and title-first data layouts.
+- Shared semantic surfaces, adaptive accents and six named-course colors.
+- Trustworthy date presentation with explicit uncertainty.
 
-Direction provenance: seven references were considered—library catalogue, course timetable, editorial syllabus, botanical index, museum reading room, campus wayfinding and quiet library study desk (`seed:7b4975d51b65fec9`). The last informs palette and rhythm. Acetate/manual, developer-console and catalog-sleeve challengers contributed grouping, seam hierarchy and whitespace, while the native interface remained authoritative.
+Direction provenance: seven references were considered—library catalogue, course timetable, editorial syllabus, botanical index, museum reading room, campus wayfinding and quiet library study desk (`seed:7b4975d51b65fec9`). The last informs palette and rhythm. Acetate/manual, developer-console and catalog-sleeve challengers contributed grouping, seam hierarchy and whitespace, while the native interface remained authoritative. The 0.5.0 system revision preserves that direction.
 
-This file records the implemented system. [Theme.swift](Sources/Syllapace/Theme.swift), [ContentView.swift](Sources/Syllapace/ContentView.swift), [Editors.swift](Sources/Syllapace/Editors.swift) and [DesktopPanel.swift](Sources/Syllapace/DesktopPanel.swift) are the implementation sources. Portable token dimensions use `px` to represent SwiftUI logical points, not physical display pixels. System-controlled colors, type styles, button geometry and focus rings intentionally have no fabricated fixed token. The [sidecar](.impeccable/design.json) contains illustrative portable component previews, not substitutes for native screenshots. Its synthesized tonal ramps are documentation aids, not additional runtime colors.
+This revision is grounded in [AppAppearance.swift](Sources/Syllapace/AppAppearance.swift), [Theme.swift](Sources/Syllapace/Theme.swift), [ContentView.swift](Sources/Syllapace/ContentView.swift), [SettingsView.swift](Sources/Syllapace/SettingsView.swift), [ActivityControl.swift](Sources/Syllapace/ActivityControl.swift), [workspace styles](Web/src/index.css) and [workspace components](Web/src/workspace). The frontmatter records default primitives; custom accents and semantic system colors are resolved at runtime. Portable dimensions represent logical points or CSS pixels before the shared content scale, not physical display pixels. The [sidecar](.impeccable/design.json) contains portable specimens, not proof of native runtime behavior; synthesized tonal ramps are documentation aids, not runtime colors. The existing desktop-panel specification is outside this workspace revision and remains unreconciled with its separate implementation.
 
 ## Colors
 
 ### Primary
 
-Deep study-desk teal in light appearance and pale mineral teal in dark appearance identify current-day emphasis and active interface accents. Each appearance has its own `on-accent` foreground. Native prominent buttons use the separate deep `action-accent` in both appearances because the system supplies a white label.
+Study-desk teal in light appearance and mineral teal in dark appearance identify selected controls and current-date accents. Settings preserves the user's selected swatch; rendered custom variants blend toward black in light appearance and white in dark appearance, preserving the hue family while targeting 7.5:1 against white in light appearance (headroom for Aqua control tint blending) and 4.6:1 against the raised dark reference surface. That is a rendering target, not a claim that every possible control or background was measured.
+
+Accent-fill foregrounds are computed from relative luminance: white on deeper fills and near-black on lighter fills. Native prominent buttons derive a deep action variant because macOS supplies their white label. The frontmatter accent and foreground pairs describe the default theme; a custom accent replaces the relevant variants in both native and web content.
 
 ### Secondary
 
-Course markers use the accent and SwiftUI's adaptive blue, orange and purple. Course names remain readable semantic text; a small colored marker supplements the name. Light-appearance warnings use the warm brown token, while dark appearance uses `NSColor.systemOrange`.
+Six shared course colors cycle through teal, blue, ochre, purple, rose and green. The first follows the chosen accent; the other five use the appearance-specific pairs in the frontmatter. Small markers, timeline data and calendar data use these colors alongside course text. Warnings still use warm review brown in light appearance and AppKit system orange in dark appearance for actual errors or review concerns, never for a past deadline.
 
 ### Neutral
 
-The content surface uses `NSColor.textBackgroundColor`. Text uses SwiftUI primary, secondary and tertiary semantic foregrounds. Search, evidence and the inspector use translucent quaternary layers; the sidebar and window chrome are system-rendered. Do not freeze their current screenshot colors into custom constants.
+AppKit is authoritative: `windowBackgroundColor` supplies the canvas, `labelColor` supplies primary text, and `separatorColor` supplies borders. Raised web surfaces blend the canvas 5.5% toward the label color. Web secondary labels use label-color alpha 0.64 in light appearance and 0.72 in dark appearance. These resolved values override the standalone CSS fallbacks; do not sample a screenshot and freeze system colors into constants.
 
-**The Paired Accent Rule.** Custom accent-filled surfaces use the appearance-matched `on-accent` foreground. Native prominent buttons keep the deep `action-accent` and system white label in both appearances.
+**The Paired Accent Rule.** Resolve accent and foreground together for the active appearance; native prominent actions retain a deep variant for the system white label.
 
 **The Named Course Rule.** Course color always accompanies a text label; it never carries identity alone.
 
 ## Typography
 
-System SF Pro provides body text and native control labels. Rounded system type is reserved for the main heading, brand name, date numerals, inspector title and desktop heading. No bundled font or custom font loading is needed.
+SF system type is the primary voice in native and WebKit content. The workspace uses the exact system stack recorded in the frontmatter, with body and event-title roles at the shared body size and metadata at its own readable size. Event titles use medium weight and up to two lines in the list; course codes, dates and schedule phases use the metadata role. Dates use tabular numerals.
 
-The heading, event title, evidence and date roles are extracted in the frontmatter. Group labels organize the timeline without introducing heavy headings. Other captions and form labels use native `.caption`, `.headline`, `.title2` and default text styles so the system remains responsible for their metrics.
+The Sources page retains its native semibold heading, and the sidebar wordmark retains rounded system type. Other native forms and sheets use system text styles rather than a fabricated global display scale. The old center-page heading and date-ribbon type roles are not part of the active workspace. No bundled font is required.
 
-Event titles allow two lines in rows and expand in the inspector. Evidence is selectable and uses five points of extra line spacing. Supporting text is secondary by role, not by reducing important content to an unreadable size.
+**The Readable Metadata Rule.** Keep essential workspace metadata at the documented metadata size and semantic contrast; use layout and weight to establish hierarchy before shrinking text.
 
 ## Layout
 
-The main window is a `NavigationSplitView` with a sidebar that ranges from 192 to 240 points, ideally the frontmatter width. The center timeline grows; selecting an event opens the fixed-width inspector. The supported minimum content area is 940 × 620 points. The initial main window is 1120 × 760 points. This is a desktop layout, with no mobile breakpoint or hidden mobile navigation contract.
+The main window uses `NavigationSplitView`: sidebar minimum 192, ideal 212 and maximum 240 logical points. List, Timeline and Calendar are separate native destinations; Sources and a nonempty review queue remain native pages. The native title and semester selector carry context once. The embedded workspace has no duplicated semester heading, event count, view tabs or status-filter strip.
 
-Headings and event rows share the content inset. Rows use the row vertical inset and inter-item gap; the inspector and desktop panel use the panel inset. The compact panel has an additional compact top inset to clear its title bar. Gaps follow the observed four-point rhythm listed in the frontmatter.
+The initial window is 1120 × 760 points; minimum content dimensions are 940 × 620 before scaling. A single content scale applies to the native main content and its embedded WebKit workspace: Compact 90%, Standard 100%, Large 115%. Minimum main dimensions scale with it. Settings uses the same scale and a base 640 × 560 content frame. Native window chrome remains system-owned.
 
-Sheets remain task-sized: event editing is 480 points wide, importing is 460, the source reader is 640 × 560 and Settings is 580 × 400. Use native scrolling when content exceeds its allotted area.
+The workspace uses the frontmatter inset, a compact tools row and a growing data region. List tools align at the trailing edge; Timeline and Calendar combine period navigation at the leading edge with compact view and filtering controls at the trailing edge. Their navigation rows have a 48-point minimum height with 8-point vertical padding. Search expands in place; history and event type stay as small controls.
 
-The Today surface's seven-day ribbon and the list below share alignment. Its composition is a surface-level signature, recorded in the [desktop brief](.impeccable/surfaces/desktop.md), not a requirement to add date ribbons to every future screen.
+List gives spare width to the title. The initial supporting columns are course 96, date 160, status 108 and actions 40 logical pixels; title starts at 280 and fills remaining width. The course column hides when only one course is present. Dense rows keep borders and sorting; actions stay pinned at the end. The timeline course/event tree starts at 216 points and resizes between 180 and 360. There is no mobile-layout contract.
+
+Sheets remain task-sized: event editing is 480 points wide, importing is 460, and the source reader is 640 × 560. Native source and editor pages retain their content inset and scrolling. Surface behavior and screenshot provenance belong in the [desktop brief](.impeccable/surfaces/desktop.md).
 
 ## Elevation & Depth
 
-The application adds no custom shadows. Native window, panel and sheet elevation communicates containment; inside the window, dividers and subdued tonal backgrounds establish hierarchy. Plain timeline rows keep adjacent events easy to scan. A selected row uses an eight-percent accent fill.
+The workspace is flat at rest: semantic background layers and separators organize data without decorative cards or custom shadows. Native windows and sheets own native elevation; installed shadcn/ReUI popovers and controls retain their component elevation and focus treatment. Do not flatten those interaction affordances to satisfy an absolute no-shadow rule.
 
-There is no custom animation duration or easing token in the current implementation. Native control and sheet behavior supplies motion; do not document a bespoke transition as implemented until it exists and has been checked with Reduce Motion.
+There is no bespoke application motion system. Preserve native behavior and installed component transitions without adding decorative reveals or retiming library components. Loading indicators communicate pending work; they are not visual ornament.
 
 ## Shapes
 
-Search uses the field radius; source evidence and the selected day use the surface radius. Native buttons, lists, sheets and windows retain their system geometry. Small circular course markers and date dots serve information, not decoration. SF Symbols provide the action and event-kind vocabulary.
+Native buttons, lists, sheets and windows retain their system geometry. The workspace preserves the installed component geometry: regular fields and buttons use the workspace-control radius; compact icon controls use the compact-control radius. Circular course markers supplement course labels. Native SF Symbols and workspace SVG icons provide the action vocabulary; workspace icon strokes are 1.5 units.
 
 ## Components
 
 ### Buttons
 
-Primary confirmation actions use native `.borderedProminent` tinted with `action-accent` in both appearances. The deep fill preserves contrast with the system-provided white label. Secondary actions use native bordered or borderless styles. Toolbar icons have labels and help text; destructive actions retain semantic roles and explicit confirmation when cancelling an event. Hover, pressed, focus and disabled rendering remain system-owned.
+Native confirmation actions use `.borderedProminent` with the deep action accent; secondary native actions retain bordered or borderless styles. Web controls use the installed shadcn/ReUI variants, including filled, outline and ghost, with their existing hover, focus, active and disabled behavior. Compact history, search and type controls use the ghost geometry. Icons have accessible labels; active history exposes a pressed state.
 
 ### Search and forms
 
-Search is a plain text field inside a softly rounded quaternary surface, with a magnifying-glass symbol and a clear control when populated. Forms use native text fields, pickers, toggles, steppers and date pickers. Keyboard focus remains visible while editing. An empty new-event title may receive initial focus; existing content should not appear selected merely because its sheet opened.
+Workspace search expands to the documented compact field size; Escape clears and collapses it. Event type uses a menu and displays the selected non-default type next to its icon. A clear action appears when search or type filtering is active. Native forms keep text fields, pickers, toggles and date pickers. Keyboard focus remains visible; an existing draft is not selected merely because a sheet opens.
 
 ### Navigation and event rows
 
-The native sidebar separates workspace pages from course filters. An active filter has a checkmark, with an “All courses” recovery entry. Rows put the event title first, source/course metadata below and date context at the trailing edge. Selection reveals evidence; context menus expose editing and state actions.
+The native sidebar separates List, Timeline and Calendar from Sources and the conditional review queue. Course filters retain named markers, selection checkmarks and an All courses recovery entry. The list aligns titles, course codes, dates and automatic schedule phases in separate columns. Clicking a title opens the native editor; the actions menu exposes editing and source access when available. No completion control or overdue decoration appears.
 
-Commands follow native conventions: Import `⌘O`, New `⌘N`, Sync `⌘R`, Export `⇧⌘E`, desktop card `⇧⌘D`, Settings `⌘,`.
+Commands retain native conventions: Import `⌘O`, New `⌘N`, Sync `⌘R`, Export `⇧⌘E`, desktop card `⇧⌘D`, Settings `⌘,`.
 
-### Date ribbon and evidence
+### Timeline and Calendar
 
-The seven-day ribbon gives today the paired accent fill and leaves neighboring dates open. A small dot indicates an event. The inspector separates status, date and selectable source evidence; evidence lives in the padded tonal container. “Needs review” and “Schedule changed” remain explicit text states.
+Both open in month view. Timeline shows classes and assessments as points; a deadline receives a span only from its explicit release date to its due date. Unknown release dates remain unknown and render at the due point; legacy personal plans supply no duration. Course color belongs to the plotted data, with course/event labels in the tree. Dragging and resizing are disabled; selecting an event opens its native editor. Calendar also offers week, day and agenda views through its own compact switcher.
+
+Not started, In progress and Historical are date-derived labels. An event without a date retains Date to be confirmed. Historical events are hidden initially and can be revealed by the history control. Schedule phase never infers completion or lateness; source review concerns remain separate from schedule phase.
 
 ### Desktop panel
 
@@ -182,13 +194,15 @@ The compact native panel shows up to three upcoming events, a pin action and a r
 
 ### Empty, busy and error states
 
-Empty content uses `ContentUnavailableView` with a nearby next action. Filtered emptiness says “No matching events” and offers “Clear filters”; a finished review queue says “All caught up.” Work in progress has a small native progress indicator. Notices are inline and dismissible; errors use a native alert. Demo data is always visibly labeled.
+The workspace uses installed empty-state components with a nearby action: choose a semester, add material, clear filters or reveal historical events. The native review and source pages retain native empty states. Loading has a compact placeholder; workspace command errors offer Retry and dismissal. Native activity stays in the toolbar so it never reduces schedule height. A new notice shows a one-line summary for six seconds, then collapses to an information icon; active curation keeps its progress indicator and summary. Clicking Activity opens a native popover with selectable, scrollable detail, Stop while work is running, or the available undo and dismissal actions afterward. The popover is 392 points wide with detail capped at 240 points high and does not open automatically. Blocking native errors retain alerts; foreground activity does not trigger system notifications. Demo data stays visibly labeled.
 
-### Language and updates
+### Appearance, language and updates
 
-Settings begins with a General tab using the same native grouped Form. Language is a single picker with Follow system, English and 简体中文. Product and protocol names such as Canvas, OpenAI, API and ICS retain their original spelling; source evidence and course names are user content. The interface changes immediately without recreating the archive or connection model. A short note explains that native system menus and Sparkle windows adopt the language on reopening.
+Settings places Appearance before General. Appearance contains Follow system, Light and Dark, a custom color picker, Compact / Standard / Large sizing and Reset appearance. Changes affect the native and web workspace together; the color picker keeps the original selected swatch while renderers use contrast-adjusted variants.
 
-The Updates group shows the current version, automatic-check preference, a Check for Updates button and a release-notes link. The same check action appears in the application menu after About. Sparkle supplies the standard progress, no-update, error and install windows. Download verification and user confirmation precede installation. Demo and automated capture sessions keep updates disabled.
+General retains Follow system, English and 简体中文 language choices. Product and protocol names such as Canvas, OpenAI, API and ICS retain their spelling; evidence and course names are user content. The interface changes without replacing the archive or connection model. Native menus and Sparkle windows adopt the language on reopening.
+
+Updates retains the version, automatic-check preference, Check for Updates and release notes. Sparkle supplies its standard progress, error and install windows; verification and user confirmation precede installation. Demo and automated capture sessions keep updates disabled.
 
 ### Brand mark
 
@@ -202,13 +216,13 @@ The source geometry uses an 8-unit base and a 32-unit structural gap. Paper corn
 
 ### Do:
 - Do keep native window, form, button and keyboard behavior authoritative.
-- Do align headings and rows to the shared content inset.
-- Do pair custom accent fills with their appearance-specific foreground and use the deep action accent for native prominent buttons.
-- Do show course names and review states in text as well as color.
-- Do verify the actual light and dark Mac windows at the supported minimum size.
+- Do let the title column take spare width and keep supporting columns compact.
+- Do resolve native and web appearance from the same semantic colors, accent variants and content scale.
+- Do show course names, schedule phases and review concerns in text as well as color.
+- Do verify bilingual light and dark Mac windows at the supported sizes and content scales.
 
 ### Don't:
-- Don't turn the timeline into a dashboard of decorative metric cards.
+- Don't turn the workspace into a dashboard of decorative metric cards or repeat native navigation inside the web content.
 - Don't replace semantic system colors with sampled screenshot constants.
-- Don't invent a date, completion state or source confidence to make the layout look populated.
+- Don't invent a date, release duration, completion state or source confidence to make the layout look populated.
 - Don't present portable HTML previews as proof of native runtime behavior.

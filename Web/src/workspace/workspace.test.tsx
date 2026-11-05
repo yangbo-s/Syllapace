@@ -129,83 +129,65 @@ describe("workspace boundary", () => {
       expect(labels[23]).toBe("11 PM");
     },
   );
-  it("renders every view from the same native event snapshot and sends view selection", async () => {
+  it("follows native navigation without a duplicate heading, tabs or status filters", async () => {
     const snapshot = fixture();
-    const commands: Command[] = [];
-    bridge(snapshot, (command) => commands.push(command));
+    bridge(snapshot);
     render(<App />);
     await screen.findByRole("button", { name: "Homework 4" });
-    for (const [label, id] of [
-      ["Board", "kanban"],
-      ["Gantt", "gantt"],
-      ["Calendar", "calendar"],
-      ["List", "list"],
-    ]) {
-      fireEvent.click(screen.getByRole("tab", { name: label }));
-      await waitFor(() =>
-        expect(screen.getByRole("tabpanel").getAttribute("data-view")).toBe(id),
-      );
+    for (const view of ["gantt", "calendar", "list"] as const) {
+      snapshot.view = view; snapshot.revision = ++revision;
+      await act(() => receive(structuredClone(snapshot)));
+      await waitFor(() => expect(screen.getByRole("main").getAttribute("data-view")).toBe(view));
+      if (view === "calendar") expect(document.querySelector('[data-slot="event-calendar-month-view"]')).not.toBeNull();
     }
-    expect(
-      commands.filter((command) => command.method === "workspace.setView"),
-    ).toHaveLength(4);
+    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Fall 2026" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Not done" })).toBeNull();
   });
-  it("sends expected event revision and adopts native progress, without exposing source actions when absent", async () => {
+  it("hides history by default, computes active phase, and preserves editor actions", async () => {
     const snapshot = fixture();
+    snapshot.events[0].releasedAt = "2026-11-01T10:00:00Z";
+    snapshot.events[0].progress = "done";
+    snapshot.events.push({ ...snapshot.events[0], id: "past", title: "Past exam", category: "assessment", start: "2026-10-01T10:00:00Z" });
     const commands: Command[] = [];
-    bridge(snapshot, (command) => commands.push(command));
+    bridge(snapshot, command => commands.push(command));
     await act(() => receive(snapshot));
     render(<App />);
-    await screen.findByRole("button", { name: "Homework 4: Progress" });
-    await waitFor(() =>
-      expect(
-        screen
-          .getByRole("button", { name: "Homework 4: Progress" })
-          .hasAttribute("disabled"),
-      ).toBe(false),
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Homework 4: Progress" }),
-    );
-    fireEvent.click(
-      await screen.findByRole("menuitem", { name: "In progress" }),
-    );
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: "Homework 4: Progress" })
-          .textContent,
-      ).toContain("In progress"),
-    );
-    expect(commands).toContainEqual(
-      expect.objectContaining({
-        method: "event.setProgress",
-        payload: { eventID: "hw4", expectedRevision: 2, progress: "doing" },
-      }),
-    );
-    await waitFor(() =>
-      expect(
-        screen
-          .getByRole("button", { name: "Open event: Homework 4" })
-          .hasAttribute("disabled"),
-      ).toBe(false),
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Open event: Homework 4" }),
-    );
+    await screen.findByRole("button", { name: "Homework 4" });
+    expect(screen.getByText("In progress")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Past exam" })).toBeNull();
+    expect(screen.queryByText("Done")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Show history" }));
+    await screen.findByRole("button", { name: "Past exam" });
+    expect(screen.getByText("Historical")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Hide history" }));
+    expect(screen.queryByRole("button", { name: "Past exam" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Homework 4" }));
+    await waitFor(() => expect(commands).toContainEqual(expect.objectContaining({ method: "event.openEditor", payload: { eventID: "hw4" } })));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Open event: Homework 4" }).hasAttribute("disabled")).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: "Open event: Homework 4" }));
     await screen.findByRole("menuitem", { name: "Open event" });
     expect(screen.queryByRole("menuitem", { name: "View source" })).toBeNull();
+  });
+  it("adopts native theme colors and removes stale overrides", async () => {
+    const snapshot = fixture();
+    snapshot.theme = { background: "rgb(30, 30, 30)", primary: "rgb(90, 140, 200)" };
+    snapshot.appearance = "dark";
+    await act(() => receive(snapshot));
+    expect(document.documentElement.style.getPropertyValue("--background")).toBe("rgb(30, 30, 30)");
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+    await act(() => receive({ ...snapshot, revision: ++revision, appearance: "light", theme: undefined }));
+    expect(document.documentElement.style.getPropertyValue("--background")).toBe("");
   });
   it("does not overwrite a newer snapshot with a stale reply", async () => {
     const snapshot = fixture();
     bridge(snapshot);
     await act(() => receive(snapshot));
     render(<App />);
-    await screen.findByRole("heading", { name: "Fall 2026" });
+    await screen.findByRole("button", { name: "Homework 4" });
     await act(() =>
-      receive({ ...snapshot, revision: 1, scope: "Stale semester" }),
+      receive({ ...snapshot, revision: 1, events: [] }),
     );
-    expect(
-      screen.queryByRole("heading", { name: "Stale semester" }),
-    ).toBeNull();
+    expect(screen.getByRole("button", { name: "Homework 4" })).toBeTruthy();
   });
 });

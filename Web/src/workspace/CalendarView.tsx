@@ -3,7 +3,7 @@ import { addDays } from "date-fns";
 import { enUS, zhCN } from "date-fns/locale";
 import { EventCalendar } from "@/components/reui/event-calendar/event-calendar";
 import { EventCalendarContent } from "@/components/reui/event-calendar/event-calendar-content";
-import { EventCalendarNav } from "@/components/reui/event-calendar/event-calendar-nav";
+import { EventCalendarNav, EventCalendarNavToday, EventCalendarNavPrev, EventCalendarNavNext, EventCalendarTitle, EventCalendarViewSwitcher } from "@/components/reui/event-calendar/event-calendar-nav";
 import type { CalendarEvent } from "@/components/reui/event-calendar/event-calendar-types";
 import { courseColor, displayDate } from "./model";
 import { calendarChinese } from "./calendarI18n";
@@ -14,6 +14,7 @@ export function CalendarView({
   events,
   snapshot,
   run,
+  tools,
 }: EventContext & { events: AcademicEvent[] }) {
   const displayZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const calendarEvents = useMemo<CalendarEvent<AcademicEvent>[]>(
@@ -44,7 +45,7 @@ export function CalendarView({
     <EventCalendar
       events={calendarEvents}
       defaultDate={new Date(snapshot.now)}
-      defaultView="week"
+      defaultView="month"
       scrollToHour={9}
       views={["month", "week", "day", "agenda"]}
       timeZone={displayZone}
@@ -59,7 +60,7 @@ export function CalendarView({
       }
       className="min-h-0 flex-1"
     >
-      <EventCalendarNav />
+      <EventCalendarNav className="workspace-view-toolbar"><EventCalendarNavPrev /><EventCalendarNavNext /><EventCalendarTitle /><EventCalendarNavToday /><div className="grow" /><EventCalendarViewSwitcher />{tools}</EventCalendarNav>
       <EventCalendarContent />
     </EventCalendar>
   );

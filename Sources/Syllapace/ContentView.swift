@@ -15,7 +15,7 @@ struct ContentView: View {
         } detail: {
             VStack(spacing: 0) {
                 if model.isDemo {
-                    HStack { Label(L10n.string("Demo workspace"), systemImage: "sparkle"); Spacer(); Text(L10n.string("Sample courses · accounts disconnected")) }.font(.caption).foregroundStyle(.secondary).padding(.horizontal, 28).padding(.vertical, 8).background(Palette.accent.opacity(0.07))
+                    HStack { Label(L10n.string("Demo workspace"), systemImage: "graduationcap"); Spacer(); Text(L10n.string("Sample courses · accounts disconnected")) }.font(.caption).foregroundStyle(.secondary).padding(.horizontal, 28).padding(.vertical, 8).background(Palette.accent.opacity(0.07))
                 }
                 if model.page == .sources {
                     heading
@@ -29,20 +29,12 @@ struct ContentView: View {
                         }
                     }.frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                if let status = model.curationStatus {
-                    HStack(spacing: 8) {
-                        ProgressView().controlSize(.small)
-                        Text(status).font(.caption).foregroundStyle(.secondary)
-                        Spacer()
-                        Button(L10n.string("Stop")) { model.cancelCuration() }.buttonStyle(.borderless)
-                    }.padding(12)
-                }
-                if let notice = model.notice {
-                    HStack(alignment: .top, spacing: 8) { Image(systemName: "info.circle"); ScrollView { Text(notice).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 80); Spacer(); if model.lastCurationUndo != nil { Button(L10n.string("Undo reorganization")) { model.undoCuration() } }; if model.lastImportUndo != nil { Button(L10n.string("Undo import")) { model.undoImport() }.disabled(model.busy) }; Button { model.notice = nil } label: { Image(systemName: "xmark") }.buttonStyle(.plain).help(L10n.string("Dismiss message")) }.font(.caption).foregroundStyle(.secondary).padding(12).background(.quaternary.opacity(0.35))
-                }
             }
             .background(Palette.canvas)
             .toolbar {
+                if model.notice != nil || model.curationStatus != nil {
+                    ToolbarItem(placement: .principal) { ActivityControl(model: model) }
+                }
                 ToolbarItemGroup {
                     Button { model.syncCanvas() } label: { Label(L10n.string("Sync Canvas"), systemImage: "arrow.triangle.2.circlepath") }.disabled(model.busy).help(L10n.string("Sync Canvas (⌘R)"))
                     Button { model.showImport = true } label: { Label(L10n.string("Add material"), systemImage: "square.and.arrow.down") }.disabled(model.busy).help(L10n.string("Add material (⌘O)"))
@@ -53,14 +45,14 @@ struct ContentView: View {
             .navigationTitle(model.page.localizedName)
         }
         .tint(Palette.accent)
-        .frame(minWidth: 940, minHeight: 620).background(CalmFocus())
+        .background(CalmFocus())
         .sheet(item: $model.editor) { event in EventEditor(model: model, original: event).tint(Palette.accent) }
         .sheet(item: $model.editingCourse) { course in CourseAppearanceView(model: model, course: course) }
         .sheet(isPresented: $model.showImport) { ImportSheet(model: model) }
         .sheet(isPresented: $model.showCourseSelection) { CourseScopeView(model: model) }
         .alert(L10n.string("Something needs attention"), isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button(L10n.string("OK")) { model.error = nil } } message: { Text(model.error ?? "") }
         .onChange(of: model.showImport) { _, showing in if showing { model.cancelCuration() } else { model.scheduleCuration() } }
-        .onChange(of: model.page) { _, _ in if !model.events.contains(where: { $0.id == model.selectedID }) { model.selectedID = nil } }
+        .onChange(of: model.page) { _, page in if let view = page.workspaceView { model.selectWorkspaceView(view) }; if !model.events.contains(where: { $0.id == model.selectedID }) { model.selectedID = nil } }
         .onAppear { model.revealMain = { openWindow(id: "main"); NSApp.activate() } }
         .task { SelfTest.runIfRequested(model: model); model.startRefreshLoop(); Snapshot.runIfRequested(model: model, openSettings: openSettings) }
     }
@@ -90,13 +82,13 @@ struct ContentView: View {
             List(selection: $model.page) {
                 Section {
                     ForEach(AppPage.allCases.filter { $0 != .review || model.pendingCount > 0 }) { page in
-                        HStack { Label { Text(page.localizedName) } icon: { if page == model.page { Image(systemName: page.symbol) } else { Image(systemName: page.symbol).foregroundStyle(Palette.accent) } }; Spacer(); if page == .review && model.pendingCount > 0 { Text("\(model.pendingCount)").font(.caption).foregroundStyle(.secondary) } }.padding(.vertical, 4).tag(page)
+                        HStack { Label { Text(page.localizedName) } icon: { if page == model.page { Image(systemName: page.symbol).foregroundStyle(Palette.accent) } else { Image(systemName: page.symbol).foregroundStyle(.secondary) } }; Spacer(); if page == .review && model.pendingCount > 0 { Text("\(model.pendingCount)").font(.caption).foregroundStyle(.secondary) } }.padding(.vertical, 4).tag(page)
                     }
                 }
                 Section(L10n.string("Courses")) {
                     Button { model.courseFilter = nil; model.academicCalendarFilter = nil } label: { HStack { Text(L10n.string("All courses")); Spacer(); if model.courseFilter == nil && model.academicCalendarFilter == nil { Image(systemName: "checkmark").font(.caption) } } }.buttonStyle(.plain).padding(.vertical, 4)
                     ForEach(model.scopedCourses) { course in
-                        Button { model.academicCalendarFilter = nil; model.courseFilter = model.courseFilter == course.id ? nil : course.id; if model.page == .sources { model.page = .timeline } } label: {
+                        Button { model.academicCalendarFilter = nil; model.courseFilter = model.courseFilter == course.id ? nil : course.id; if model.page == .sources { model.page = .list } } label: {
                             HStack(spacing: 8) { Circle().fill(Palette.course(course.color)).frame(width: 8, height: 8); Text(model.courseTitle(course)).lineLimit(2); Spacer(); if model.courseFilter == course.id { Image(systemName: "checkmark").font(.caption) } }
                         }.buttonStyle(.plain).padding(.vertical, 4).help(course.localizedName).contextMenu { Button(L10n.string("Customize display…")) { model.editingCourse = course } }
                     }
@@ -199,9 +191,9 @@ struct EventRow: View {
         let _ = languagePreference
         Button { model.selectedID = event.id } label: {
             HStack(spacing: 16) {
-                Image(systemName: event.completed ? "checkmark.circle.fill" : eventSymbol).font(.system(size: 17, weight: .light)).foregroundStyle(event.completed ? .secondary : Palette.course(model.eventColor(event))).frame(width: 28)
+                Image(systemName: eventSymbol).font(.system(size: 17, weight: .light)).foregroundStyle(Palette.course(model.eventColor(event))).frame(width: 28)
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(event.title).font(.system(size: 14, weight: .medium)).foregroundStyle(.primary).strikethrough(event.completed).lineLimit(2)
+                    Text(event.title).font(.system(size: 14, weight: .medium)).foregroundStyle(.primary).lineLimit(2)
                     HStack(spacing: 8) { Text(model.eventOwnerName(event) + " · " + event.kind.localizedName).lineLimit(1).truncationMode(.middle); if event.state == .conflict { Label(L10n.string("Changed"), systemImage: "arrow.triangle.2.circlepath").foregroundStyle(Palette.warning) } }.font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
@@ -211,7 +203,6 @@ struct EventRow: View {
         }.buttonStyle(.plain)
         .contextMenu {
             Button(L10n.string("Edit event")) { model.editor = event }
-            if event.state == .approved { Button(event.completed ? L10n.string("Mark incomplete") : L10n.string("Mark complete")) { model.toggleComplete(event) } }
             if event.state == .pending { Button(L10n.string("Approve")) { model.approve(event) } }
         }
         Divider().padding(.leading, 72).padding(.trailing, 28)
@@ -259,8 +250,6 @@ struct EventInspector: View {
                         if let grade = submission.grade { LabeledContent(L10n.string("Grade"), value: grade) }
                         else if let score = submission.score { LabeledContent(L10n.string("Score"), value: score.formatted()) }
                         if submission.excused == true { Text(L10n.string("Excused")).foregroundStyle(.secondary) }
-                        if submission.missing == true { Text(L10n.string("Missing")).foregroundStyle(Palette.warning) }
-                        if submission.late == true { Text(L10n.string("Late")).foregroundStyle(Palette.warning) }
                     }.font(.caption).gridProbe("inspector-submission", area: "inspector")
                 }
                 if !event.evidence.isEmpty {
@@ -272,7 +261,6 @@ struct EventInspector: View {
                         Button(event.date == nil ? L10n.string("Set date & approve") : L10n.string("Approve event")) { model.approve(event) }.buttonStyle(.borderedProminent).tint(Palette.actionAccent).frame(maxWidth: .infinity)
                         Button(L10n.string("Dismiss candidate")) { model.reject(event); model.selectedID = nil }.buttonStyle(.borderless)
                     } else if event.state == .conflict { Button(L10n.string("Review change")) { model.editor = event }.buttonStyle(.borderedProminent).tint(Palette.actionAccent) }
-                    else { Button(event.completed ? L10n.string("Mark incomplete") : L10n.string("Mark complete")) { model.toggleComplete(event) }.buttonStyle(.bordered) }
                     Button(L10n.string("Edit details")) { model.editor = event }.buttonStyle(.borderless)
                 }.frame(maxWidth: .infinity).gridProbe("inspector-actions", area: "inspector")
             }.padding(24).gridArea("inspector", inset: 24)

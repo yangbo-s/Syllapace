@@ -224,11 +224,14 @@ public struct CanvasClient: Sendable {
                 let assignments = try await pages(CanvasAssignmentDTO.self, url: endpoint("courses/\(record.id)/assignments", query: [.init(name: "include[]", value: "submission"), .init(name: "per_page", value: "100")]))
                 result.events.append(contentsOf: assignments.filter { $0.published != false && $0.submission_types?.contains("not_graded") != true }.map { item in
                     let date = item.due_at.flatMap(Self.instant)
-                    return AcademicEvent(id: "\(scope):assignment:\(item.id)", courseID: courseID, title: item.name, kind: CanvasClassification.kind(title: item.name, quiz: item.quiz_id != nil || item.is_quiz_assignment == true),
+                    var event = AcademicEvent(id: "\(scope):assignment:\(item.id)", courseID: courseID, title: item.name, kind: CanvasClassification.kind(title: item.name, quiz: item.quiz_id != nil || item.is_quiz_assignment == true),
                                          date: date, dateOnly: false, timeZone: timezone, state: date == nil ? .pending : .approved,
                                          evidence: "Canvas assignment: \(item.name)\n" + (item.due_at.map { "Your effective due date: \($0)" } ?? "No due date supplied."),
                                          sourceURL: origin.appendingPathComponent("courses/\(record.id)/assignments/\(item.id)").absoluteString,
                                          completed: item.submission?.submitted_at != nil || item.submission?.excused == true)
+                    event.releasedAt = item.unlock_at.flatMap(Self.instant).flatMap { start in date.map { start <= $0 ? start : nil } ?? nil }
+                    event.releaseDateOnly = false
+                    return event
                 })
             } catch is CancellationError { throw CancellationError() }
             catch { result.warnings.append(L10n.format("%@ assignments: %@", course.code, Self.safeMessage(error))) }
@@ -364,11 +367,14 @@ public struct CanvasClient: Sendable {
                 let date = item.due_at.flatMap(Self.instant)
                 let submission = item.submission.map { SubmissionStatus(state: $0.workflow_state, grade: $0.grade, score: $0.score, late: $0.late, missing: $0.missing, excused: $0.excused) }
                 let kind = CanvasClassification.kind(title: item.name, group: item.assignment_group_id.flatMap { groups[$0] }, quiz: item.quiz_id != nil || item.is_quiz_assignment == true)
-                result.events.append(AcademicEvent(id: "\(scope):assignment:\(item.id)", courseID: course.id, title: item.name, kind: kind,
+                var event = AcademicEvent(id: "\(scope):assignment:\(item.id)", courseID: course.id, title: item.name, kind: kind,
                                                    date: date, dateOnly: false, timeZone: timeZone, state: date == nil ? .pending : .approved,
                                                    sourceID: sourceIDs.contains(sourceID) ? sourceID : nil,
                                                    evidence: "Canvas assignment: \(item.name)\n" + (item.due_at.map { "Your effective due date: \($0)" } ?? "No due date supplied."),
-                                                   sourceURL: url.absoluteString, completed: item.submission?.submitted_at != nil || item.submission?.excused == true, submission: submission))
+                                                   sourceURL: url.absoluteString, completed: item.submission?.submitted_at != nil || item.submission?.excused == true, submission: submission)
+                event.releasedAt = item.unlock_at.flatMap(Self.instant).flatMap { start in date.map { start <= $0 ? start : nil } ?? nil }
+                event.releaseDateOnly = false
+                result.events.append(event)
             }
         } catch is CancellationError { throw CancellationError() }
         catch { warn("Assignments", error) }
@@ -379,7 +385,8 @@ public struct CanvasClient: Sendable {
                 guard quiz.id > 0, seenQuizzes.insert(quiz.id).inserted else { continue }
                 let url = courseURL.appendingPathComponent("quizzes/\(quiz.id)")
                 document("quiz:\(quiz.id)", title: quiz.title, html: quiz.description ?? "", url: url, kind: .assignment)
-                guard !assignedQuizIDs.contains(quiz.id), quiz.assignment_id.map({ !assignmentIDs.contains($0) }) ?? true else { continue }
+                guard quiz.quiz_type != "practice_quiz", quiz.quiz_type != "survey", !EventCuration.isPracticeAssessment(quiz.title),
+                      !assignedQuizIDs.contains(quiz.id), quiz.assignment_id.map({ !assignmentIDs.contains($0) }) ?? true else { continue }
                 let date = quiz.due_at.flatMap(Self.instant)
                 let identity = quiz.assignment_id.map { "\(scope):assignment:\($0)" } ?? "\(scope):quiz:\(quiz.id)"
                 result.events.append(AcademicEvent(id: identity, courseID: course.id, title: quiz.title, kind: CanvasClassification.kind(title: quiz.title, quiz: true),
@@ -625,7 +632,7 @@ private struct CanvasTokenDTO: Decodable, Sendable {
     }
 }
 private struct CanvasAssignmentDTO: Decodable, Sendable {
-    var id: Int64; var name: String; var due_at: String?; var submission: Submission?
+    var id: Int64; var name: String; var due_at: String?; var unlock_at: String?; var submission: Submission?
     var description: String?; var assignment_group_id: Int64?; var quiz_id: Int64?; var is_quiz_assignment: Bool?; var published: Bool?
     var submission_types: [String]?
     struct Submission: Decodable, Sendable {

@@ -2,15 +2,19 @@ import SwiftUI
 import SyllapaceKit
 @main struct SyllapaceApp: App {
     @State private var model = AppModel()
+    @State private var appearance = AppAppearance.shared
     @StateObject private var updater = UpdateController()
     @AppStorage("appLanguage") private var languagePreference = AppLanguage.system.rawValue
     var body: some Scene {
         let _ = languagePreference
         Window("Syllapace", id: "main") {
             ContentView(model: model)
+                .modifier(InterfaceScale(scale: appearance.scale))
+                .frame(minWidth: 940 * appearance.scale, minHeight: 620 * appearance.scale)
+                .onAppear { appearance.apply() }
                 .environment(\.locale, L10n.locale)
                 .task { updater.startIfNeeded() }
-                .onOpenURL { url in if url.scheme == "syllapace", url.host == "event" { model.page = .timeline; model.selectedID = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "id" }?.value ?? url.lastPathComponent; if let event = model.selectedEvent { model.editor = event } } }
+                .onOpenURL { url in if url.scheme == "syllapace", url.host == "event" { model.page = .list; model.selectedID = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "id" }?.value ?? url.lastPathComponent; if let event = model.selectedEvent { model.editor = event } } }
         }.defaultSize(width: 1120, height: 760)
         .commands {
             CommandGroup(after: .appInfo) {

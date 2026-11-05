@@ -35,6 +35,10 @@ public enum Reconciler {
                     continue
                 }
                 current.sourceSeriesID = observation.sourceSeriesID ?? current.sourceSeriesID
+                if !current.userEdited {
+                    current.releasedAt = observation.releasedAt
+                    current.releaseDateOnly = observation.releaseDateOnly
+                }
                 current.sourceTitle = observation.sourceTitle ?? current.sourceTitle
                 if observation.id.hasPrefix("canvas:"), !current.id.hasPrefix("canvas:"), !current.userEdited,
                    observation.curationVersion != nil { current.id = observation.id }

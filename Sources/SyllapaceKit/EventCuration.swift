@@ -20,7 +20,11 @@ public struct CurationResult: Sendable {
 /// Only the three course categories enter the workspace. Explicit school-calendar
 /// subscriptions are a separate, opt-in layer and retain their existing semantics.
 public enum EventCuration {
-    public static let version = 1
+    public static let version = 2
+
+    public static func isPracticeAssessment(_ text: String) -> Bool {
+        matches(#"\b(?:practice|mock|sample)\s+(?:(?:mid[- ]?term|final)\s+)?(?:exam|quiz|test)\b|\bpractice\s+mid[- ]?term\b|(?:模拟|练习|样例)(?:考试|测验|试卷)|\b(?:exam|quiz|test)\s+(?:practice|solutions?|review)\b"#, text)
+    }
 
     public static func fingerprint(source: SourceDocument, modelIdentity: String, year: Int, timeZone: String,
                                    termStart: Date? = nil, termEnd: Date? = nil, intent: String = "") -> String {
@@ -65,6 +69,7 @@ public enum EventCuration {
 
     /// Conservative admission for text, not an attempt to infer an event from a keyword.
     static func supports(_ kind: EventKind, evidence: String) -> Bool {
+        if [.quiz, .exam].contains(kind), isPracticeAssessment(evidence) { return false }
         if matches(#"will be judged|assessment forms|grading (?:criteria|policy|rubric)|quality and depth|students can expect|learning objectives|course objectives|percentage of|% of (?:your|the) grade"#, evidence) { return false }
         switch kind {
         case .session:
@@ -131,7 +136,7 @@ public enum EventCuration {
             let canvas = saved.id.hasPrefix("canvas:")
             let generatedText = saved.id.hasPrefix("document-") || saved.id.hasPrefix("model:")
             guard canvas || generatedText else { return saved }
-            let invalid = saved.category == nil || saved.date == nil ||
+            let invalid = saved.category == nil || saved.date == nil || isPracticeAssessment(saved.sourceTitle ?? saved.title) ||
                 (canvas && saved.id.contains(":calendar:") && !supports(saved.kind, evidence: saved.title)) ||
                 (generatedText && !supports(saved.kind, evidence: saved.evidence))
             guard invalid else { return saved }

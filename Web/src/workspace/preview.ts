@@ -113,7 +113,7 @@ export function installPreview() {
     revision: 1,
     language: params.get("lang") === "zh" ? "zh-Hans" : "en",
     appearance: params.get("theme") === "dark" ? "dark" : "light",
-    view: ["list", "kanban", "gantt", "calendar"].includes(
+    view: ["list", "gantt", "calendar"].includes(
       params.get("view") || "",
     )
       ? (params.get("view") as WorkspaceSnapshot["view"])

@@ -26,7 +26,7 @@ private func temporary() throws -> URL {
     }
     @Test(arguments: [
         "Final exam: 03/04",
-        "Project released November 12, due November 20",
+        "Project due November 12 or November 20",
         "Assignment due February 30, 2026",
         "Project due 2026-03-08 02:30",
         "Project due November 12 11:59 PM PST",
@@ -35,6 +35,13 @@ private func temporary() throws -> URL {
         let result = RuleExtractor.curate(source: source(text), year: 2026, timeZone: "America/New_York")
         #expect(result.events.isEmpty)
         #expect(result.issues.count == 1)
+    }
+    @Test func explicitReleaseAndDueAreNoLongerAmbiguous() throws {
+        let result = RuleExtractor.curate(source: source("Project released November 12, due November 20"), year: 2026, timeZone: "America/New_York")
+        let event = try #require(result.events.first)
+        #expect(result.events.count == 1 && result.issues.isEmpty)
+        #expect(event.date.map { WorkspaceWireDate.dateOnly($0, timeZone: event.timeZone) } == "2026-11-20")
+        #expect(event.releasedAt.map { WorkspaceWireDate.dateOnly($0, timeZone: event.timeZone) } == "2026-11-12")
     }
     @Test func pageEvidenceAndMissingDateSurviveInTheSource() {
         let document = source("[Page 3]\nFinal presentation slides due during week 6")

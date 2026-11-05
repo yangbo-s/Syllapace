@@ -37,10 +37,10 @@ struct WorkspaceWebView: View {
                     Text(failure)
                 } actions: {
                     Button(snapshot.language == "zh-Hans" ? "重新加载" : "Reload") { reloadID = UUID() }
-                }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(nsColor: .textBackgroundColor))
+                }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(nsColor: .windowBackgroundColor))
             } else if !state.isReady {
                 ProgressView().controlSize(.small).frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(nsColor: .textBackgroundColor))
+                    .background(Color(nsColor: .windowBackgroundColor))
             }
         }
     }
@@ -62,7 +62,7 @@ private struct WorkspaceRepresentable: NSViewRepresentable {
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = false
-        webView.underPageBackgroundColor = .textBackgroundColor
+        webView.underPageBackgroundColor = .windowBackgroundColor
         webView.setAccessibilityLabel(snapshot.language == "zh-Hans" ? "课程工作区" : "Course workspace")
         context.coordinator.attach(webView)
         return webView

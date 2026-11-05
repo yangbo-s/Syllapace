@@ -545,3 +545,33 @@
 "Try again" = "Try again";
 
 "Keychain access was cancelled. Your storage selection was not changed." = "Keychain access was cancelled. Your storage selection was not changed.";
+
+"List" = "List";
+
+"Appearance" = "Appearance";
+
+"Light" = "Light";
+
+"Dark" = "Dark";
+
+"Accent color" = "Accent color";
+
+"Interface size" = "Interface size";
+
+"Compact" = "Compact";
+
+"Standard" = "Standard";
+
+"Large" = "Large";
+
+"Reset appearance" = "Reset appearance";
+
+"Due" = "Due";
+
+"Release date" = "Release date";
+
+"Available from" = "Available from";
+
+"Release date only" = "Release date only";
+
+"Activity" = "Activity";

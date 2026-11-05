@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 @Observable final class AppModel {
     var archive = AppArchive()
-    var page: AppPage = .timeline
+    var page: AppPage = .list
     var selectedID: String?
     var courseFilter: String?
     var academicCalendarFilter: String?
@@ -22,8 +22,17 @@ import UniformTypeIdentifiers
     var credentialStorageError: String?
     var credentialStorageStatus: String?
     var credentialsChanging = false
-    var workspaceView: WorkspaceViewMode = .list
+    private var lastWorkspaceView: WorkspaceViewMode = .list
+    var workspaceView: WorkspaceViewMode {
+        get { page.workspaceView ?? lastWorkspaceView }
+        set { lastWorkspaceView = newValue; if page.workspaceView != nil { page = AppPage(view: newValue) } }
+    }
+    func selectWorkspaceView(_ view: WorkspaceViewMode) {
+        workspaceView = view
+        if !isDemo && ProcessInfo.processInfo.environment["APP_SELFTEST"] != "1" { UserDefaults.standard.set(view.rawValue, forKey: "workspaceView") }
+    }
     var workspaceRevision = 0
+    var showActivity = false
     var curationStatus: String?
     var curationErrors: [String: String] = [:]
     var lastCurationUndo: [ImportUndo]?
@@ -31,7 +40,8 @@ import UniformTypeIdentifiers
     @ObservationIgnored var curationTask: Task<Void, Never>?
     @ObservationIgnored var curationGeneration = UUID()
     @ObservationIgnored var curationQueued = false
-    var notice: String?
+    var notice: String? { didSet { noticeID = UUID() } }
+    var noticeID = UUID()
     var error: String?
     var editor: AcademicEvent?
     var showImport = false
@@ -100,7 +110,7 @@ import UniformTypeIdentifiers
             (kindFilter == nil || e.kind == kindFilter) &&
             (search.isEmpty || e.title.localizedCaseInsensitiveContains(search) || eventSearchText(e).localizedCaseInsensitiveContains(search)) &&
             (page == .review ? unresolvedEvents.contains(where: { $0.id == e.id }) : (e.state == .approved || (e.state == .conflict && e.wasApproved == true))) &&
-            (page != .today || (!e.completed && (e.presentationDate.map { $0 >= Calendar.current.startOfDay(for: .now) && $0 < Calendar.current.date(byAdding: .day, value: 8, to: .now)! } ?? false)))
+            (page != .today || ((e.presentationDate.map { $0 >= Calendar.current.startOfDay(for: .now) && $0 < Calendar.current.date(byAdding: .day, value: 8, to: .now)! } ?? false)))
         }.sorted { ($0.presentationDate ?? .distantFuture) < ($1.presentationDate ?? .distantFuture) }
     }
     init() {
@@ -211,7 +221,7 @@ import UniformTypeIdentifiers
             archive.sources[i] = refreshed
         } else { archive.sources.append(source) }
         if navigate {
-            save(); page = .timeline
+            save(); page = .list
             notice = L10n.string("Material saved. AI will organize relevant dates automatically.")
             scheduleCuration()
         }
@@ -396,9 +406,17 @@ import UniformTypeIdentifiers
 }
 enum AppError: LocalizedError { case message(String); var errorDescription: String? { switch self { case let .message(s): return s } } }
 enum AppPage: String, CaseIterable, Identifiable {
-    case today = "Today", timeline = "Timeline", review = "Review", sources = "Sources"
-    static var allCases: [AppPage] { [.timeline, .review, .sources] }
+    case today = "Today", list = "List", timeline = "Timeline", calendar = "Calendar", review = "Review", sources = "Sources"
+    static var allCases: [AppPage] { [.list, .timeline, .calendar, .review, .sources] }
     var id: String { rawValue }
-    var localizedName: String { L10n.string(self == .timeline ? "Workspace" : self == .review ? "Needs information" : rawValue) }
-    var symbol: String { switch self { case .today: "sun.max"; case .timeline: "calendar"; case .review: "tray"; case .sources: "doc.text" } }
+    var localizedName: String { L10n.string(self == .review ? "Needs information" : rawValue) }
+    var workspaceView: WorkspaceViewMode? {
+        switch self { case .list, .today: .list; case .timeline: .gantt; case .calendar: .calendar; default: nil }
+    }
+    init(view: WorkspaceViewMode) {
+        switch view { case .list: self = .list; case .gantt: self = .timeline; case .calendar: self = .calendar }
+    }
+    var symbol: String {
+        switch self { case .today: "sun.max"; case .list: "list.bullet"; case .timeline: "chart.bar.xaxis"; case .calendar: "calendar"; case .review: "tray"; case .sources: "doc.text" }
+    }
 }

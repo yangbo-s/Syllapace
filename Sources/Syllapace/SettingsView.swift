@@ -2,6 +2,7 @@ import SwiftUI
 import SyllapaceKit
 struct SettingsView: View {
     @Bindable var model: AppModel
+    @State private var appearance = AppAppearance.shared
     @ObservedObject var updater: UpdateController
     @AppStorage("appLanguage") private var languagePreference = AppLanguage.system.rawValue
     @State private var canvasToken = ""
@@ -10,6 +11,7 @@ struct SettingsView: View {
     @State private var saving = false
     var body: some View {
         TabView(selection: $model.settingsTab) {
+            appearanceSettings.tabItem { Label(L10n.string("Appearance"), systemImage: "circle.lefthalf.filled") }.tag(5)
             generalSettings.tabItem { Label(L10n.string("General"), systemImage: "gearshape") }.tag(3)
             Form {
                 Section(L10n.string("Your Canvas account")) {
@@ -58,9 +60,9 @@ struct SettingsView: View {
                     }
                 }
                 Section(L10n.string("Portable calendar")) { Button(L10n.string("Export ICS…")) { model.exportICS() } }
-                if let notice = model.notice { Text(notice).font(.caption).textSelection(.enabled) }
             }.formStyle(.grouped).tabItem { Label(L10n.string("Calendar"), systemImage: "calendar") }.tag(2)
-        }.padding(16).frame(width: 640, height: 560).background(CalmFocus()).tint(Palette.accent)
+        }.padding(16).modifier(InterfaceScale(scale: appearance.scale))
+            .frame(width: 640 * appearance.scale, height: 560 * appearance.scale).background(CalmFocus()).tint(Palette.accent)
         .task { await model.loadCredentialStorage() }
         .disabled(model.credentialsChanging)
         .onChange(of: languagePreference) { _, value in
@@ -77,6 +79,26 @@ struct SettingsView: View {
             Button(L10n.string("Use Syllapace version")) { if let event = resolving { model.resolveCalendar(event) }; resolving = nil }
         } message: { Text(L10n.string("This will replace edits or recreate a deleted event in the dedicated Syllapace calendar. Other calendars are unaffected.")) }
         .alert(L10n.string("Connection needs attention"), isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button(L10n.string("OK")) { model.error = nil } } message: { Text(model.error ?? "") }
+    }
+    private var appearanceSettings: some View {
+        Form {
+            Section {
+                Picker(L10n.string("Appearance"), selection: $appearance.mode) {
+                    Text(L10n.string("Follow system")).tag("system")
+                    Text(L10n.string("Light")).tag("light")
+                    Text(L10n.string("Dark")).tag("dark")
+                }
+                ColorPicker(L10n.string("Accent color"), selection: Binding(get: { appearance.pickerColor }, set: { appearance.pickerColor = $0 }), supportsOpacity: false)
+                Picker(L10n.string("Interface size"), selection: $appearance.scale) {
+                    Text(L10n.string("Compact")).tag(0.9)
+                    Text(L10n.string("Standard")).tag(1.0)
+                    Text(L10n.string("Large")).tag(1.15)
+                }
+            }
+            Section {
+                Button(L10n.string("Reset appearance")) { appearance.mode = "system"; appearance.accentHex = ""; appearance.scale = 1 }
+            }
+        }.formStyle(.grouped)
     }
     private var generalSettings: some View {
         Form {

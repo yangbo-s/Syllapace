@@ -4,29 +4,17 @@ import type {
   Category,
   Course,
   Language,
-  Progress,
   WorkspaceView,
 } from "./types";
 
-export type Urgency =
-  | "overdue"
-  | "today"
-  | "soon"
-  | "later"
-  | "undated"
-  | "done";
-export type Filter = "all" | "open" | "soon" | "done";
-export const progressValues: Progress[] = ["todo", "doing", "done"];
+export type ScheduleState = "historical" | "active" | "upcoming" | "undated";
 
 export function eventsForView(
   events: AcademicEvent[],
   view: WorkspaceView,
-  category: Category | "all",
+  _category: Category | "all",
 ): AcademicEvent[] {
   return events.filter((event) => {
-    if (view === "kanban") return event.category === "deadline";
-    if (view === "gantt" && category === "all" && event.category === "meeting")
-      return false;
     return view === "list" || Boolean(event.start);
   });
 }
@@ -82,66 +70,27 @@ export function planFromDisplay(
 ): Date {
   return event.dateOnly ? eventDate(event, dateKey(date, displayZone))! : date;
 }
-export function urgency(event: AcademicEvent, now: Date): Urgency {
-  if (event.progress === "done") return "done";
-  const date = eventDate(event);
-  if (!date) return "undated";
-  const currentDay = dateKey(now, event.timeZone);
-  const eventDay = dateKey(date, event.timeZone);
+/** Schedule phase only: submission/completion never decides whether an event is past. */
+export function scheduleStatus(event: AcademicEvent, now: Date): ScheduleState {
+  const due = eventDate(event);
+  if (!due) return "undated";
+  const day = dateKey(now, event.timeZone);
+  const end = event.category !== "deadline" ? eventDate(event, event.end) : null;
   if (event.dateOnly) {
-    if (eventDay < currentDay) return "overdue";
-    if (eventDay === currentDay) return "today";
-  } else {
-    if (date < now) return "overdue";
-    if (eventDay === currentDay) return "today";
-  }
-  return date.valueOf() - now.valueOf() <= 7 * 86400000 ? "soon" : "later";
+    const endDay = dateKey(end ?? due, event.timeZone);
+    if (end ? endDay <= day : endDay < day) return "historical";
+  } else if ((end ?? due) <= now) return "historical";
+  const start = event.category === "deadline"
+    ? (event.releasedAt ? eventDate({ ...event, dateOnly: event.releaseDateOnly ?? false }, event.releasedAt) : null)
+    : due;
+  if (!start) return "upcoming";
+  const startsToday = event.category === "deadline" ? event.releaseDateOnly : event.dateOnly;
+  return (startsToday ? dateKey(start, event.timeZone) <= day : start <= now) ? "active" : "upcoming";
 }
-export function filteredEvents(
-  events: AcademicEvent[],
-  query: string,
-  category: Category | "all",
-  filter: Filter,
-  now: Date,
-) {
+export function filteredEvents(events: AcademicEvent[], query: string, category: Category | "all") {
   const text = query.trim().toLocaleLowerCase();
-  return events
-    .filter((event) => {
-      if (category !== "all" && event.category !== category) return false;
-      if (
-        text &&
-        ![event.title, event.courseLabel, event.subtype]
-          .join(" ")
-          .toLocaleLowerCase()
-          .includes(text)
-      )
-        return false;
-      if (filter === "done" && event.progress !== "done") return false;
-      if (filter === "open" && event.progress === "done") return false;
-      if (
-        filter === "soon" &&
-        !["overdue", "today", "soon"].includes(urgency(event, now))
-      )
-        return false;
-      return true;
-    })
-    .sort(
-      (a, b) =>
-        (eventDate(a)?.valueOf() ?? Infinity) -
-          (eventDate(b)?.valueOf() ?? Infinity) ||
-        a.courseLabel.localeCompare(b.courseLabel) ||
-        a.title.localeCompare(b.title),
-    );
-}
-export function boardColumns(
-  events: AcademicEvent[],
-): Record<string, AcademicEvent[]> {
-  return Object.fromEntries(
-    progressValues.map((progress) => [
-      progress,
-      events.filter((event) => event.progress === progress),
-    ]),
-  );
+  return events.filter(event => (category === "all" || event.category === category) && (!text || [event.title, event.courseLabel, event.subtype].join(" ").toLocaleLowerCase().includes(text)))
+    .sort((a, b) => (eventDate(a)?.valueOf() ?? Infinity) - (eventDate(b)?.valueOf() ?? Infinity) || a.courseLabel.localeCompare(b.courseLabel) || a.title.localeCompare(b.title));
 }
 export function formatDate(
   event: AcademicEvent,
@@ -156,7 +105,7 @@ export function formatDate(
     day: "numeric",
     weekday: "short",
     ...(!event.dateOnly
-      ? ({ hour: "numeric", minute: "2-digit" } as const)
+      ? ({ hour: "numeric", minute: "2-digit", hourCycle: "h23" } as const)
       : {}),
   }).format(date);
 }
@@ -167,20 +116,12 @@ export function courseColor(event: AcademicEvent, courses: Course[]): string {
 }
 export function ganttBounds(
   event: AcademicEvent,
-): { start: Date; end: Date; isPlan: boolean } | null {
+): { start: Date; end: Date; isRelease: boolean } | null {
   const due = eventDate(event);
   if (!due) return null;
-  const plan = event.plannedStart ? new Date(event.plannedStart) : null;
-  if (
-    event.category === "deadline" &&
-    plan &&
-    Number.isFinite(plan.valueOf()) &&
-    plan <= due
-  )
-    return { start: plan, end: due, isPlan: true };
-  if (event.category === "meeting" && event.end) {
-    const end = eventDate(event, event.end);
-    if (end && end > due) return { start: due, end, isPlan: false };
+  if (event.category === "deadline" && event.releasedAt) {
+    const release = eventDate({ ...event, dateOnly: event.releaseDateOnly ?? false }, event.releasedAt);
+    if (release && release <= due) return { start: release, end: due, isRelease: true };
   }
-  return { start: due, end: due, isPlan: false };
+  return { start: due, end: due, isRelease: false };
 }

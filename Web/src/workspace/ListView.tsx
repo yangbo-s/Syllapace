@@ -18,8 +18,7 @@ import {
   CourseLabel,
   EventActions,
   EventDate,
-  ProgressControl,
-  UrgencyBadge,
+  ScheduleStatus,
   categoryIcons,
   type EventContext,
 } from "./EventParts";
@@ -32,6 +31,7 @@ export function ListView({
   snapshot,
   run,
   busy,
+  tools,
 }: EventContext & { events: AcademicEvent[] }) {
   const t = strings(snapshot.language);
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -43,7 +43,8 @@ export function ListView({
         header: ({ column }) => (
           <DataGridColumnHeader column={column} title={t.title} />
         ),
-        size: 220,
+        size: 280,
+        meta: { fillWidth: true },
         cell: ({ row }) => {
           const event = row.original;
           const Icon = categoryIcons[event.category];
@@ -74,7 +75,7 @@ export function ListView({
       {
         accessorKey: "courseLabel",
         header: t.course,
-        size: 110,
+        size: 96,
         cell: ({ row }) => (
           <CourseLabel event={row.original} snapshot={snapshot} />
         ),
@@ -89,27 +90,26 @@ export function ListView({
         cell: ({ row }) => (
           <div className="flex flex-col items-start gap-1.5 whitespace-normal">
             <EventDate event={row.original} snapshot={snapshot} />
-            <UrgencyBadge event={row.original} snapshot={snapshot} />
           </div>
         ),
       },
       {
-        accessorKey: "progress",
+        id: "scheduleStatus",
         header: t.status,
-        size: 136,
+        size: 108,
         cell: ({ row }) => (
-          <ProgressControl
+          <ScheduleStatus
             event={row.original}
             snapshot={snapshot}
-            run={run}
-            busy={busy}
           />
         ),
       },
       {
         id: "actions",
         header: "",
-        size: 52,
+        size: 40,
+        enableResizing: false,
+        meta: { cellClassName: "px-1 text-center" },
         cell: ({ row }) => (
           <EventActions
             event={row.original}
@@ -135,17 +135,20 @@ export function ListView({
       },
     },
     initialState: {
-      columnPinning: { start: [], end: ["progress", "actions"] },
+      columnPinning: { start: [], end: ["actions"] },
     },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
   });
   return (
+    <>
+    <div className="workspace-toolbar">{tools}</div>
     <DataGrid
       table={table}
       recordCount={events.length}
       tableLayout={{
-        dense: false,
+        dense: true,
+        columnsResizable: true,
         rowBorder: true,
         headerBackground: false,
         columnsPinnable: true,
@@ -178,5 +181,6 @@ export function ListView({
         {events.length > 50 && <DataGridPagination />}
       </div>
     </DataGrid>
+    </>
   );
 }

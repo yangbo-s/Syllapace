@@ -16,6 +16,11 @@ export async function receive(snapshot: WorkspaceSnapshot): Promise<boolean> {
   );
   document.documentElement.lang = snapshot.language;
   document.documentElement.style.colorScheme = snapshot.appearance;
+  for (const name of ["background", "foreground", "muted", "muted-foreground", "card", "card-foreground", "popover", "popover-foreground", "secondary", "secondary-foreground", "accent", "accent-foreground", "border", "input", "primary", "primary-foreground", "ring", "course-0", "course-1", "course-2", "course-3", "course-4", "course-5"]) {
+    const value = snapshot.theme?.[name];
+    if (value) document.documentElement.style.setProperty(`--${name}`, value);
+    else document.documentElement.style.removeProperty(`--${name}`);
+  }
   listeners.forEach((listener) => listener());
   await new Promise<void>((resolve) =>
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),

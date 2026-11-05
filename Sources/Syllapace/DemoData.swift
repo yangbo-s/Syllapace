@@ -25,7 +25,7 @@ enum DemoData {
         ]
         archive.sources = [SourceDocument(id: "syllabus", courseID: "canvas:demo:course:design", title: "Course syllabus · Fall semester", text: "Human–Computer Interaction\n\nWeek 11 — Prototype walkthrough. Present the key flow to your studio group.\n\nFinal portfolio hand-in: submit the revised case study and project reflection.", hash: "demo"), SourceDocument(id: "ml-syllabus", courseID: "canvas:demo:course:ml", title: "Project schedule", text: "Project proposal — revised schedule moves the submission to the following week.", hash: "demo2")]
         archive.events.append(AcademicEvent(id: "demo-session", courseID: "canvas:demo:course:design", title: "Studio critique", kind: .session, date: date(1, 10), dateOnly: false, state: .approved, evidence: "Studio critique runs from 10:00 to 11:30 in Studio 204.", endsAt: date(1, 10).addingTimeInterval(90 * 60), location: "Studio 204"))
-        archive.events.append(AcademicEvent(id: "demo-quiz", courseID: "canvas:demo:course:ml", title: "Neural networks quiz", kind: .quiz, date: date(3, 16), dateOnly: false, state: .approved, evidence: "Complete the practice quiz before Friday's class.", submission: SubmissionStatus(state: "unsubmitted")))
+        archive.events.append(AcademicEvent(id: "demo-quiz", courseID: "canvas:demo:course:ml", title: "Neural networks quiz", kind: .quiz, date: date(3, 16), dateOnly: false, state: .approved, evidence: "The quiz is held in class on the scheduled date.", submission: SubmissionStatus(state: "unsubmitted")))
         archive.events.append(AcademicEvent(id: "demo-history", courseID: "canvas:demo:course:history", title: "Archived seminar essay", date: date(-180), state: .pending))
         archive.sources.append(SourceDocument(id: "demo-announcement", courseID: "canvas:demo:course:design", title: "Week 11 schedule", text: "The studio critique is now in Studio 204. See the weekly schedule for preparation details.", hash: "demo-announcement", kind: .announcement, links: [SourceLink(url: "https://docs.google.com/spreadsheets/d/example/edit#gid=0", title: "Weekly schedule", kind: "external")]))
         archive.courseAppearances = ["canvas:demo:course:design": CourseAppearance(mode: .custom, alias: "Interaction Design")]
@@ -34,7 +34,8 @@ enum DemoData {
         archive.events[0].progress = .doing
         archive.events[0].plannedStart = date(-2, 9)
         archive.events[2].progress = .doing
-        archive.events[2].plannedStart = date(-1, 9)
+        archive.events[2].releasedAt = date(-1, 9)
+        archive.events[2].releaseDateOnly = false
         archive.events[6].userEdited = true
         archive.events.append(AcademicEvent(id: "demo-done", courseID: "canvas:demo:course:ml", title: "Problem set 03 · Optimization", date: date(-2), dateOnly: false, state: .approved, completed: true))
         for offset in [0, 2, 5, 7] {

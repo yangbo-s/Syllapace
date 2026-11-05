@@ -1,14 +1,30 @@
 import SwiftUI
 
 enum Palette {
-    static let accent = Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(red: 0.46, green: 0.79, blue: 0.73, alpha: 1) : NSColor(red: 0.15, green: 0.47, blue: 0.43, alpha: 1) })
+    static var accent: Color {
+        let theme = AppAppearance.shared
+        let light = theme.accent(dark: false), dark = theme.accent(dark: true)
+        return Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light })
+    }
     static let warning = Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .systemOrange : NSColor(red: 0.59, green: 0.30, blue: 0.03, alpha: 1) })
-    static let onAccent = Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(red: 0.05, green: 0.17, blue: 0.15, alpha: 1) : .white })
+    static var onAccent: Color {
+        let light = AppAppearance.ink(on: AppAppearance.shared.accent(dark: false))
+        let dark = AppAppearance.ink(on: AppAppearance.shared.accent(dark: true))
+        return Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light })
+    }
     // Native prominent buttons enforce white labels; use a deeper shade in both appearances.
-    static let actionAccent = Color(red: 0.15, green: 0.47, blue: 0.43)
-    static let canvas = Color(nsColor: .textBackgroundColor)
-    static let colors: [Color] = [accent, .blue, .orange, .purple]
-    static func course(_ index: Int) -> Color { colors[abs(index) % colors.count] }
+    static var actionAccent: Color {
+        var color = AppAppearance.shared.accent(dark: false)
+        while AppAppearance.ink(on: color) != .white {
+            color = color.blended(withFraction: 0.1, of: .black) ?? .black
+        }
+        return Color(nsColor: color)
+    }
+    static let canvas = Color(nsColor: .windowBackgroundColor)
+    static func course(_ index: Int) -> Color {
+        let light = AppAppearance.shared.course(index, dark: false), dark = AppAppearance.shared.course(index, dark: true)
+        return Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light })
+    }
 }
 struct EmptyViewState: View {
     let title: String

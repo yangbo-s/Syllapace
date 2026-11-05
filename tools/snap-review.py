@@ -16,14 +16,18 @@ output = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else root / '.impeccab
 output.mkdir(parents=True, exist_ok=False)
 languages = [os.environ['APP_LANGUAGE']] if os.environ.get('APP_LANGUAGE') else ['en', 'zh-Hans']
 capture_flags = {key: os.environ.get(key, '0') for key in
-                 ('APP_SNAPSHOT_CONTROLS', 'APP_SNAPSHOT_EMPTY', 'APP_SNAPSHOT_WORKSPACE', 'APP_SNAPSHOT_COPY', 'APP_SNAPSHOT_CREDENTIALS')}
+                 ('APP_SNAPSHOT_CONTROLS', 'APP_SNAPSHOT_EMPTY', 'APP_SNAPSHOT_WORKSPACE', 'APP_SNAPSHOT_COPY', 'APP_SNAPSHOT_CREDENTIALS', 'APP_SNAPSHOT_APPEARANCE', 'APP_SNAPSHOT_ACTIVITY')}
 if sum(value == '1' for value in capture_flags.values()) > 1:
-    raise ValueError('Choose only one snapshot mode: CONTROLS, EMPTY, WORKSPACE, COPY, or CREDENTIALS')
+    raise ValueError('Choose only one APP_SNAPSHOT mode')
 
 
 def expected_names():
     appearances = ('light', 'dark')
-    views = ('list', 'kanban', 'gantt', 'calendar')
+    views = ('list', 'gantt', 'calendar')
+    if capture_flags['APP_SNAPSHOT_ACTIVITY'] == '1':
+        return {f'activity-{name}-{mode}.png' for name in ('summary', 'compact', 'details', 'running', 'running-details') for mode in appearances}
+    if capture_flags['APP_SNAPSHOT_APPEARANCE'] == '1':
+        return {f'appearance-{name}-{mode}.png' for name in ('90', '100', '115', 'settings') for mode in appearances}
     if capture_flags['APP_SNAPSHOT_CREDENTIALS'] == '1':
         return {f'credentials-{name}-{mode}.png' for name in ('local', 'keychain', 'error', 'updates', 'canvas', 'models') for mode in appearances}
     if capture_flags['APP_SNAPSHOT_COPY'] == '1':
@@ -31,7 +35,7 @@ def expected_names():
     if capture_flags['APP_SNAPSHOT_CONTROLS'] == '1':
         return {f'course-scope-{width}-{mode}.png' for width in (940, 1120) for mode in appearances}
     if capture_flags['APP_SNAPSHOT_WORKSPACE'] == '1':
-        # 16 regular/narrow views + 6 empty/course/academic states = 22 per language.
+        # 12 regular/narrow views + 6 empty/course/academic states = 18 per language.
         return ({f'workspace-{view}-{width}-{mode}.png'
                  for view in views for width in (1120, 940) for mode in appearances}
                 | {f'workspace-list-{state}-{mode}.png'
@@ -46,7 +50,7 @@ def expected_names():
                       + ['review', 'sources', 'editor', 'session-editor', 'import',
                          'import-1', 'import-2', 'import-3', 'course-display', 'source-reader',
                          'course-scope', 'course-scope-narrow', 'desktop', 'desktop-expanded',
-                         'settings-3', 'settings-0', 'settings-1', 'settings-4', 'settings-2',
+                         'settings-5', 'settings-3', 'settings-0', 'settings-1', 'settings-4', 'settings-2',
                          'school-search'])
     return ({f'{name}-{mode}.png' for name in per_appearance for mode in appearances}
             | {'course-empty-dark.png', 'review-narrow-dark.png', 'empty-dark.png'})

@@ -545,3 +545,33 @@
 "Try again" = "重试";
 
 "Keychain access was cancelled. Your storage selection was not changed." = "已取消 Keychain 授权，保存位置未改变。";
+
+"List" = "列表";
+
+"Appearance" = "外观";
+
+"Light" = "浅色";
+
+"Dark" = "深色";
+
+"Accent color" = "强调色";
+
+"Interface size" = "界面大小";
+
+"Compact" = "紧凑";
+
+"Standard" = "标准";
+
+"Large" = "大";
+
+"Reset appearance" = "恢复默认外观";
+
+"Due" = "截止";
+
+"Release date" = "发布日期";
+
+"Available from" = "开始日期";
+
+"Release date only" = "发布日期不含时间";
+
+"Activity" = "最近操作";

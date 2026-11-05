@@ -5,7 +5,7 @@ public enum RuleExtractor {
         let issues = source.text.components(separatedBy: .newlines).compactMap { raw -> String? in
             let line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
             guard line.count <= 300, containsEvent(line), isConcreteLine(line, kind: eventKind(line)),
-                  parseDate(line, year: year, timeZone: timeZone).date == nil else { return nil }
+                  parseEventDate(line, kind: eventKind(line), year: year, timeZone: timeZone).date == nil else { return nil }
             return String(line.prefix(120)) + ": date or time needs clarification."
         }
         return CurationResult(events: extract(source: source, year: year, timeZone: timeZone), issues: Array(issues.prefix(30)))
@@ -19,11 +19,14 @@ public enum RuleExtractor {
             let line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
             if line.hasPrefix("[Page ") { page = line; continue }
             guard !line.isEmpty, line.count <= 300, containsEvent(line) else { continue }
-            let parsed = parseDate(line, year: year, timeZone: timeZone)
             let kind = eventKind(line)
+            let parsed = parseEventDate(line, kind: kind, year: year, timeZone: timeZone)
             guard parsed.date != nil, isConcreteLine(line, kind: kind) else { continue }
             var title = line
             if let range = parsed.range { title.removeSubrange(range) }
+            else if let marker = title.range(of: #"\b(?:release[ds]?|available from|opens? on|due|deadline)\b|发布日期|开放日期|截止"#, options: [.regularExpression, .caseInsensitive]) {
+                title = String(title[..<marker.lowerBound])
+            }
             title = title.replacingOccurrences(of: "(?i)\\b(?:at\\s+)?\\d{1,2}:\\d{2}\\s*(?:AM|PM)?(?:\\s*(?:EST|EDT|PST|PDT|CST|CDT|MST|MDT|UTC|GMT))?\\b", with: "", options: .regularExpression)
             title = title.replacingOccurrences(of: "(?i)\\b(?:due|on|at)\\s*$", with: "", options: .regularExpression)
             title = title.replacingOccurrences(of: "[\\t |]+", with: " ", options: .regularExpression)
@@ -41,6 +44,9 @@ public enum RuleExtractor {
                 evidence: page.isEmpty ? line : page + "\n" + line, sourceURL: source.url
             )
             event.subtype = EventCuration.subtype(for: title, kind: kind)
+            if event.category == .deadline, let due = parsed.date, let release = releaseDate(in: line, year: year, timeZone: parsed.zone, due: due) {
+                event.releasedAt = release.0; event.releaseDateOnly = release.1
+            }
             event.sourceTitle = title
             event.curationVersion = EventCuration.version
             event.academicCalendarID = source.academicCalendarID
@@ -75,6 +81,31 @@ public enum RuleExtractor {
         var range: Range<String.Index>?
         var dateOnly = true
         var zone: String
+    }
+
+    private static func parseEventDate(_ text: String, kind: EventKind, year: Int, timeZone: String) -> ParsedDate {
+        let direct = parseDate(text, year: year, timeZone: timeZone)
+        guard direct.date == nil, [.assignment, .project, .presentation].contains(kind),
+              let due = text.range(of: #"\b(?:due|deadline|submit(?:ted)? by)\b|截止|提交日期"#, options: [.regularExpression, .caseInsensitive]) else { return direct }
+        var parsed = parseDate(String(text[due.upperBound...]), year: year, timeZone: timeZone)
+        // This range belongs to a substring, not the complete title.
+        parsed.range = nil
+        return parsed
+    }
+
+    /// Availability must be stated alongside its own date; import/publication metadata is not evidence.
+    static func releaseDate(in evidence: String, year: Int, timeZone: String, due: Date) -> (Date, Bool)? {
+        guard let marker = evidence.range(of: #"\b(?:release[ds]?|available from|opens? on)\b|发布日期|开放日期"#, options: [.regularExpression, .caseInsensitive]) else { return nil }
+        var fragment = String(evidence[marker.upperBound...])
+        if let boundary = fragment.range(of: #"\b(?:due|deadline|submit)\b|截止|提交"#, options: [.regularExpression, .caseInsensitive]) {
+            fragment = String(fragment[..<boundary.lowerBound])
+        }
+        let parsed = parseDate(fragment, year: year, timeZone: timeZone)
+        guard let date = parsed.date else { return nil }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: parsed.zone) ?? .gmt
+        guard (parsed.dateOnly ? calendar.startOfDay(for: date) : date) <= due else { return nil }
+        return (date, parsed.dateOnly)
     }
 
     /// Checks the actual date/time tokens, rather than trusting the model's confidence.

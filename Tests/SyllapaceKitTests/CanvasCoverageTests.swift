@@ -23,6 +23,19 @@ private func coverageCourse(_ id: Int = 1) -> Course {
 }
 
 @Suite("Canvas scope and native content") struct CanvasCoverageTests {
+    @Test func availabilityIsSeparateFromDueAndPracticeMaterialStaysInSources() async throws {
+        let transport = CoverageTransport([
+            "/api/v1/courses/1": coverageJSON(#"{"id":1,"syllabus_body":""}"#),
+            "/api/v1/courses/1/assignments": coverageJSON(#"[{"id":10,"name":"Homework 4","unlock_at":"2026-11-01T14:00:00Z","due_at":"2026-11-20T23:00:00Z"},{"id":11,"name":"Homework 5","unlock_at":"2026-12-01T14:00:00Z","due_at":"2026-11-20T23:00:00Z"}]"#),
+            "/api/v1/courses/1/quizzes": coverageJSON(#"[{"id":20,"title":"18-749 PRACTICE Mid-Term Exam","quiz_type":"practice_quiz","description":"This is a practice mid-term exam.","due_at":"2026-12-05T01:00:00Z"},{"id":21,"title":"Self check","quiz_type":"practice_quiz","description":"Preparation material","due_at":"2026-12-05T01:00:00Z"}]"#)
+        ])
+        let result = try await CanvasClient(host: "canvas.example.edu", token: "synthetic", transport: transport).sync(courses: [coverageCourse()], now: coverageNow)
+        #expect(result.events.count == 2)
+        #expect(result.events.first { $0.title == "Homework 4" }?.releasedAt == CanvasClient.instant("2026-11-01T14:00:00Z"))
+        #expect(result.events.first { $0.title == "Homework 5" }?.releasedAt == nil)
+        #expect(result.sources.contains { $0.title == "18-749 PRACTICE Mid-Term Exam" })
+        #expect(!result.events.contains { $0.kind == .exam || $0.kind == .quiz })
+    }
     @Test func discoveryContainsTermsButNeverFetchesCourseContent() async throws {
         let transport = CoverageTransport(["/api/v1/courses": coverageJSON(#"[{"id":1,"name":"Synthetic Fall","course_code":"SYN-1","term":{"id":6,"name":"Fall 2026","start_at":"2026-08-10T04:00:00Z","end_at":"2027-02-09T05:00:00Z"},"concluded":false},{"id":2,"name":"Synthetic Spring","term":{"id":5,"name":"Spring 2026"},"concluded":true},{"id":3,"name":"Synthetic Portal","term":{"id":1,"name":"Default Term"}}]"#)])
         let courses = try await CanvasClient(host: "canvas.example.edu", token: "synthetic", transport: transport).discoverCourses()
