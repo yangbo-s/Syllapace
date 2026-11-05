@@ -11,9 +11,12 @@ import {
   type DataGridFeatures,
 } from "@/components/reui/data-grid/data-grid";
 import { DataGridTable } from "@/components/reui/data-grid/data-grid-table";
-import { DataGridScrollArea } from "@/components/reui/data-grid/data-grid-scroll-area";
+
 import { DataGridColumnHeader } from "@/components/reui/data-grid/data-grid-column-header";
-import { DataGridPagination } from "@/components/reui/data-grid/data-grid-pagination";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { inTwoWeeks, scheduleGroups } from "./schedule";
 import {
   CourseLabel,
   EventActions,
@@ -22,7 +25,7 @@ import {
   categoryIcons,
   type EventContext,
 } from "./EventParts";
-import { eventDate } from "./model";
+import { eventDate, formatDate } from "./model";
 import { strings } from "./strings";
 import type { AcademicEvent } from "./types";
 
@@ -35,7 +38,13 @@ export function ListView({
 }: EventContext & { events: AcademicEvent[] }) {
   const t = strings(snapshot.language);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 50 });
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 });
+  const [range, setRange] = useState("all");
+  const zh = snapshot.language === "zh-Hans";
+  const groups = useMemo(() => scheduleGroups(events.filter(e => range === "all" || inTwoWeeks(e, new Date(snapshot.now), Intl.DateTimeFormat().resolvedOptions().timeZone)), new Date(snapshot.now)), [events, snapshot.now, range]);
+  const rows = groups.map(group => group.event);
+  const pageCount = Math.max(1, Math.ceil(rows.length / pagination.pageSize));
+  const pageIndex = Math.min(pagination.pageIndex, pageCount - 1);
   const columns = useMemo<ColumnDef<DataGridFeatures, AcademicEvent>[]>(
     () => [
       {
@@ -43,11 +52,12 @@ export function ListView({
         header: ({ column }) => (
           <DataGridColumnHeader column={column} title={t.title} />
         ),
-        size: 280,
+        size: 240,
         meta: { fillWidth: true },
         cell: ({ row }) => {
           const event = row.original;
           const Icon = categoryIcons[event.category];
+          const group = groups.find(g => g.event.id === event.id);
           return (
             <div className="flex min-w-0 items-center gap-3">
               <Icon
@@ -68,6 +78,15 @@ export function ListView({
                   {event.title}
                 </button>
               </div>
+              {group && group.occurrences.length > 1 && <Popover><PopoverTrigger render={<Button variant="ghost" size="sm" className="ml-auto shrink-0 text-muted-foreground" />}>
+                {zh ? `${group.occurrences.length} 次` : `${group.occurrences.length} dates`}
+              </PopoverTrigger><PopoverContent className="w-72 p-1" align="start">
+                <div className="max-h-64 overflow-auto" aria-label={zh ? "重复课次" : "Recurring dates"}>
+                {group.occurrences.map(occurrence => <Button key={occurrence.id} variant="ghost" className="w-full justify-start" onClick={() => void run({ method: "event.openEditor", payload: { eventID: occurrence.id } })}>
+                  {formatDate(occurrence, snapshot.language)}
+                </Button>)}</div>
+              </PopoverContent></Popover>}
+
             </div>
           );
         },
@@ -75,7 +94,7 @@ export function ListView({
       {
         accessorKey: "courseLabel",
         header: t.course,
-        size: 96,
+        size: 120,
         cell: ({ row }) => (
           <CourseLabel event={row.original} snapshot={snapshot} />
         ),
@@ -96,7 +115,7 @@ export function ListView({
       {
         id: "scheduleStatus",
         header: t.status,
-        size: 108,
+        size: 96,
         cell: ({ row }) => (
           <ScheduleStatus
             event={row.original}
@@ -120,38 +139,38 @@ export function ListView({
         ),
       },
     ],
-    [snapshot, run, busy, t],
+    [snapshot, run, busy, t, groups, zh],
   );
   const table = useTable({
     features: dataGridFeatures,
-    data: events,
+    data: rows,
     columns,
     getRowId: (event) => event.id,
     state: {
       sorting,
-      pagination,
+      pagination: { ...pagination, pageIndex },
       columnVisibility: {
         courseLabel: new Set(events.map((event) => event.courseID)).size > 1,
       },
-    },
-    initialState: {
-      columnPinning: { start: [], end: ["actions"] },
     },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
   });
   return (
     <>
-    <div className="workspace-toolbar">{tools}</div>
+    <div className="workspace-toolbar">
+      <select aria-label={zh ? "日期范围" : "Date range"} className="workspace-select mr-auto" value={range} onChange={e => { setRange(e.target.value); setPagination(p => ({ ...p, pageIndex: 0 })); }}>
+        <option value="all">{zh ? "全部日程" : "All dates"}</option><option value="twoWeeks">{zh ? "本周和下周" : "This week & next"}</option>
+      </select>{tools}</div>
     <DataGrid
       table={table}
-      recordCount={events.length}
+      recordCount={rows.length}
       tableLayout={{
         dense: true,
-        columnsResizable: true,
+        columnsResizable: false,
         rowBorder: true,
         headerBackground: false,
-        columnsPinnable: true,
+        columnsPinnable: false,
       }}
       i18n={
         snapshot.language === "zh-Hans"
@@ -174,11 +193,20 @@ export function ListView({
     >
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         <DataGridContainer className="min-h-0 flex-1">
-          <DataGridScrollArea className="h-full">
+          <div data-slot="list-scroll-viewport" className="h-full overflow-auto">
             <DataGridTable />
-          </DataGridScrollArea>
+          </div>
         </DataGridContainer>
-        {events.length > 50 && <DataGridPagination />}
+        <div className="flex shrink-0 items-center gap-2 pt-1" data-slot="list-pagination">
+          <select aria-label={zh ? "每页显示" : "Rows per page"} className="workspace-select" value={pagination.pageSize} onChange={e => setPagination({ pageIndex: 0, pageSize: Number(e.target.value) })}>
+            {[20, 50, 100].map(size => <option key={size} value={size}>{zh ? `每页 ${size} 项` : `${size} per page`}</option>)}
+            <option value={2147483647}>{zh ? "显示全部" : "Show all"}</option>
+          </select>
+          <span className="ml-auto text-muted-foreground" aria-live="polite">{rows.length ? pageIndex * pagination.pageSize + 1 : 0}–{Math.min((pageIndex + 1) * pagination.pageSize, rows.length)} / {rows.length}</span>
+          <Button variant="ghost" size="icon-sm" aria-label={zh ? "上一页" : "Previous page"} disabled={pageIndex === 0} onClick={() => setPagination(p => ({ ...p, pageIndex: pageIndex - 1 }))}><ChevronLeft /></Button>
+          <span>{pageIndex + 1} / {pageCount}</span>
+          <Button variant="ghost" size="icon-sm" aria-label={zh ? "下一页" : "Next page"} disabled={pageIndex >= pageCount - 1} onClick={() => setPagination(p => ({ ...p, pageIndex: pageIndex + 1 }))}><ChevronRight /></Button>
+        </div>
       </div>
     </DataGrid>
     </>

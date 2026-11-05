@@ -1607,6 +1607,8 @@ function GanttView({
     initialCenter,
     viewConfig.scrollbars,
     viewConfig.infiniteScroll,
+    unitWidthRem,
+    zoom,
     rangeKey,
     rangeStartMs,
     rangeEndMs,
@@ -1630,7 +1632,7 @@ function GanttView({
   const lastUserScrollRef = useRef(0)
   /** Fine-grained viewport-center instant, for controlled-zoom anchoring. */
   const fineCenterRef = useRef<number | null>(null)
-  const lastZoomRef = useRef<number | null>(null)
+  const lastUnitScaleRef = useRef<number | null>(null)
 
   // Only user gestures may extend the range - programmatic scrolls (chip
   // jumps, auto-center, zoom clamping) must never grow it.
@@ -1639,6 +1641,7 @@ function GanttView({
     if (!pane) return
     const markIntent = () => {
       lastUserScrollRef.current = performance.now()
+      manageRef.current.userTook = true
     }
     // zooming is not scroll intent - the re-seat it triggers must not be
     // mistaken for the user reaching an edge and asking to grow the range
@@ -1795,21 +1798,22 @@ function GanttView({
   }, [instance, scale, timeZone, viewConfig.scrollbars, rangeKey])
 
   // Re-seat the viewport on its anchored instant before paint. Runs for range
-  // growth, window slides, and zoom changes; a slide moves the anchor date,
+  // growth, window slides, unit-width changes, and zoom changes; a slide moves the anchor date,
   // so pre-mark auto-centering as done for the new key.
   useLayoutEffect(() => {
-    // Consumer-driven (controlled) zoom changes carry no anchorZoomCenter
+    // Consumer-driven zoom or metric changes carry no anchorZoomCenter
     // call; anchor them to the last known viewport center so the view does
     // not drift. Built-in buttons set pendingRestore first and win.
     if (
-      lastZoomRef.current !== null &&
-      lastZoomRef.current !== zoom &&
+      lastUnitScaleRef.current !== null &&
+      lastUnitScaleRef.current !== zoom * unitWidthRem &&
+      manageRef.current.userTook &&
       !pendingRestoreRef.current &&
       fineCenterRef.current !== null
     ) {
       pendingRestoreRef.current = { ms: fineCenterRef.current, align: "center" }
     }
-    lastZoomRef.current = zoom
+    lastUnitScaleRef.current = zoom * unitWidthRem
     let raf: number | null = null
     let attempts = 0
     const seat = () => {
@@ -1847,6 +1851,7 @@ function GanttView({
   }, [
     rangeKey,
     zoom,
+    unitWidthRem,
     rangeStartMs,
     rangeEndMs,
     scale,
@@ -2319,6 +2324,9 @@ function GanttView({
         viewConfig.infiniteScroll ? "w-max" : "w-full",
         customScrollbars && "pb-2.5"
       )}
+      // Fit the declared date metric even when a week label's intrinsic
+      // width is larger. A max-content track silently crops narrow months.
+      style={viewConfig.infiniteScroll ? { width: trackWidth } : undefined}
     >
       {/* Two-row grouped header; also the drag-to-pan surface */}
       <div

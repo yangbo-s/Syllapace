@@ -103,6 +103,34 @@ function bridge(
   };
 }
 describe("workspace boundary", () => {
+  it("opens the individual occurrence from a recurring class date list", async () => {
+    const snapshot = fixture(); const commands: Command[] = [];
+    snapshot.events = ["2026-11-04T22:00:00Z", "2026-11-11T22:00:00Z"].map((start, index) => ({ ...snapshot.events[0], id: `class-${index}`, title: "Recitation", category: "meeting", subtype: "recitation", start }));
+    bridge(snapshot, command => commands.push(command)); render(<App />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "2 dates" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Open event: Recitation" }).hasAttribute("disabled")).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: "2 dates" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Nov 11/ }));
+    await waitFor(() => expect(commands).toContainEqual(expect.objectContaining({ method: "event.openEditor", payload: { eventID: "class-1" } })));
+    expect(snapshot.events).toHaveLength(2);
+  });
+  it("paginates the list, offers show-all and resets the page for the two-week range", async () => {
+    const snapshot = fixture();
+    snapshot.events = Array.from({ length: 45 }, (_, index) => ({ ...snapshot.events[0], id: `task-${index}`, title: `Task ${String(index).padStart(2, "0")}`, start: index < 8 ? "2026-11-06T12:00:00Z" : "2026-11-25T12:00:00Z" }));
+    bridge(snapshot); const { container } = render(<App />);
+    await waitFor(() => expect(screen.getByText("Task 00")).toBeTruthy());
+    expect(screen.queryByText("Task 20")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(screen.getByText("Task 20")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Date range"), { target: { value: "twoWeeks" } });
+    expect(screen.getByText("Task 00")).toBeTruthy(); expect(screen.queryByText("Task 20")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Date range"), { target: { value: "all" } });
+    fireEvent.change(screen.getByLabelText("Rows per page"), { target: { value: "2147483647" } });
+    expect(screen.getByText("Task 44")).toBeTruthy();
+    expect(container.querySelector('[data-slot="list-pagination"]')).toBeTruthy();
+    expect(container.querySelector('[data-slot="list-scroll-viewport"]')).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Show history" }).textContent).toContain("History");
+  });
   it.each(["2026-11-04T12:00:00-05:00", "2026-03-11T12:00:00-04:00"])(
     "keeps the calendar gutter on civil clock labels in the DST week of %s",
     (now) => {

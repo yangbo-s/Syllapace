@@ -47,7 +47,8 @@ extension AppModel {
                 plannedStart: event.plannedStart.map(WorkspaceWireDate.instant),
                 releasedAt: event.releasedAt.map { event.releaseDateOnly == true ? WorkspaceWireDate.dateOnly($0, timeZone: event.timeZone) : WorkspaceWireDate.instant($0) },
                 releaseDateOnly: event.releaseDateOnly, location: event.location,
-                evidence: String(event.evidence.prefix(4_000)), sourceURL: event.sourceURL.flatMap { URL(string: $0) }.flatMap(WorkspaceNavigation.externalURL)?.absoluteString, revision: event.revision)
+                evidence: String(event.evidence.prefix(4_000)), sourceURL: event.sourceURL.flatMap { URL(string: $0) }.flatMap(WorkspaceNavigation.externalURL)?.absoluteString, revision: event.revision,
+                seriesID: event.sourceSeriesID, userEdited: event.userEdited)
         }
         let scope = academicCalendarFilter.flatMap { id in scopedAcademicCalendars.first { $0.id == id }?.name }
             ?? courseFilter.map { courseTitle(course($0)) } ?? (archive.canvasSelection == nil ? L10n.string("Workspace") : selectedSemesterName)

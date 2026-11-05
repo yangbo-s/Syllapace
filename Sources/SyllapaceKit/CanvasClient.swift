@@ -112,8 +112,15 @@ public struct CanvasFile: Identifiable, Sendable, Equatable {
     public var sourceURL: String
     public var mimeType: String
     public var size: Int
-    public init(id: String, courseID: String, title: String, url: String, sourceURL: String = "", mimeType: String = "", size: Int = 0) {
-        self.id = id; self.courseID = courseID; self.title = title; self.url = url; self.sourceURL = sourceURL; self.mimeType = mimeType; self.size = size
+    public var revision: String?
+    public init(id: String, courseID: String, title: String, url: String, sourceURL: String = "", mimeType: String = "", size: Int = 0, revision: String? = nil) {
+        self.id = id; self.courseID = courseID; self.title = title; self.url = url; self.sourceURL = sourceURL; self.mimeType = mimeType; self.size = size; self.revision = revision
+    }
+}
+public extension CanvasFile {
+    func needsDownload(saved: SourceDocument?) -> Bool {
+        guard let saved, !saved.text.isEmpty else { return true }
+        return revision != nil && revision != saved.remoteRevision
     }
 }
 public struct CanvasSyncResult: Sendable {
@@ -253,7 +260,7 @@ public struct CanvasClient: Sendable {
                 for file in files where file.locked_for_user != true && file.hidden_for_user != true {
                     let title = file.display_name ?? file.filename ?? "Document"
                     guard Self.isLikelySyllabus(title), let url = file.url else { continue }
-                    result.files.append(CanvasFile(id: "\(scope):file:\(file.id)", courseID: courseID, title: title, url: url, sourceURL: origin.appendingPathComponent("courses/\(record.id)/files/\(file.id)").absoluteString, mimeType: file.contentType ?? "", size: file.size ?? 0))
+                    result.files.append(CanvasFile(id: "\(scope):file:\(file.id)", courseID: courseID, title: title, url: url, sourceURL: origin.appendingPathComponent("courses/\(record.id)/files/\(file.id)").absoluteString, mimeType: file.contentType ?? "", size: file.size ?? 0, revision: (file.modified_at ?? file.updated_at).map { $0 + ":" + String(file.size ?? 0) }))
                 }
             } catch is CancellationError { throw CancellationError() }
             catch { result.warnings.append(L10n.format("%@ files: %@", course.code, Self.safeMessage(error))) }
@@ -335,7 +342,7 @@ public struct CanvasClient: Sendable {
             let title = file.display_name ?? file.filename ?? "Document"
             guard !requireScheduleName || Self.isLikelySyllabus(title) else { fileIDs.remove(file.id); return }
             result.files.append(CanvasFile(id: "\(scope):file:\(file.id)", courseID: course.id, title: title, url: url.absoluteString,
-                                           sourceURL: courseURL.appendingPathComponent("files/\(file.id)").absoluteString, mimeType: file.contentType ?? "", size: file.size ?? 0))
+                                           sourceURL: courseURL.appendingPathComponent("files/\(file.id)").absoluteString, mimeType: file.contentType ?? "", size: file.size ?? 0, revision: (file.modified_at ?? file.updated_at).map { $0 + ":" + String(file.size ?? 0) }))
         }
 
         do {
@@ -644,7 +651,7 @@ private struct CanvasCalendarDTO: Decodable, Sendable {
     var end_at: String?; var location_name: String?; var hidden: Bool?
 }
 struct CanvasFileDTO: Decodable, Sendable {
-    var id: Int64; var display_name: String?; var filename: String?; var url: String?; var size: Int?; var locked_for_user: Bool?; var hidden_for_user: Bool?; var contentType: String?
-    enum CodingKeys: String, CodingKey { case id, display_name, filename, url, size, locked_for_user, hidden_for_user; case contentType = "content-type" }
+    var id: Int64; var display_name: String?; var filename: String?; var url: String?; var size: Int?; var locked_for_user: Bool?; var hidden_for_user: Bool?; var contentType: String?; var modified_at: String?; var updated_at: String?
+    enum CodingKeys: String, CodingKey { case id, display_name, filename, url, size, locked_for_user, hidden_for_user, modified_at, updated_at; case contentType = "content-type" }
 }
 private enum CanvasContentReference: Hashable { case page(String), file(Int64), discussion(Int64) }

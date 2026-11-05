@@ -202,3 +202,6 @@ body { font-size: 13px; }
 .workspace svg { stroke-width: 1.5; }
 ::selection { background: color-mix(in srgb, var(--primary) 24%, transparent); }
 input { caret-color: var(--primary); }
+
+.workspace-select { color: var(--foreground); background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; font: inherit; min-height: 28px; }
+.workspace-select:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }

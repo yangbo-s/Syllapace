@@ -80,6 +80,7 @@ public struct SourceDocument: Identifiable, Codable, Sendable, Equatable {
     public var curationIntent: String?
     /// A per-source opt-out. Explicit one-time organization does not clear it.
     public var localOnly: Bool?
+    public var remoteRevision: String?
     public init(id: String = UUID().uuidString, courseID: String, title: String, text: String, url: String? = nil, hash: String = "", fetchedAt: Date = .now, kind: SourceKind? = nil, links: [SourceLink]? = nil, academicCalendarID: String? = nil) {
         self.id = id; self.courseID = courseID; self.title = title; self.text = text; self.url = url; self.hash = hash; self.fetchedAt = fetchedAt
         self.kind = kind; self.links = links; self.academicCalendarID = academicCalendarID

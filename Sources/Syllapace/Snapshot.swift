@@ -7,7 +7,7 @@ enum Snapshot {
     static var started = false
     static func runIfRequested(model: AppModel, openSettings: OpenSettingsAction) {
         guard !started, let dir = ProcessInfo.processInfo.environment["APP_SNAPSHOT"], ProcessInfo.processInfo.environment["APP_STORE"] != nil else { return }
-        let modes = ["APP_SNAPSHOT_CONTROLS", "APP_SNAPSHOT_EMPTY", "APP_SNAPSHOT_WORKSPACE", "APP_SNAPSHOT_COPY", "APP_SNAPSHOT_CREDENTIALS", "APP_SNAPSHOT_APPEARANCE", "APP_SNAPSHOT_ACTIVITY"]
+        let modes = ["APP_SNAPSHOT_CONTROLS", "APP_SNAPSHOT_EMPTY", "APP_SNAPSHOT_WORKSPACE", "APP_SNAPSHOT_GANTT", "APP_SNAPSHOT_COPY", "APP_SNAPSHOT_CREDENTIALS", "APP_SNAPSHOT_APPEARANCE", "APP_SNAPSHOT_ACTIVITY"]
         guard modes.filter({ ProcessInfo.processInfo.environment[$0] == "1" }).count <= 1 else {
             log("Capture failed: choose only one snapshot mode"); exit(1)
         }
@@ -53,7 +53,7 @@ enum Snapshot {
                 await captureCopyStates(model: model, window: main, directory: dir, openSettings: openSettings)
                 log("SNAPSHOT done \(dir)"); NSApp.terminate(nil); return
             }
-            if ProcessInfo.processInfo.environment["APP_SNAPSHOT_WORKSPACE"] == "1" {
+            if ProcessInfo.processInfo.environment["APP_SNAPSHOT_WORKSPACE"] == "1" || ProcessInfo.processInfo.environment["APP_SNAPSHOT_GANTT"] == "1" {
                 await captureWorkspaceStates(model: model, window: main, directory: dir)
                 log("SNAPSHOT done \(dir)"); NSApp.terminate(nil); return
             }
@@ -310,7 +310,7 @@ enum Snapshot {
         }
     }
 
-    /// 18 captures: three views × two sizes × two appearances, then three states × two appearances.
+    /// 24 captures: three views × three sizes × two appearances, then three states × two appearances.
     private static func captureWorkspaceStates(model: AppModel, window: NSWindow, directory: String) async {
         let originalArchive = model.archive
         let originalPage = model.page
@@ -326,17 +326,30 @@ enum Snapshot {
         }
         model.page = .list; model.selectedID = nil
         model.courseFilter = nil; model.academicCalendarFilter = nil
+        // Synthetic density fixture: pagination must be visible with more than one page.
+        if let owner = model.scopedCourses.first {
+            for index in 1...24 {
+                model.archive.events.append(AcademicEvent(id: "pagination-fixture-\(index)", courseID: owner.id,
+                    title: "Problem set \(index) · Practice exercises", kind: .assignment,
+                    date: Calendar.current.date(byAdding: .day, value: index, to: .now), dateOnly: true,
+                    state: .approved, evidence: "Synthetic layout fixture"))
+            }
+        }
+        let densityArchive = model.archive
         for dark in [false, true] {
+            model.archive = densityArchive
             let mode = dark ? "dark" : "light"
             NSApp.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-            for size in [NSSize(width: 1120, height: 760), NSSize(width: 940, height: 620)] {
+            for size in [NSSize(width: 1320, height: 760), NSSize(width: 1120, height: 760), NSSize(width: 940, height: 620)] {
                 window.setContentSize(size)
                 for view in WorkspaceViewMode.allCases {
+                    if ProcessInfo.processInfo.environment["APP_SNAPSHOT_GANTT"] == "1" && view != .gantt { continue }
                     model.workspaceView = view
                     await captureWorkspace(model: model, window: window, dark: dark,
                                            path: "\(directory)/workspace-\(view.rawValue)-\(Int(size.width))-\(mode).png")
                 }
             }
+            if ProcessInfo.processInfo.environment["APP_SNAPSHOT_GANTT"] == "1" { continue }
             window.setContentSize(NSSize(width: 1120, height: 760))
             model.workspaceView = .list
             model.archive.events = []

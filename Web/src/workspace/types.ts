@@ -28,6 +28,8 @@ export interface AcademicEvent {
   evidence: string;
   sourceURL?: string | null;
   revision: number;
+  seriesID?: string | null;
+  userEdited?: boolean;
 }
 export interface WorkspaceSnapshot {
   schemaVersion: 1;

@@ -14,6 +14,7 @@ import type { Category, Command } from "./workspace/types";
 import { ListView } from "./workspace/ListView";
 import { GanttView } from "./workspace/GanttView";
 import { CalendarView } from "./workspace/CalendarView";
+import { uniqueOccurrences } from "./workspace/schedule";
 
 export function App() {
   const snapshot = useWorkspace();
@@ -32,11 +33,11 @@ export function App() {
     finally { setBusy(false); }
   }, []);
   useEffect(() => { void run({ method: "workspace.ready", payload: {} }); }, [run]);
-  const events = useMemo(() => snapshot ? filteredEvents(snapshot.events, query, category) : [], [snapshot, query, category]);
+  const events = useMemo(() => snapshot ? filteredEvents(uniqueOccurrences(snapshot.events), query, category) : [], [snapshot, query, category]);
   function clearFilters() { setQuery(""); setCategory("all"); }
   const visible = snapshot ? eventsForView(events.filter(event => showHistory || scheduleStatus(event, new Date(snapshot.now)) !== "historical"), snapshot.view, category) : [];
   const tools = <div className="workspace-tools">
-    <Button variant="ghost" size="icon-sm" aria-label={showHistory ? t.hideHistory : t.showHistory} title={showHistory ? t.hideHistory : t.showHistory} aria-pressed={showHistory} onClick={() => setShowHistory(value => !value)}><History /></Button>
+    <Button variant={showHistory ? "secondary" : "ghost"} size="sm" aria-label={showHistory ? t.hideHistory : t.showHistory} title={showHistory ? t.hideHistory : t.showHistory} aria-pressed={showHistory} onClick={() => setShowHistory(value => !value)}><History />{snapshot?.language === "zh-Hans" ? "历史" : "History"}</Button>
     {searchOpen ? <Input type="search" autoFocus className="h-7 w-44" placeholder={t.search} aria-label={t.search} value={query}
       onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setQuery(""); setSearchOpen(false); } }} />
       : <Button variant="ghost" size="icon-sm" aria-label={t.search} title={t.search} onClick={() => setSearchOpen(true)}><Search /></Button>}

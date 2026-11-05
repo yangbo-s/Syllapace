@@ -51,8 +51,8 @@ The default course workspace admits three categories: **class meetings**, **subm
 
 | View | Purpose |
 | --- | --- |
-| List | Scan, sort and filter events; course codes stay compact while titles get the available width. |
-| Timeline | Opens to a full month. Classes and assessments are points; tasks span an explicit release date to their due date. Without a release date, a task remains a point. |
+| List | Pages of 20, 50, or 100, or show all; choose all dates or this week and next. Recurring classes share one row with a date list. |
+| Timeline | Opens to a full month with horizontal scrolling and header dragging. Recurring classes share a row; classes and assessments are points; tasks span an explicit release date to their due date. Without a release date, a task remains a point. |
 | Calendar | Opens to the month; week, day and agenda are also available. |
 
 The three views are separate native sidebar destinations and share one library. Status follows dates: **Not started**, **In progress**, then **Historical**. History is hidden by default; use the history button to include it. Unknown release dates are never guessed. Submission or saved completion flags do not determine schedule status. School calendars remain a separate sidebar layer.
@@ -88,7 +88,7 @@ Keep the saved address spelling consistent: credentials are scoped to the config
 
 For selected courses, the connector reads Assignments and submission/grade state, course Calendar events, inline syllabus HTML, Announcements, Modules, the front page, and referenced Pages and attachments. Classic Quizzes and quiz-linked Assignments are associated by Canvas IDs to avoid duplicate items; New Quizzes coverage uses the information available through Canvas Assignments. Course events are organized into class meetings, submission deadlines, and exams/quizzes, retaining subtypes such as Lecture, Recitation, Project, and Midterm. Timed events retain an explicit end time and location when supplied. Grades and submission states remain attached to the task; grade-release notices do not become separate schedule entries.
 
-**Sources** preserves text and links from course materials. Referenced attachments and likely syllabus/schedule files can be imported explicitly. A hidden or inaccessible Files directory does not prevent other accessible sources from syncing; individual attachments still require permission.
+**Sources** preserves text and links from course materials. Accessible syllabus/schedule files are read automatically during sync and cached by file revision. Other referenced attachments can be imported explicitly. A hidden or inaccessible Files directory does not prevent other accessible sources from syncing; individual attachments still require permission.
 
 For an external schedule link, use **Add Material → Link** or the source’s **Import link** action to read a public document or Google Sheets export. These requests use no Canvas token or browser cookies. If a source requires a separate sign-in, its link remains available to open in a browser; you can also import an exported file. Private Google authorization and complete Gradescope/Piazza connectors are not included. Gradescope-linked work is limited to the dates and grades actually available in Canvas; individual extensions may remain solely in Gradescope.
 
@@ -108,7 +108,7 @@ Anthropic uses its native Messages API with a JSON schema; an optional Workspace
 
 **Automatically organize course materials** is enabled by default in Models settings. Once a model and key are configured, eligible saved materials for the selected courses can be sent directly to that provider after launch, sync, or import. Material imported with **Use AI** off is excluded. Explicitly organizing that source permits that operation without enabling later automatic uploads. Turn the setting off to stop background organization; explicit **Organize** and **Use AI** imports remain available. Provider usage may incur charges under your own account.
 
-The adapter gives models no tools and validates returned fields, dates, and verbatim evidence. It filters irrelevant text and normalizes titles before merging accepted events. A fingerprint of the source, model configuration, date range, and curation version skips unchanged successful work. Missing dates and unresolved conflicts remain in **Needs information**, with the source available. Evidence checks reduce errors but do not guarantee correct semantic interpretation; events remain editable and the latest reorganization is undoable. Canvas tokens are never included in model requests.
+The adapter gives models no tools and validates returned fields, dates, and verbatim evidence. It filters irrelevant text and normalizes titles before merging accepted events. A persistent fingerprint of the source text, model configuration, and date range skips unchanged work across launches and app updates. Failures are saved too; use Sources → Organize to retry explicitly. Local presentation-rule changes do not invalidate the model cache. Missing dates and unresolved conflicts remain in **Needs information**, with the source available. Evidence checks reduce errors but do not guarantee correct semantic interpretation; events remain editable and the latest reorganization is undoable. Canvas tokens are never included in model requests.
 
 For compatible chat endpoints, recognized reasoning models use `max_completion_tokens` without `temperature`; a definite unsupported-parameter error permits one compatibility retry. Authentication, rate-limit, network, and incomplete-generation errors are not automatically retried. Plain HTTP endpoints and providers requiring a different protocol are not supported.
 

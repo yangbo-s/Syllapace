@@ -59,6 +59,21 @@ enum SelfTest {
         } catch { fail(error.localizedDescription); return }
         guard var event = model.archive.events.first else { fail("No curated fixture event"); return }
         check(event.state == .approved && model.workspaceEvents.count == 1, "Validated result appears without manual approval")
+        check(model.sourcesNeedingCuration().isEmpty, "Saved curation skips unchanged material")
+        let failureFingerprint = model.curationFingerprint(source)
+        model.archive.curationRecords?[source.id] = SourceCurationRecord(fingerprint: failureFingerprint, failure: "Synthetic offline failure")
+        model.save()
+        do {
+            model.archive = try model.store.load()
+            check(model.sourcesNeedingCuration().isEmpty && model.sourcesNeedingCuration(force: true).count == 1 && model.curationIssues.count == 1, "Failed curation survives reload and only explicit retry repeats the request")
+        } catch { fail(error.localizedDescription) }
+        let legacyOwner = model.course(source.courseID), legacyWindow = model.curationWindow(for: source)
+        let legacyFingerprint = EventCuration.legacyFingerprint(source: source, version: 2, modelIdentity: model.curationModelIdentity,
+            year: legacyOwner.term?.academicYear ?? model.importYear, timeZone: legacyOwner.timeZone ?? TimeZone.current.identifier,
+            termStart: legacyWindow.start, termEnd: legacyWindow.end)
+        model.archive.curationRecords?[source.id] = SourceCurationRecord(fingerprint: legacyFingerprint)
+        model.sanitizeLegacyData()
+        check(model.sourcesNeedingCuration().isEmpty, "Legacy cache migrates without another model request")
         let stable = model.archive.events
         check(model.commitCuration(CurationResult(issues: ["Date evidence is incomplete"]), source: source, fingerprint: model.curationFingerprint(source)) && model.archive.events == stable && model.curationIssues.count == 1, "Incomplete curation preserves existing dates and exposes the issue")
         let beforeFirst = model.archive
@@ -263,15 +278,54 @@ enum SelfTest {
                 let selected = try await webView.callAsyncJavaScript("return document.querySelector('main')?.dataset.view === view && !document.querySelector('[role=tab]')", arguments: ["view": view.rawValue], in: nil, contentWorld: .page)
                 check(selected as? Bool == true, "Workspace renders \(view.rawValue) without duplicate navigation")
                 if view == .gantt {
+                    for width in [940, 1120, 1320, 940] {
+                        webView.window?.setContentSize(NSSize(width: width, height: 620))
+                        try await Task.sleep(for: .milliseconds(150))
+                        let monthFits = try await webView.callAsyncJavaScript("""
+                            const axis = document.querySelector('[data-gantt-axis]'), pane = document.querySelector('[data-slot=gantt-timeline-pane] [data-slot=scroll-area-viewport]');
+                            if (!axis || !pane) return false;
+                            const first = new Date(); first.setDate(1); first.setHours(0,0,0,0);
+                            const last = new Date(first); last.setMonth(last.getMonth()+1);
+                            const start = Number(axis.dataset.ganttRangeStart), span = Number(axis.dataset.ganttRangeEnd)-start;
+                            const rect = axis.getBoundingClientRect(), viewport = pane.getBoundingClientRect();
+                            const left = rect.left + (first-start)/span*rect.width, right = rect.left + (last-start)/span*rect.width;
+                            return left >= viewport.left-2 && right <= viewport.left+pane.clientWidth+2 ? true :
+                              JSON.stringify({left, right, viewportLeft: viewport.left, viewportWidth: pane.clientWidth,
+                                axisWidth: rect.width, scrollWidth: pane.scrollWidth, scrollLeft: pane.scrollLeft, start, span});
+                            """, arguments: [:], in: nil, contentWorld: .page)
+                        if let geometry = monthFits as? String { Snapshot.log("Month geometry: \(geometry)") }
+                        check(monthFits as? Bool == true, "Full month stays visible after resizing to \(width) points")
+                    }
                     let fits = try await webView.callAsyncJavaScript("""
                         const axis = document.querySelector('[data-gantt-axis]');
                         const pane = document.querySelector('[data-slot=gantt-timeline-pane] [data-slot=scroll-area-viewport]');
                         if (!axis || !pane) return false;
                         const start = new Date(Number(axis.dataset.ganttRangeStart));
                         const end = new Date(Number(axis.dataset.ganttRangeEnd));
-                        return start.getDate() === 1 && end.getDate() === 1 && end > start && axis.getBoundingClientRect().width <= pane.clientWidth + 1;
+                        const before = pane.scrollLeft;
+                        pane.scrollLeft += 60;
+                        await new Promise(requestAnimationFrame);
+                        const moved = pane.scrollLeft > before;
+                        const header = document.querySelector('[data-slot=gantt-timeline-header]');
+                        const origin = pane.scrollLeft;
+                        header.dispatchEvent(new PointerEvent('pointerdown', { button: 0, pointerId: 1, clientX: 200, bubbles: true }));
+                        window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 170 }));
+                        window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientX: 170 }));
+                        await new Promise(requestAnimationFrame);
+                        window.testTimelineCenter = +start + (pane.scrollLeft + pane.clientWidth/2)/pane.scrollWidth*(end-start);
+                        return start.getDate() === 1 && end.getDate() === 1 && end > start && moved && pane.scrollLeft > origin;
                         """, arguments: [:], in: nil, contentWorld: .page)
-                    check(fits as? Bool == true, "Timeline opens to a complete month without horizontal scrolling")
+                    check(fits as? Bool == true, "Timeline keeps month boundaries and supports horizontal scrolling and header dragging")
+                    webView.window?.setContentSize(NSSize(width: 1120, height: 620))
+                    try await Task.sleep(for: .milliseconds(150))
+                    let anchorKept = try await webView.callAsyncJavaScript("""
+                        const axis = document.querySelector('[data-gantt-axis]'), pane = document.querySelector('[data-slot=gantt-timeline-pane] [data-slot=scroll-area-viewport]');
+                        const start = Number(axis.dataset.ganttRangeStart), span = Number(axis.dataset.ganttRangeEnd)-start;
+                        const center = start + (pane.scrollLeft+pane.clientWidth/2)/pane.scrollWidth*span;
+                        return Math.abs(center-window.testTimelineCenter) < 2*3600000;
+                        """, arguments: [:], in: nil, contentWorld: .page)
+                    check(anchorKept as? Bool == true, "Resizing preserves the user's panned timeline date")
+                    webView.window?.setContentSize(NSSize(width: 940, height: 620))
                 }
                 if view == .calendar {
                     let month = try await webView.callAsyncJavaScript("return !!document.querySelector('[data-slot=event-calendar-month-view]')", arguments: [:], in: nil, contentWorld: .page)
@@ -281,6 +335,25 @@ enum SelfTest {
             }
             model.page = .list
             check(await waitForWorkspace(model, until: { WorkspaceWebViewState.shared.renderedView == .list }), "Native List selection is rendered")
+            let savedEvents = model.archive.events
+            let density = (0..<45).map { index in
+                AcademicEvent(id: "scroll-fixture-\(index)", courseID: model.archive.courses[0].id,
+                    title: "Scroll fixture \(index)", kind: .project, date: Date.now.addingTimeInterval(Double(index + 1) * 86400),
+                    dateOnly: true, state: .approved, userEdited: true)
+            }
+            model.archive.events += density; model.save()
+            check(await waitForWorkspace(model, until: { WorkspaceWebViewState.shared.renderedSnapshot?.events.contains { $0.id == "scroll-fixture-44" } == true }), "Dense list reaches the workspace")
+            let scrolling = try await webView.callAsyncJavaScript("""
+                const pane = document.querySelector('[data-slot=list-scroll-viewport]');
+                const footer = document.querySelector('[data-slot=list-pagination]');
+                if (!pane || !footer) return false;
+                pane.scrollTop = 60;
+                await new Promise(requestAnimationFrame);
+                return pane.scrollTop > 0 && pane.scrollWidth <= pane.clientWidth + 1 && footer.getBoundingClientRect().bottom <= innerHeight &&
+                  getComputedStyle(pane).overflowY === 'auto' && document.querySelectorAll('tbody tr').length === 20;
+                """, arguments: [:], in: nil, contentWorld: .page)
+            check(scrolling as? Bool == true, "List uses native scrolling with 20 rows and a visible pagination footer")
+            model.archive.events = savedEvents; model.save()
             let previousNotice = model.notice
             model.notice = nil
             try await Task.sleep(for: .milliseconds(350))

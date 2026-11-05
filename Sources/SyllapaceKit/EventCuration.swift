@@ -5,8 +5,9 @@ public struct SourceCurationRecord: Codable, Sendable, Equatable {
     public var completedAt: Date
     public var eventCount: Int
     public var issues: [String]?
-    public init(fingerprint: String, completedAt: Date = .now, eventCount: Int = 0, issues: [String]? = nil) {
-        self.fingerprint = fingerprint; self.completedAt = completedAt; self.eventCount = eventCount; self.issues = issues
+    public var failure: String?
+    public init(fingerprint: String, completedAt: Date = .now, eventCount: Int = 0, issues: [String]? = nil, failure: String? = nil) {
+        self.fingerprint = fingerprint; self.completedAt = completedAt; self.eventCount = eventCount; self.issues = issues; self.failure = failure
     }
 }
 
@@ -28,6 +29,15 @@ public enum EventCuration {
 
     public static func fingerprint(source: SourceDocument, modelIdentity: String, year: Int, timeZone: String,
                                    termStart: Date? = nil, termEnd: Date? = nil, intent: String = "") -> String {
+        // Local presentation/validation revisions must not trigger another paid request.
+        // Hash the material sent to the model, not Canvas HTML or expiring link tokens.
+        CanvasClient.hash([source.id, CanvasClient.hash(source.text),
+                           "material-v1", modelIdentity, String(year), timeZone,
+                           termStart?.ISO8601Format() ?? "", termEnd?.ISO8601Format() ?? "", intent].joined(separator: "\n"))
+    }
+
+    public static func legacyFingerprint(source: SourceDocument, version: Int, modelIdentity: String, year: Int, timeZone: String,
+                                         termStart: Date? = nil, termEnd: Date? = nil, intent: String = "") -> String {
         CanvasClient.hash([source.id, source.hash.isEmpty ? CanvasClient.hash(source.text) : source.hash,
                            String(version), modelIdentity, String(year), timeZone,
                            termStart?.ISO8601Format() ?? "", termEnd?.ISO8601Format() ?? "", intent].joined(separator: "\n"))

@@ -10,7 +10,8 @@ extension AppModel {
     }
     var curationIssues: [(source: SourceDocument, message: String)] {
         curationSources.compactMap { source in
-            let messages = curationErrors[source.id].map { [$0] } ?? archive.curationRecords?[source.id]?.issues ?? []
+            let record = archive.curationRecords?[source.id]
+            let messages = (curationErrors[source.id] ?? record?.failure).map { [$0] } ?? record?.issues ?? []
             return messages.isEmpty ? nil : (source, messages.joined(separator: "\n"))
         }
     }
@@ -94,7 +95,15 @@ extension AppModel {
                         }
                         curationErrors[source.id] = nil
                     } catch is CancellationError { return }
-                    catch { curationErrors[source.id] = error.localizedDescription }
+                    catch {
+                        curationErrors[source.id] = error.localizedDescription
+                        guard generation == curationGeneration,
+                              let current = archive.sources.first(where: { $0.id == source.id }),
+                              curationFingerprint(current) == fingerprint else { continue }
+                        if archive.curationRecords == nil { archive.curationRecords = [:] }
+                        archive.curationRecords?[source.id] = SourceCurationRecord(fingerprint: fingerprint, failure: error.localizedDescription)
+                        _ = save()
+                    }
                 }
                 if changed { notice = L10n.string("Course dates organized. You can undo this reorganization.") }
             } catch is CancellationError { }
@@ -111,6 +120,7 @@ extension AppModel {
             : Reconciler.merge(existing: archive.events, incoming: result.events)
         if archive.curationRecords == nil { archive.curationRecords = [:] }
         archive.curationRecords?[source.id] = SourceCurationRecord(fingerprint: fingerprint, eventCount: result.events.count, issues: result.issues)
+        restoreLocalSchedules()
         guard save() else { archive = checkpoint; return false }
         return true
     }
@@ -124,11 +134,34 @@ extension AppModel {
     }
     func sanitizeLegacyData() {
         let before = archive
+        for source in curationSources {
+            guard let record = archive.curationRecords?[source.id], record.fingerprint != curationFingerprint(source) else { continue }
+            let owner = course(source.courseID), window = curationWindow(for: source)
+            if [1, 2].contains(where: { version in
+                record.fingerprint == EventCuration.legacyFingerprint(source: source, version: version, modelIdentity: curationModelIdentity,
+                    year: source.curationYear ?? owner.term?.academicYear ?? importYear,
+                    timeZone: source.curationTimeZone ?? owner.timeZone ?? TimeZone.current.identifier,
+                    termStart: window.start, termEnd: window.end, intent: source.curationIntent ?? "")
+            }) {
+                let fingerprint = curationFingerprint(source)
+                archive.curationRecords?[source.id]?.fingerprint = fingerprint
+            }
+        }
         archive.events = EventCuration.sanitizeLegacyEvents(existing: archive.events, courseIDs: scopedCourseIDs).events
-        guard before.events != archive.events else { return }
+        restoreLocalSchedules()
+        guard before.events != archive.events || before.curationRecords != archive.curationRecords else { return }
         guard save() else { archive = before; return }
+        guard before.events != archive.events else { return }
         lastCurationUndo = [curationUndo(before: before, after: archive)]
         notice = L10n.string("Course dates organized. You can undo this reorganization.")
+    }
+    func restoreLocalSchedules() {
+        for source in curationSources {
+            let owner = course(source.courseID), window = curationWindow(for: source)
+            let meetings = WeeklySchedule.extract(source: source, year: owner.term?.academicYear ?? importYear,
+                timeZone: source.curationTimeZone ?? owner.timeZone ?? TimeZone.current.identifier, termStart: window.start, termEnd: window.end)
+            archive.events = Reconciler.merge(existing: archive.events, incoming: meetings)
+        }
     }
     func undoCuration() {
         guard let undo = lastCurationUndo else { return }

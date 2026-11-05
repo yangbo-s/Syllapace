@@ -213,7 +213,7 @@ import UniformTypeIdentifiers
         archive.courses.append(Course(id: id, name: name, code: name, color: archive.courses.count % 4)); save(); return id
     }
     func ingest(_ source: SourceDocument, navigate: Bool = true) {
-        if !navigate, !source.hash.isEmpty, archive.sources.contains(where: { $0.id == source.id && $0.hash == source.hash }) { return }
+        if !navigate, !source.hash.isEmpty, archive.sources.contains(where: { $0.id == source.id && $0.hash == source.hash && $0.remoteRevision == source.remoteRevision }) { return }
         if let i = archive.sources.firstIndex(where: { $0.id == source.id }) {
             var refreshed = source
             // A refresh is not a new permission to upload an explicitly local import.
@@ -282,9 +282,23 @@ import UniformTypeIdentifiers
                 archive.events = Reconciler.merge(existing: archive.events, incoming: result.events)
                 for source in result.sources { ingest(source, navigate: false) }
                 remoteFiles = result.files
+                var materialWarnings: [String] = []
+                for file in result.files where CanvasClient.isLikelySyllabus(file.title) && file.needsDownload(saved: archive.sources.first(where: { $0.id == file.id })) {
+                    try Task.checkCancellation()
+                    do {
+                        let url = try await client.download(file: file)
+                        defer { try? FileManager.default.removeItem(at: url) }
+                        var source = try await DocumentReader.read(url: url, courseID: file.courseID)
+                        source.id = file.id; source.title = file.title; source.url = file.sourceURL
+                        source.remoteRevision = file.revision; source.kind = .syllabus
+                        guard canvasGeneration == generation, canvasHost == host, scopedCourseIDs.contains(file.courseID) else { return }
+                        ingest(source, navigate: false)
+                    } catch is CancellationError { throw CancellationError() }
+                    catch { materialWarnings.append(file.title + ": " + error.localizedDescription) }
+                }
                 archive.lastSync = .now
                 save()
-                var messages = result.warnings
+                var messages = result.warnings + materialWarnings
                 let missing = (archive.canvasSelection?.courseIDs ?? []).subtracting(Set(discovered.map(\.id)))
                 if !missing.isEmpty { messages.insert(L10n.string("Some selected courses are unavailable. Their saved materials have been kept."), at: 0) }
                 notice = messages.isEmpty ? L10n.string("Canvas is up to date.") : messages.joined(separator: "\n")
@@ -370,7 +384,7 @@ import UniformTypeIdentifiers
                 let url = try await CanvasClient(host: host, token: token).download(file: file)
                 defer { try? FileManager.default.removeItem(at: url) }
                 var source = try await DocumentReader.read(url: url, courseID: file.courseID)
-                source.id = file.id; source.title = file.title; source.url = file.sourceURL
+                source.id = file.id; source.title = file.title; source.url = file.sourceURL; source.remoteRevision = file.revision
                 guard generation == canvasGeneration, host == canvasHost, scopedCourseIDs.contains(file.courseID) else { return }
                 ingest(source)
             } catch { self.error = error.localizedDescription }

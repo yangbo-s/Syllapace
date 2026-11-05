@@ -16,7 +16,7 @@ output = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else root / '.impeccab
 output.mkdir(parents=True, exist_ok=False)
 languages = [os.environ['APP_LANGUAGE']] if os.environ.get('APP_LANGUAGE') else ['en', 'zh-Hans']
 capture_flags = {key: os.environ.get(key, '0') for key in
-                 ('APP_SNAPSHOT_CONTROLS', 'APP_SNAPSHOT_EMPTY', 'APP_SNAPSHOT_WORKSPACE', 'APP_SNAPSHOT_COPY', 'APP_SNAPSHOT_CREDENTIALS', 'APP_SNAPSHOT_APPEARANCE', 'APP_SNAPSHOT_ACTIVITY')}
+                 ('APP_SNAPSHOT_CONTROLS', 'APP_SNAPSHOT_EMPTY', 'APP_SNAPSHOT_WORKSPACE', 'APP_SNAPSHOT_GANTT', 'APP_SNAPSHOT_COPY', 'APP_SNAPSHOT_CREDENTIALS', 'APP_SNAPSHOT_APPEARANCE', 'APP_SNAPSHOT_ACTIVITY')}
 if sum(value == '1' for value in capture_flags.values()) > 1:
     raise ValueError('Choose only one APP_SNAPSHOT mode')
 
@@ -24,6 +24,8 @@ if sum(value == '1' for value in capture_flags.values()) > 1:
 def expected_names():
     appearances = ('light', 'dark')
     views = ('list', 'gantt', 'calendar')
+    if capture_flags['APP_SNAPSHOT_GANTT'] == '1':
+        return {f'workspace-gantt-{width}-{mode}.png' for width in (1320, 1120, 940) for mode in appearances}
     if capture_flags['APP_SNAPSHOT_ACTIVITY'] == '1':
         return {f'activity-{name}-{mode}.png' for name in ('summary', 'compact', 'details', 'running', 'running-details') for mode in appearances}
     if capture_flags['APP_SNAPSHOT_APPEARANCE'] == '1':
@@ -35,9 +37,9 @@ def expected_names():
     if capture_flags['APP_SNAPSHOT_CONTROLS'] == '1':
         return {f'course-scope-{width}-{mode}.png' for width in (940, 1120) for mode in appearances}
     if capture_flags['APP_SNAPSHOT_WORKSPACE'] == '1':
-        # 12 regular/narrow views + 6 empty/course/academic states = 18 per language.
+        # 18 wide/regular/narrow views + 6 empty/course/academic states = 24 per language.
         return ({f'workspace-{view}-{width}-{mode}.png'
-                 for view in views for width in (1120, 940) for mode in appearances}
+                 for view in views for width in (1320, 1120, 940) for mode in appearances}
                 | {f'workspace-list-{state}-{mode}.png'
                    for state in ('empty', 'course', 'academic') for mode in appearances})
     if capture_flags['APP_SNAPSHOT_EMPTY'] == '1':

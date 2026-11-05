@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-05T05:19:12.955Z",
+  "generatedAt": "2026-11-05T06:05:42.240Z",
   "title": "Design System: Syllapace",
   "extensions": {
     "colorMeta": {
@@ -292,7 +292,7 @@
       "name": "Compact workspace tool",
       "kind": "button",
       "refersTo": "button-ghost",
-      "description": "Ghost icon control used for search, history and event-type menus. Native and web tool labels remain accessible without permanent explanatory captions.",
+      "description": "Ghost icon control used for search and event-type menus. History uses the same compact control family with a visible History / 历史 label and a pressed secondary state in the live workspace.",
       "html": "<button class=\"ds-tool\" aria-label=\"Search\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg></button>",
       "css": ".ds-tool{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--foreground,CanvasText);cursor:pointer}.ds-tool:hover,.ds-tool[aria-pressed=true]{background:var(--muted,color-mix(in srgb,CanvasText 5.5%,Canvas))}.ds-tool:active{transform:translateY(1px)}.ds-tool:disabled{opacity:.5;pointer-events:none}.ds-tool:focus-visible{outline:2px solid var(--ring,rgb(15% 47% 43%));outline-offset:2px}"
     },
@@ -324,9 +324,9 @@
       "name": "Academic list row",
       "kind": "custom",
       "refersTo": "event-row",
-      "description": "Compact title-first list specimen. Date and schedule state are synthetic; the live table sorts, resizes columns and opens the native editor.",
+      "description": "Compact title-first list specimen with current supporting-column widths; the final action menu is omitted here. Dates and schedule state are synthetic. The live table sorts without column resizing or pinning, groups repeated classes behind a date-count popover, and keeps pagination below its native scroll viewport.",
       "html": "<div class=\"ds-event-row\"><button class=\"ds-event-title\">Research synthesis</button><span class=\"ds-event-course\">PSY 210</span><time class=\"ds-event-date\" datetime=\"2026-11-18\">Wed, Nov 18</time><span class=\"ds-event-status\">Not started</span></div>",
-      "css": ".ds-event-row{display:grid;grid-template-columns:minmax(160px,1fr) 96px 160px 108px;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid var(--border,color-mix(in srgb,CanvasText 15%,transparent));background:var(--background,Canvas);color:var(--foreground,CanvasText);font-family:-apple-system,BlinkMacSystemFont,\"SF Pro Text\",\"Helvetica Neue\",sans-serif;font-size:13px;line-height:20px}.ds-event-title{font:inherit;font-weight:500;text-align:left;background:none;border:0;padding:0;color:inherit;cursor:pointer}.ds-event-title:hover{text-decoration:underline}.ds-event-title:active{opacity:.8}.ds-event-course,.ds-event-date,.ds-event-status{font-size:12px;line-height:16px;color:var(--muted-foreground,color-mix(in srgb,CanvasText 64%,transparent))}.ds-event-date{font-variant-numeric:tabular-nums}.ds-event-title:focus-visible{outline:2px solid var(--ring,rgb(15% 47% 43%));outline-offset:2px}"
+      "css": ".ds-event-row{display:grid;grid-template-columns:minmax(240px,1fr) 120px 160px 96px;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid var(--border,color-mix(in srgb,CanvasText 15%,transparent));background:var(--background,Canvas);color:var(--foreground,CanvasText);font-family:-apple-system,BlinkMacSystemFont,\"SF Pro Text\",\"Helvetica Neue\",sans-serif;font-size:13px;line-height:20px}.ds-event-title{font:inherit;font-weight:500;text-align:left;background:none;border:0;padding:0;color:inherit;cursor:pointer}.ds-event-title:hover{text-decoration:underline}.ds-event-title:active{opacity:.8}.ds-event-course,.ds-event-date,.ds-event-status{font-size:12px;line-height:16px;color:var(--muted-foreground,color-mix(in srgb,CanvasText 64%,transparent))}.ds-event-date{font-variant-numeric:tabular-nums}.ds-event-title:focus-visible{outline:2px solid var(--ring,rgb(15% 47% 43%));outline-offset:2px}"
     },
     {
       "name": "Compact desktop panel",

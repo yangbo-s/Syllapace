@@ -37,17 +37,20 @@ public struct WorkspaceEvent: Codable, Sendable, Equatable {
     public var evidence: String
     public var sourceURL: String?
     public var revision: Int
+    public var seriesID: String?
+    public var userEdited: Bool?
 
     public init(id: String, courseID: String, courseLabel: String, title: String, category: WorkspaceCategory,
                 subtype: String, start: String?, end: String?, dateOnly: Bool, timeZone: String,
                 progress: WorkspaceProgress, plannedStart: String? = nil, releasedAt: String? = nil, releaseDateOnly: Bool? = nil, location: String? = nil,
-                evidence: String = "", sourceURL: String? = nil, revision: Int) {
+                evidence: String = "", sourceURL: String? = nil, revision: Int, seriesID: String? = nil, userEdited: Bool? = nil) {
         self.id = id; self.courseID = courseID; self.courseLabel = courseLabel; self.title = title
         self.category = category; self.subtype = subtype; self.start = start; self.end = end
         self.dateOnly = dateOnly; self.timeZone = timeZone; self.progress = progress
         self.releasedAt = releasedAt; self.releaseDateOnly = releaseDateOnly
         self.plannedStart = plannedStart; self.location = location; self.evidence = evidence
         self.sourceURL = sourceURL; self.revision = revision
+        self.seriesID = seriesID; self.userEdited = userEdited
     }
 
     private enum CodingKeys: String, CodingKey {

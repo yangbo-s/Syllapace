@@ -21,6 +21,14 @@ private func machineEvent(id: String = "model:one", sourceID: String = "syllabus
 }
 
 @Suite("Automatic event curation") struct CurationTests {
+    @Test func transportChangesDoNotInvalidateSavedText() {
+        var source = curatedSource("Lecture Tuesdays 9:30am–10:50am", id: "stable")
+        let first = EventCuration.fingerprint(source: source, modelIdentity: "model", year: 2026, timeZone: "America/New_York")
+        source.hash = "changed-html-wrapper-and-download-token"
+        #expect(EventCuration.fingerprint(source: source, modelIdentity: "model", year: 2026, timeZone: "America/New_York") == first)
+        source.text += " Room 203"
+        #expect(EventCuration.fingerprint(source: source, modelIdentity: "model", year: 2026, timeZone: "America/New_York") != first)
+    }
     @Test func gradingProseNeverBecomesAnEventOrAnIssue() throws {
         let prose = "Presentations will be judged on the quality and depth of the analysis, as well as the clarity of the presentations (see attached presentation assessment forms). Students can expect not only to develop but also to provide recommendations."
         let source = curatedSource(prose)
