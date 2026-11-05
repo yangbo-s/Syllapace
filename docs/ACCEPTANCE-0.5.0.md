@@ -40,7 +40,7 @@
 
 ## 证据评分与交付
 
-源码与本地候选验收 **95/100**；公开发布回读记录在发布后补齐。
+最终验收 **95/100**。必要检查与独立复核通过，四个公开附件及latest更新源回读验证完成。
 
 | 维度 | 分数 | 证据、限制与后续建议 |
 | --- | --- | --- |
@@ -54,3 +54,21 @@
 本地最终产物：`build/releases/0.5.0-verified/`，四件套完整。`package-verified.log` 证明版本/build、arm64、应用签名、离线资源、ZIP的Ed25519签名、校验和及DMG完整性通过。早先 `build/releases/0.5.0/` 是未发布候选，不能上传。
 
 应用继续使用 ad hoc 签名，未做Apple公证。Vite仍报告已有ReUI sourcemap/`use no memo`与单IIFE包体提示；未隐藏这些提示，不影响构建及实际离线加载验证。
+
+
+## 公开交付记录
+
+[GitHub Release v0.5.0](https://github.com/yangbo-s/Syllapace/releases/tag/v0.5.0) 已于 `2026-11-05T05:30:28Z` 公开并设为latest；源码tag对应 `06eb6fe`。草稿阶段逐件核对服务端大小和SHA-256，发布后使用正式公开URL无认证下载到新临时目录重新验证。
+
+| 附件 | 字节 | SHA-256 |
+| --- | ---: | --- |
+| appcast.xml | 4157 | `a61e3c0f1ce86bb17b5820dcd34331aa5ec1ff61e7ac6c910187f3481c5bc494` |
+| SHA256SUMS | 274 | `ca6a502c0671043e189e4f20e2d8f4f4ce0bbe0fa1a61467ad12417baa7b64c9` |
+| Syllapace-0.5.0-macOS-arm64.dmg | 5237934 | `5d4bc8c784a21c10512508bb9b906bb902bd208fb444f65b97a3cc878c6c1e9b` |
+| Syllapace-0.5.0-macOS-arm64.zip | 5304533 | `52e68f92d7b320d9a7c5989e17ba48335add93d793ef005336968f70ffca7cb1` |
+
+公开回读通过：四件套与本地最终产物逐字节一致；ZIP Ed25519签名与包内公钥匹配；ZIP应用签名、版本/build与离线资源有效；DMG完整性通过，只读挂载后的应用可执行文件与实际自测的构建一致。固定latest URL返回同一个appcast。临时下载目录和挂载点已清理，未执行安装。
+
+正式安装仍为 **0.4.1/build6**，可执行文件SHA-256仍为 `3016681bb55a94164a8f487ebd5f0870e30193e1e9985b3a60b33121be063e95`；发布前后指纹一致。没有更改其偏好、更新检查计时或资料。用户可以自行通过“检查更新”验证0.4.1→0.5.0；本记录不把公开包校验写成本机升级成功。
+
+通知设计依据：[Apple前台反馈建议](https://developer.apple.com/design/human-interface-guidelines/notifications)与[工具栏](https://developer.apple.com/design/human-interface-guidelines/toolbars)。普通导入结果以不打断工作的工具栏反馈呈现，完整消息与撤销按需打开；需要处理的错误保留原生alert。
