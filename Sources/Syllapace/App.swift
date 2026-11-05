@@ -10,7 +10,7 @@ import SyllapaceKit
             ContentView(model: model)
                 .environment(\.locale, L10n.locale)
                 .task { updater.startIfNeeded() }
-                .onOpenURL { url in if url.scheme == "syllapace", url.host == "event" { model.page = .timeline; model.selectedID = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "id" }?.value ?? url.lastPathComponent } }
+                .onOpenURL { url in if url.scheme == "syllapace", url.host == "event" { model.page = .timeline; model.selectedID = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "id" }?.value ?? url.lastPathComponent; if let event = model.selectedEvent { model.editor = event } } }
         }.defaultSize(width: 1120, height: 760)
         .commands {
             CommandGroup(after: .appInfo) {

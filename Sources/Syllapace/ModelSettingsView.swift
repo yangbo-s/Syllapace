@@ -80,6 +80,12 @@ struct ModelSettingsView: View {
                 Toggle(L10n.string("Enter a model identifier manually"), isOn: $manual)
                     .toggleStyle(.checkbox).tint(Palette.actionAccent)
                     .font(.caption)
+                Toggle(L10n.string("Automatically organize course materials"), isOn: $model.automaticCuration)
+                    .onChange(of: model.automaticCuration) { _, enabled in
+                        if !model.isDemo { UserDefaults.standard.set(enabled, forKey: "automaticCuration") }
+                        if enabled { model.scheduleCuration() } else { model.cancelCuration() }
+                    }
+                Text(L10n.string("Selected course materials are sent directly to this model when they change. Relevant dates are added automatically.")).font(.caption).foregroundStyle(.secondary)
                 Button(L10n.string("Save model")) { saveModel() }
                     .disabled(selectedModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.isDemo || model.busy || loading || saving)
                 if let failure {
@@ -89,7 +95,7 @@ struct ModelSettingsView: View {
                 }
             }
             Section {
-                Text(L10n.string("Your key stays in macOS Keychain. Documents go directly to the selected provider only when you choose to extract them."))
+                Text(L10n.string("Your key stays in macOS Keychain. Materials go directly to your provider during automatic organization or when you explicitly use AI. Local-only imports are excluded from automatic requests."))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -213,6 +219,7 @@ struct ModelSettingsView: View {
                 if !draft.key.isEmpty { try await CredentialStore.saveAsync(key, account: draft.account) }
                 guard id == requestID, connection == draft else { return }
                 model.modelProvider = draft.provider
+                model.cancelCuration()
                 model.modelEndpoint = draft.endpoint
                 model.modelWorkspaceID = draft.workspace
                 model.modelName = name
@@ -221,6 +228,7 @@ struct ModelSettingsView: View {
                 UserDefaults.standard.set(draft.workspace, forKey: "modelWorkspaceID")
                 UserDefaults.standard.set(name, forKey: "modelName")
                 apiKey = ""
+                model.scheduleCuration()
                 notice = manual ? L10n.string("Model saved. Availability will be checked when you extract a document.") : L10n.string("Model saved.")
             } catch is CancellationError {
             } catch {

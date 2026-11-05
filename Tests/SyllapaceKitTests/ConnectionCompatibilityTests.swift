@@ -138,7 +138,7 @@ private actor CompatibilityTransport: HTTPTransport {
         #expect(event.kind == .session)
         #expect(event.endsAt?.timeIntervalSince(try #require(event.date)) == 80 * 60)
         #expect(event.location == "Hall 203")
-        #expect(event.state == .pending)
+        #expect(event.state == .approved)
         for invalid in [content.replacingOccurrences(of: "2026-11-20T11:20:00-05:00", with: "2026-11-20T09:20:00-05:00"),
                         content.replacingOccurrences(of: #""location":"Hall 203""#, with: #""location":"Hall 999""#)] {
             #expect(throws: ConnectorError.self) { try LLMClient.parse(content: invalid, source: source, year: 2026, timeZone: "America/New_York") }

@@ -14,7 +14,7 @@ private func temporary() throws -> URL {
     @Test func explicitDateRemainsDateOnly() throws {
         let event = try #require(RuleExtractor.extract(source: source("Midterm exam: November 12, 2026"), year: 2026, timeZone: "America/New_York").first)
         #expect(event.dateOnly)
-        #expect(event.state == .pending)
+        #expect(event.state == .approved)
         #expect(event.title == "Midterm exam")
         #expect(event.date == instant("2026-11-12T17:00:00Z"))
         #expect(event.evidence == "Midterm exam: November 12, 2026")
@@ -24,36 +24,24 @@ private func temporary() throws -> URL {
         #expect(!event.dateOnly)
         #expect(event.date == instant("2026-11-13T04:59:00Z"))
     }
-    @Test func ambiguousNumericDateStaysUnresolved() throws {
-        let event = try #require(RuleExtractor.extract(source: source("Final exam: 03/04"), year: 2026, timeZone: "UTC").first)
-        #expect(event.date == nil)
-        #expect(event.state == .pending)
+    @Test(arguments: [
+        "Final exam: 03/04",
+        "Project released November 12, due November 20",
+        "Assignment due February 30, 2026",
+        "Project due 2026-03-08 02:30",
+        "Project due November 12 11:59 PM PST",
+        "Project due 2026-11-01 01:30"
+    ]) func unresolvedDatesBecomeSourceIssuesWithoutCalendarEntries(_ text: String) {
+        let result = RuleExtractor.curate(source: source(text), year: 2026, timeZone: "America/New_York")
+        #expect(result.events.isEmpty)
+        #expect(result.issues.count == 1)
     }
-    @Test func releaseAndDueDatesAreNotConflated() throws {
-        let event = try #require(RuleExtractor.extract(source: source("Project released November 12, due November 20"), year: 2026, timeZone: "UTC").first)
-        #expect(event.date == nil)
-        #expect(event.evidence.contains("November 20"))
-    }
-    @Test func impossibleDateIsNotNormalized() throws {
-        let event = try #require(RuleExtractor.extract(source: source("Assignment due February 30, 2026"), year: 2026, timeZone: "UTC").first)
-        #expect(event.date == nil)
-    }
-    @Test func nonexistentDSTTimeIsNotInvented() throws {
-        let event = try #require(RuleExtractor.extract(source: source("Project due 2026-03-08 02:30"), year: 2026, timeZone: "America/New_York").first)
-        #expect(event.date == nil)
-    }
-    @Test func conflictingTimeZoneIsNotSilentlyIgnored() throws {
-        let event = try #require(RuleExtractor.extract(source: source("Project due November 12 11:59 PM PST"), year: 2026, timeZone: "America/New_York").first)
-        #expect(event.date == nil)
-    }
-    @Test func repeatedDSTTimeNeedsReview() throws {
-        let event = try #require(RuleExtractor.extract(source: source("Project due 2026-11-01 01:30"), year: 2026, timeZone: "America/New_York").first)
-        #expect(event.date == nil)
-    }
-    @Test func pageEvidenceAndMissingDateSurvive() throws {
-        let event = try #require(RuleExtractor.extract(source: source("[Page 3]\nFinal presentation during week 6"), year: 2026, timeZone: "UTC").first)
-        #expect(event.evidence.hasPrefix("[Page 3]"))
-        #expect(event.date == nil)
+    @Test func pageEvidenceAndMissingDateSurviveInTheSource() {
+        let document = source("[Page 3]\nFinal presentation slides due during week 6")
+        let result = RuleExtractor.curate(source: document, year: 2026, timeZone: "UTC")
+        #expect(document.text.hasPrefix("[Page 3]"))
+        #expect(result.events.isEmpty)
+        #expect(result.issues.count == 1)
     }
     @Test func repeatedTitlesHaveDistinctStableIdentities() {
         let value = source("Quiz: November 5\nQuiz: November 12")

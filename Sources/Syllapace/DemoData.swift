@@ -18,7 +18,7 @@ enum DemoData {
             AcademicEvent(id: "demo2", courseID: "canvas:demo:course:ml", title: "Problem set 04 · Neural networks", date: date(1), dateOnly: false, state: .approved, evidence: "Problem set 04 is due before the end of the day."),
             AcademicEvent(id: "demo3", courseID: "canvas:demo:course:systems", title: "Cache lab", kind: .project, date: date(2), dateOnly: false, state: .approved, evidence: "Cache lab submission deadline."),
             AcademicEvent(id: "demo4", courseID: "canvas:demo:course:design", title: "Prototype walkthrough", kind: .presentation, date: date(4, 0), state: .approved, sourceID: "syllabus", evidence: "Week 11 — Prototype walkthrough. Present the key flow to your studio group."),
-            AcademicEvent(id: "demo5", courseID: "canvas:demo:course:ml", title: "Midterm review", kind: .exam, date: date(6, 0), state: .approved),
+            AcademicEvent(id: "demo5", courseID: "canvas:demo:course:ml", title: "Midterm exam", kind: .exam, date: date(6, 0), state: .approved),
             AcademicEvent(id: "demo6", courseID: "canvas:demo:course:design", title: "Final portfolio hand-in", kind: .project, date: date(14, 0), sourceID: "syllabus", evidence: "Final portfolio hand-in: submit the revised case study and project reflection. Date is tentative; confirm with your instructor."),
             AcademicEvent(id: "demo7", courseID: "canvas:demo:course:ml", title: "Project proposal", kind: .project, date: date(7, 0), state: .conflict, sourceID: "ml-syllabus", evidence: "Project proposal — revised schedule moves the submission to the following week.", previousDate: date(7, 0), proposedDate: date(9, 0)),
             AcademicEvent(id: "demo8", courseID: "canvas:demo:course:systems", title: "Final exam", kind: .exam, evidence: "Final exam date will be announced in class.")
@@ -31,6 +31,18 @@ enum DemoData {
         archive.courseAppearances = ["canvas:demo:course:design": CourseAppearance(mode: .custom, alias: "Interaction Design")]
         archive.academicCalendars = [AcademicCalendarSubscription(id: "demo-school", name: "CMU Academic Calendar", url: AcademicCalendarPreset.cmu.feedURL, termID: term.id)]
         archive.events.append(AcademicEvent(id: "demo-school-event", courseID: "", title: "Registration opens", kind: .academic, date: date(5, 0), state: .approved, academicCalendarID: "demo-school"))
+        archive.events[0].progress = .doing
+        archive.events[0].plannedStart = date(-2, 9)
+        archive.events[2].progress = .doing
+        archive.events[2].plannedStart = date(-1, 9)
+        archive.events[6].userEdited = true
+        archive.events.append(AcademicEvent(id: "demo-done", courseID: "canvas:demo:course:ml", title: "Problem set 03 · Optimization", date: date(-2), dateOnly: false, state: .approved, completed: true))
+        for offset in [0, 2, 5, 7] {
+            archive.events.append(AcademicEvent(id: "demo-lecture-\(offset)", courseID: "canvas:demo:course:systems", title: "Lecture · Virtual memory", kind: .session, date: date(offset, 11), dateOnly: false, state: .approved, evidence: "Lecture 11:00–12:20, Gates 4401.", endsAt: date(offset, 11).addingTimeInterval(80 * 60), location: "Gates 4401"))
+        }
+        for offset in [1, 8] {
+            archive.events.append(AcademicEvent(id: "demo-recitation-\(offset)", courseID: "canvas:demo:course:ml", title: "Recitation · Backpropagation", kind: .session, date: date(offset, 14), dateOnly: false, state: .approved, evidence: "Recitation 14:00–14:50, GHC 4303.", endsAt: date(offset, 14).addingTimeInterval(50 * 60), location: "GHC 4303"))
+        }
         archive.lastSync = .now
         return archive
     }

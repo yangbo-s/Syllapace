@@ -15,6 +15,42 @@ root = Path(__file__).resolve().parent.parent
 output = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else root / '.impeccable/review' / f'review-{time.time_ns()}'
 output.mkdir(parents=True, exist_ok=False)
 languages = [os.environ['APP_LANGUAGE']] if os.environ.get('APP_LANGUAGE') else ['en', 'zh-Hans']
+capture_flags = {key: os.environ.get(key, '0') for key in
+                 ('APP_SNAPSHOT_CONTROLS', 'APP_SNAPSHOT_EMPTY', 'APP_SNAPSHOT_WORKSPACE', 'APP_SNAPSHOT_COPY')}
+if sum(value == '1' for value in capture_flags.values()) > 1:
+    raise ValueError('Choose only one snapshot mode: CONTROLS, EMPTY, WORKSPACE, or COPY')
+
+
+def expected_names():
+    appearances = ('light', 'dark')
+    views = ('list', 'kanban', 'gantt', 'calendar')
+    if capture_flags['APP_SNAPSHOT_COPY'] == '1':
+        return {f'{name}-{mode}.png' for name in ('settings-1', 'desktop', 'desktop-expanded') for mode in appearances}
+    if capture_flags['APP_SNAPSHOT_CONTROLS'] == '1':
+        return {f'course-scope-{width}-{mode}.png' for width in (940, 1120) for mode in appearances}
+    if capture_flags['APP_SNAPSHOT_WORKSPACE'] == '1':
+        # 16 regular/narrow views + 6 empty/course/academic states = 22 per language.
+        return ({f'workspace-{view}-{width}-{mode}.png'
+                 for view in views for width in (1120, 940) for mode in appearances}
+                | {f'workspace-list-{state}-{mode}.png'
+                   for state in ('empty', 'course', 'academic') for mode in appearances})
+    if capture_flags['APP_SNAPSHOT_EMPTY'] == '1':
+        return ({f'empty-{page}-{width}-{mode}.png'
+                 for page in ('workspace-list', 'review', 'sources', 'course')
+                 for width in (940, 1280) for mode in appearances}
+                | {f'settings-canvas-{mode}.png' for mode in appearances})
+    # Six pages/views + eighteen sheets/panels/settings, twice, plus three edge states = 51.
+    per_appearance = ([f'workspace-{view}' for view in views]
+                      + ['review', 'sources', 'editor', 'session-editor', 'import',
+                         'import-1', 'import-2', 'import-3', 'course-display', 'source-reader',
+                         'course-scope', 'course-scope-narrow', 'desktop', 'desktop-expanded',
+                         'settings-3', 'settings-0', 'settings-1', 'settings-4', 'settings-2',
+                         'school-search'])
+    return ({f'{name}-{mode}.png' for name in per_appearance for mode in appearances}
+            | {'course-empty-dark.png', 'review-narrow-dark.png', 'empty-dark.png'})
+
+
+expected = expected_names()
 
 with tempfile.TemporaryDirectory(prefix='syllapace-window-review-', dir='/tmp') as temporary:
     app = Path(temporary) / 'Syllapace Preview.app'
@@ -33,9 +69,9 @@ with tempfile.TemporaryDirectory(prefix='syllapace-window-review-', dir='/tmp') 
             command = ['open', '-W', '-n', '-a', str(app), '--stderr', str(log), '--stdout', str(log)]
             for key, value in {
                 'APP_DEMO': '1', 'APP_STORE': str(Path(temporary) / f'{language}.json'),
-                'APP_SNAPSHOT': str(shots), 'APP_SNAPSHOT_EMPTY': '0',
+                'APP_SNAPSHOT': str(shots),
                 'APP_SNAPSHOT_EXTERNAL': '1', 'APP_LANGUAGE': language, 'APP_SNAPSHOT_WAIT': '1',
-                'APP_SNAPSHOT_CONTROLS': os.environ.get('APP_SNAPSHOT_CONTROLS', '0'),
+                **capture_flags,
             }.items():
                 command += ['--env', f'{key}={value}']
             command += ['--args', '-appLanguage', language]
@@ -55,16 +91,17 @@ with tempfile.TemporaryDirectory(prefix='syllapace-window-review-', dir='/tmp') 
                     subprocess.run(['/usr/sbin/screencapture', '-x', '-o', '-l', window_id, str(png)], check=True)
                 # Activation from the launching process is more reliable than a
                 # background app asking to activate itself on recent macOS.
-                if time.monotonic() - last_capture > 10 and 'SNAPSHOT done' not in log.read_text():
+                if time.monotonic() - last_capture > 10 and 'SNAPSHOT done' not in (log.read_text() if log.exists() else ''):
                     subprocess.run(['open', '-a', str(app)], check=True)
                     last_capture = time.monotonic()
                 time.sleep(0.05)
             report = log.read_text()
             if process.returncode or 'SNAPSHOT done' not in report or 'Capture failed' in report or 'fallback' in report:
                 raise RuntimeError(report)
-            expected = 4 if os.environ.get('APP_SNAPSHOT_CONTROLS') == '1' else 47
-            assert len(list(shots.glob('*.png'))) == expected, 'Missing native screenshots'
-            print(f'{language}: {expected} active native windows captured in {shots}', flush=True)
+            actual = {path.name for path in shots.glob('*.png')}
+            if actual != expected:
+                raise RuntimeError(f'Screenshot set differs: missing={sorted(expected - actual)}, unexpected={sorted(actual - expected)}')
+            print(f'{language}: {len(expected)} active native windows captured in {shots}', flush=True)
     finally:
         # The exact temporary executable is ours; never quit the installed app.
         found = subprocess.run(['pgrep', '-f', re.escape(str(app / 'Contents/MacOS/Syllapace'))], capture_output=True, text=True)

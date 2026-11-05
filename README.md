@@ -2,17 +2,17 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-A native macOS semester planner for Canvas courses, academic calendars, classes, and deadlines. Import documents, text, or links; bring your own AI key; and keep confirmed dates in Apple Calendar.
+A local macOS semester planner that turns Canvas courses and your materials into organized classes, deadlines, and exams. Bring your own AI key and work across List, Board, Gantt, and Calendar views.
 
-Syllapace runs on your Mac. Connect your own Canvas account, choose the semester and courses you want to see, and review dates alongside their source text. Bring your own model API key for optional extraction, and keep confirmed events in Apple Calendar. A compact desktop card puts upcoming work within reach.
+Connect your own Canvas account and choose the semester and courses you want. AI filters irrelevant prose, organizes supported dates, and adds them automatically; source evidence stays available. A native SwiftUI shell hosts a bundled React/ReUI workspace in WebKit, while Swift handles storage, credentials, integrations, and the desktop card. There is no Syllapace server.
 
-This is an early release. See [acceptance evidence](docs/ACCEPTANCE.md) for automated checks, live integration results, and remaining verification limits.
+This is an early release. See [acceptance evidence](docs/ACCEPTANCE-0.4.0.md) for automated checks, live integration results, and remaining verification limits.
 
 ## Install
 
 Download the **DMG** from [GitHub Releases](https://github.com/yangbo-s/Syllapace/releases), drag Syllapace to Applications, and open it there. Syllapace supports **Apple Silicon and macOS 26+**. A ZIP and SHA-256 checksums are also provided.
 
-The package is ad hoc signed and **not notarized by Apple**. If macOS blocks the first launch, use [Apple's per-app opening instructions](https://support.apple.com/en-us/102445) after checking the source and checksum; see the [release notes](docs/releases/0.3.0.md). An update signature protects subsequent downloads, but does not replace Apple notarization.
+The package is ad hoc signed and **not notarized by Apple**. If macOS blocks the first launch, use [Apple's per-app opening instructions](https://support.apple.com/en-us/102445) after checking the source and checksum; see the [release notes](docs/releases/0.4.0.md). An update signature protects subsequent downloads, but does not replace Apple notarization.
 
 ## Language and updates
 
@@ -26,7 +26,8 @@ Requirements:
 
 - macOS 26 or later.
 - Xcode 26 or later with a Swift 6.2+ toolchain and Apple asset compilation tools. Command Line Tools alone may select an older Swift version.
-- Swift Package Manager downloads the pinned Sparkle 2.10.1 dependency. No hosted Syllapace service is required.
+- Node.js 22.13+ LTS or 24+, and npm for building the bundled workspace. The build runs `npm ci` when dependencies or the lockfile change, then compiles React, TypeScript, and Tailwind.
+- Swift Package Manager downloads the pinned Sparkle 2.10.1 dependency. The installed app needs neither Node.js nor a local web server.
 
 From the repository root:
 
@@ -34,7 +35,7 @@ From the repository root:
 ./build.sh --open
 ```
 
-The script creates `build/Syllapace.app`, embeds Sparkle and localization resources, compiles the icon, and signs the bundle ad hoc by default. Use `./build.sh --debug --open` for a faster development build. It defaults to the toolchain in `/Applications/Xcode.app`; set `DEVELOPER_DIR` if Xcode is installed elsewhere. Set `SIGN_IDENTITY` to a suitable local signing identity if desired. This build is not notarized. See [release maintenance](docs/RELEASING.md) for archive signing, packaging and publishing. Fork maintainers must use their own feed and update-signing key.
+The script creates `build/Syllapace.app`, embeds the static workspace, Sparkle, localizations, and third-party notices, compiles the icon, and signs the bundle ad hoc by default. It does not install over your existing copy. Use `./build.sh --debug --open` for a faster development build. It defaults to the toolchain in `/Applications/Xcode.app`; set `DEVELOPER_DIR` if Xcode is installed elsewhere. Set `SIGN_IDENTITY` to a suitable local signing identity if desired. This build is not notarized. See [release maintenance](docs/RELEASING.md) for archive signing, packaging and publishing. Fork maintainers must use their own feed and update-signing key.
 
 To inspect the interface with fictional courses and deadlines:
 
@@ -44,19 +45,34 @@ To inspect the interface with fictional courses and deadlines:
 
 Demo events are generated in memory and are not saved to your real library. Canvas, model extraction, EventKit access and update checks are disabled in demo mode. Quit the demo and open the app normally to configure your own workspace.
 
+## One workspace, four views
+
+The default course workspace admits three categories: **class meetings**, **submission deadlines**, and **exams/quizzes**. Lecture, Recitation, Lab, recurring Demo, Homework, Project, Midterm, and Final retain their specific meaning. Grading rubrics, learning objectives, grade announcements, and general prose remain source material rather than calendar events.
+
+| View | Purpose |
+| --- | --- |
+| List | Scan and filter events by course, type, date, and progress. |
+| Board | Move submission tasks between To do, In progress, and Done. Classes and exams remain in the other views. |
+| Gantt | Plan work around submission deadlines and assessments. Classes are available through the event-type filter. Without a work plan or source duration, an event stays a milestone. |
+| Calendar | See actual classes, deadlines, and assessments across month, week, or day. |
+
+These views share one native library. **Due soon** and **Overdue** are derived from time, separate from task progress. **Start work** adds your planned start; adjusting a plan does not move the source deadline. Completed tasks remain available through the Done filter. School calendars appear as a separate layer only when selected in the sidebar.
+
+The former mandatory Review queue is now **Needs information**: only missing facts, failed organization, or source changes overlapping your edits need attention. A successful AI result enters the workspace without a per-event approval step.
+
 ## Add documents, text, or links
 
 1. Choose **File → Add Material…** (`⌘O`). Add up to ten files, paste text, or enter a public link.
 2. Choose the course or academic calendar, year, and time zone. You can create a local course in the same sheet.
-3. Enable **Use AI** to parse with your selected provider and optional instructions, such as “Only deadlines for Fall 2026.” Leave it off for local rule extraction.
-4. Choose **Parse & preview**. Check each candidate against the original evidence, edit uncertain dates, and select what to add. Only selected, confirmed events enter the timeline; materials can also be saved without events.
+3. Enable **Use AI** to organize with your selected provider and optional instructions, such as “Only deadlines for Fall 2026.” Leave it off for conservative local extraction; that material stays excluded from automatic model requests, including after a source refresh.
+4. Choose **Organize & add**. Supported, relevant events are added automatically. Partial failures keep the material and results in the sheet so you can retry or keep the successful portion; you do not need to approve every date.
 5. Use **Undo import** to undo the last committed import while preserving later edits. Existing Calendar edits remain protected by the usual conflict checks.
 
 Supported files include text-based PDF, DOCX, XLSX, CSV, UTF-8 TXT, Markdown, and HTML. XLSX import reads cell values, shared strings, sheets, date serials, and stored formula results; it never calculates formulas or follows spreadsheet links. Scanned PDFs still require OCR elsewhere. [`fixtures/syllabus.md`](fixtures/syllabus.md) is a synthetic example.
 
-Public pages, PDF links, and public Google Sheets can be read without a browser session. For a private page or spreadsheet, paste the relevant text or import an exported file. Local rule extraction preserves date-only events and leaves ambiguity for review. Source changes do not silently replace approved dates or user edits.
+Public pages, PDF links, and public Google Sheets can be read without a browser session. For a private page or spreadsheet, paste the relevant text or import an exported file. Unknown dates remain source-linked issues rather than invented calendar entries.
 
-**Sources → Extract** remains available for an already saved source; those results enter Review. Model parsing is always an explicit action.
+Use **Sources → Organize** to run the selected model again on a saved course source. Automatic organization also processes changed course materials while enabled. Reorganization preserves manual edits and rejections, reconciles matching observations, and offers **Undo reorganization** for the latest batch in the current session. Evidence-supported source changes can update machine-managed events; changes that overlap your edits need resolution.
 
 ## Connect Canvas
 
@@ -65,11 +81,11 @@ Public pages, PDF links, and public Google Sheets can be read without a browser 
 3. Choose a semester, check the courses you want, and select **Save & sync**. Course content is fetched only after this selection. Portal and other course spaces without a named semester are optional.
 4. Change the selection through the semester menu in the sidebar or **Settings → Canvas → Manage courses…**.
 
-The selected courses determine what appears in Today, Timeline, Review, Sources, search, and the desktop card, as well as new EventKit writes and ICS exports. Switching semesters keeps historical data and previously exported Calendar events. Personal and manually imported courses remain available. Upgrading an existing library asks you to choose a Canvas scope before resuming content sync.
+The selected courses determine what appears in the workspace, Needs information, Sources, search, and the desktop card, as well as new EventKit writes and ICS exports. Switching semesters keeps historical data and previously exported Calendar events. Personal and manually imported courses remain available. Upgrading an existing library asks you to choose a Canvas scope before resuming content sync.
 
 Keep the saved address spelling consistent: credentials are stored in macOS Keychain under the configured address. Changing the address requires saving a token for that address. Leave the token field blank to retain the saved credential for the current address. Keychain authorization runs asynchronously so the app can remain responsive while macOS asks for access.
 
-For selected courses, the connector reads Assignments and submission/grade state, course Calendar events, inline syllabus HTML, Announcements, Modules, the front page, and referenced Pages and attachments. Classic Quizzes and quiz-linked Assignments are associated by Canvas IDs to avoid duplicate items; New Quizzes coverage uses the information available through Canvas Assignments. Class sessions, assignments, projects, quizzes, exams, and presentations have separate event types. Timed events retain an explicit end time and location when supplied. Grades and submission states remain attached to the task.
+For selected courses, the connector reads Assignments and submission/grade state, course Calendar events, inline syllabus HTML, Announcements, Modules, the front page, and referenced Pages and attachments. Classic Quizzes and quiz-linked Assignments are associated by Canvas IDs to avoid duplicate items; New Quizzes coverage uses the information available through Canvas Assignments. Course events are organized into class meetings, submission deadlines, and exams/quizzes, retaining subtypes such as Lecture, Recitation, Project, and Midterm. Timed events retain an explicit end time and location when supplied. Grades and submission states remain attached to the task; grade-release notices do not become separate schedule entries.
 
 **Sources** preserves text and links from course materials. Referenced attachments and likely syllabus/schedule files can be imported explicitly. A hidden or inaccessible Files directory does not prevent other accessible sources from syncing; individual attachments still require permission.
 
@@ -89,17 +105,19 @@ Open **Settings → Models**:
 
 Anthropic uses its native Messages API with a JSON schema; an optional Workspace ID is available for keys that require it. OpenAI, DeepSeek, and custom services use chat completions with JSON response format. Known non-text model families are excluded from the list. A listed model can still have account-specific access or API compatibility restrictions; list retrieval does not run a paid generation. The existing endpoint and Keychain account are retained when upgrading an older custom configuration.
 
-The adapter gives models no tools and validates returned fields, dates, and evidence against the selected source. Materials and your optional instructions go directly to your chosen provider only after you request extraction; no Canvas token is included. Matched evidence does not prove the date was interpreted correctly, so review candidates before confirmation. Provider usage may incur charges under your own account.
+**Automatically organize course materials** is enabled by default in Models settings. Once a model and key are configured, eligible saved materials for the selected courses can be sent directly to that provider after launch, sync, or import. Material imported with **Use AI** off is excluded. Explicitly organizing that source permits that operation without enabling later automatic uploads. Turn the setting off to stop background organization; explicit **Organize** and **Use AI** imports remain available. Provider usage may incur charges under your own account.
+
+The adapter gives models no tools and validates returned fields, dates, and verbatim evidence. It filters irrelevant text and normalizes titles before merging accepted events. A fingerprint of the source, model configuration, date range, and curation version skips unchanged successful work. Missing dates and unresolved conflicts remain in **Needs information**, with the source available. Evidence checks reduce errors but do not guarantee correct semantic interpretation; events remain editable and the latest reorganization is undoable. Canvas tokens are never included in model requests.
 
 For compatible chat endpoints, recognized reasoning models use `max_completion_tokens` without `temperature`; a definite unsupported-parameter error permits one compatibility retry. Authentication, rate-limit, network, and incomplete-generation errors are not automatically retried. Plain HTTP endpoints and providers requiring a different protocol are not supported.
 
 ## Academic calendars
 
-Open **Settings → Academic calendars** to add an ICS subscription or a calendar based on imported documents. Give it a name, semester, time zone, and date range, then save it. **Sync dates** fetches a saved ICS subscription on request. You can also choose **Import calendar document…** to parse a PDF, spreadsheet, text, or public link with the same evidence-review workflow.
+Open **Settings → Academic calendars** to add an ICS subscription or a calendar based on imported documents. Give it a name, semester, time zone, and date range, then save it. **Sync dates** fetches a saved ICS subscription on request. You can also choose **Import calendar document…** to parse a PDF, spreadsheet, text, or public link with the same material workflow.
 
 A **CMU Academic Calendar** preset links to the official feed and the 2026–2027 PDF. The feed may contain only upcoming dates; the full-year document can fill gaps. Check the source’s campus and program coverage before relying on it.
 
-Academic milestones and holidays have their own event types and sidebar group. They stay distinct from classes, assignments, and projects. A holiday never automatically cancels a class meeting. Supported ICS recurrence rules expand only inside the chosen range; unsupported rules or ambiguous times produce warnings instead of guessed dates. Missing or source-cancelled items preserve saved history for review. ICS subscriptions are read into Syllapace, not installed as an Apple Calendar subscription URL.
+Academic milestones and holidays have their own sidebar group. The main course workspace excludes them by default; select an academic calendar explicitly to view that separate layer. A holiday never automatically cancels a class meeting. Supported ICS recurrence rules expand only inside the chosen range; unsupported rules or ambiguous times produce warnings instead of guessed dates. Missing or source-cancelled items preserve saved history for review. ICS subscriptions are read into Syllapace, not installed as an Apple Calendar subscription URL.
 
 ## Customize course names
 
@@ -121,7 +139,7 @@ Portable `.ics` export is also available from the File menu (`⇧⌘E`) or Calen
 
 ## Desktop card and shortcuts
 
-Show the desktop card with `⇧⌘D` or the menu bar item. Its compact view separates **Next class** from **Next deadline**; expand it to see the next seven days. Drag its background to move it, use the menu to pin it above windows, lock its position, or snap to screen edges, and click an event to open the timeline. The card follows your chosen semester and courses. This release ships an AppKit desktop panel; a WidgetKit extension in the macOS widget gallery is deferred.
+Show the desktop card with `⇧⌘D` or the menu bar item. Its compact view separates **Next class** from **Next deadline**; expand it to see the next seven days. Drag its background to move it, use the menu to pin it above windows, lock its position, or snap to screen edges, and click an event to open the workspace. The card follows your chosen semester and courses. This release ships an AppKit desktop panel; a WidgetKit extension in the macOS widget gallery is deferred.
 
 | Action | Shortcut |
 | --- | --- |
@@ -134,9 +152,9 @@ Show the desktop card with `⇧⌘D` or the menu bar item. Its compact view sepa
 
 ## Data and privacy
 
-The library is an atomically written JSON archive at `~/Library/Application Support/Syllapace/archive.json`. `archive.json.backup` retains the previous readable archive. Version 0.3.0 reads schema-1 and schema-2 libraries and writes schema 3 on the next successful save, keeping a one-time `archive.json.schema-<old-version>.backup` as well as the rolling backup. Older versions cannot read schema 3; preserve the backup before attempting a downgrade. EventKit bindings are stored separately in `calendar-mapping.json` alongside it. Credentials are in Keychain; connection addresses and nonsecret preferences use UserDefaults.
+The library is an atomically written JSON archive at `~/Library/Application Support/Syllapace/archive.json`. `archive.json.backup` retains the previous readable archive. Version 0.4.0 reads schema-1 through schema-3 libraries and writes schema 4 on the next successful save, keeping a one-time `archive.json.schema-<old-version>.backup` as well as the rolling backup. Existing completion flags are retained, with added task progress, planned starts, and curation records. Older versions cannot read schema 4; preserve the backup before attempting a downgrade. EventKit bindings are stored separately in `calendar-mapping.json` alongside it. Credentials are in Keychain; connection addresses and nonsecret preferences use UserDefaults.
 
-Imported text and evidence are stored locally without additional application-level encryption. Original local documents remain where you selected them. Downloaded temporary files are cleaned up after ingestion. No Syllapace account, telemetry service, or backend is required. A model request sends the selected source text and any extraction instructions to the provider you configured. School search sends a school-name query to Instructure; model discovery sends your key only to the configured provider. Public document and academic-calendar requests use no Canvas or model credentials.
+Imported text and evidence are stored locally without additional application-level encryption. Original local documents remain where you selected them. Downloaded temporary files are cleaned up after ingestion. No Syllapace account, telemetry service, or backend is required. Automatic organization and explicit AI imports send the applicable source text and any extraction instructions directly to the provider you configured. The WebKit workspace receives display data and sends finite native commands; it has no Canvas token or model key, loads only bundled UI resources, and does not run a second database. School search sends a school-name query to Instructure; model discovery sends your key only to the configured provider. Public document and academic-calendar requests use no Canvas or model credentials.
 
 Set `APP_STORE` to an alternate archive path for isolated development runs. If the archive is corrupt or has an unknown schema, the app reports it and refuses to overwrite it. Back up the application-support directory before manually restoring files; a calendar mapping should not be discarded casually, because it preserves event ownership and duplicate prevention.
 
@@ -146,25 +164,28 @@ Build before running application-level scripts:
 
 ```sh
 ./tools/test.sh        # Swift Testing: domain, documents, connectors, calendar sync planner
-./tools/selftest.sh    # Application import/review/change/persistence flow in a temporary store
-./tools/snap.sh        # Light/dark application captures with synthetic data
+./tools/selftest.sh    # Application curation/commands/undo/persistence in a temporary store
+npm --prefix Web test # Workspace views, filters, progress, and planning
+python3 tools/snap-review.py build/verification/visual-review # Both languages, light/dark
+# Focused workspace matrix (use a fresh output directory):
+APP_SNAPSHOT_WORKSPACE=1 python3 tools/snap-review.py build/verification/workspace-review
 ./tools/grid-lint.sh   # SwiftUI spacing checks
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift tools/check-layout.swift .impeccable/review/*-layout.json
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift tools/check-layout.swift build/verification/visual-review/*/*-layout.json
 ```
 
-Snapshots and actual-window layout measurements are written to `.impeccable/review/`. Set `APP_LAYOUT_ONLY=1` when running `tools/snap.sh` to refresh measurements without replacing screenshots. Native Settings forms use system layout and are not probed; the checker measures the custom content, inspector, import/editor sheets and desktop card. The snapshot runner captures the app's own windows. Screen Recording permission may be required for faithful window captures; a logged `view-render fallback` does not verify native materials or active window chrome.
+The review runner uses an isolated app copy and temporary data, leaving the installed version untouched. Full review expects 51 screenshots per language; workspace-only review expects 22, covering four views, two sizes, both appearances, empty data, a course filter, and the academic-calendar layer. It waits for the matching WebKit snapshot and fails on loading errors rather than capturing a placeholder. Native Settings forms use system layout; grid probes cover custom native surfaces, while WebKit layout is reviewed from real window captures. Use the emitted `*-layout.json` paths with the layout checker. The runner captures only the app's own windows. Screen Recording permission may be required for faithful window captures; a logged `view-render fallback` does not verify native materials or active window chrome.
 
-The tests use synthetic PDFs/DOCX documents, mocked network responses, and calendar snapshots. They do not request real credentials or write to your actual calendars. See [engineering requirements](docs/ENGINEERING.md), [EventKit decision](docs/decisions/0001-apple-calendar-eventkit.md), and [acceptance evidence](docs/ACCEPTANCE.md).
+The tests use synthetic PDFs/DOCX documents, mocked network responses, and calendar snapshots. They do not request real credentials or write to your actual calendars. See [engineering requirements](docs/ENGINEERING.md), [EventKit decision](docs/decisions/0001-apple-calendar-eventkit.md), and [acceptance evidence](docs/ACCEPTANCE-0.4.0.md).
 
 ## Current limits
 
 - Import limits: 20 MB per document, 150 PDF pages, and 2 MB extracted text. Scanned/image-only PDFs need OCR elsewhere first. Complex PDF layouts can lose reading order; DOCX parsing preserves basic row/cell associations rather than visual layout.
-- Each model extraction accepts up to 64,000 Swift string characters of source text, 2,000 instruction characters, and up to 300 returned candidates. It requires a compatible HTTPS provider. Larger files may be stored locally but must be shortened for model extraction.
-- File discovery follows accessible course references and syllabus/schedule-style filenames. Files and public external links are explicitly imported; previously downloaded documents are not automatically re-downloaded on every Canvas refresh. Import a revised source again to review its changes.
+- Each model extraction accepts up to 64,000 Swift string characters of source text, 2,000 instruction characters, and up to 300 returned structured entries before bounded recurrence expansion. It requires a compatible HTTPS provider. Larger files may be stored locally but must be shortened for model extraction.
+- File discovery follows accessible course references and syllabus/schedule-style filenames. Files and public external links are explicitly imported; previously downloaded documents are not automatically re-downloaded on every Canvas refresh. Import a revised source again to process its changes.
 - Canvas access depends on course configuration and your account permissions. Private Google Sheets, Piazza posts, complete Gradescope content, and New Quizzes question content are outside the current connector coverage.
-- Structured ICS recurrence is bounded to the selected date range, with warnings for unsupported rules. Recurring class timetables in prose are not automatically expanded, and holidays do not automatically remove course sessions.
+- Structured ICS recurrence is bounded to the selected date range. AI can identify weekly class schedules in prose; native code expands only explicitly supported weekdays/times within known course or source dates. A semester name alone is not enough to infer its boundaries. Missing ranges, unsupported rules, or ambiguous daylight-saving times produce issues. Holidays do not automatically cancel classes.
 - Rule extraction is conservative, primarily for English academic event wording and explicit dates. It is not a complete multilingual date parser.
-- Similar cross-source titles are flagged for review; the app does not prove two differently named milestones are the same event.
+- Reconciliation combines matching observations and protects your edits, but cannot prove that differently named items are the same event. AI interpretation is not guaranteed; unresolved dates remain outside the schedule instead of being guessed.
 - The app has no unattended background agent, OAuth setup, OCR, Windows build, or other-LMS integration.
 - Runtime permission flows, account-specific Canvas permissions, provider compatibility, and real Calendar synchronization still require user-configured live checks.
 
@@ -174,6 +195,6 @@ The course-page and date mark is available as transparent [SVG files](Brand/READ
 
 ## Project layout
 
-`Sources/SyllapaceKit/` contains domain models, persistence, parsing, reconciliation, connectors, ICS export, and the pure calendar synchronization planner. `Sources/Syllapace/` contains SwiftUI views, application state, the desktop panel, and the EventKit adapter. `Tests/SyllapaceKitTests/` exercises the core boundaries with synthetic fixtures.
+`Sources/SyllapaceKit/` contains domain models, persistence, parsing, reconciliation, connectors, ICS export, and the pure calendar synchronization planner. `Sources/Syllapace/` contains the SwiftUI shell, WebKit bridge, application state, desktop panel, and EventKit adapter. `Web/` contains the bundled React/Tailwind workspace and reused ReUI/shadcn components. `Tests/SyllapaceKitTests/` exercises the core boundaries with synthetic fixtures.
 
-The desktop interaction takes inspiration from [Still Today](https://github.com/OyangDer/still-today). This is a new native Swift implementation; it does not embed the upstream Svelte/Tauri interface.
+The desktop interaction takes inspiration from [Still Today](https://github.com/OyangDer/still-today). The desktop panel is implemented in Swift/AppKit and does not embed the upstream Svelte/Tauri interface. The main workspace reuses MIT-licensed [ReUI](https://reui.io/) components; license notices travel with the app.

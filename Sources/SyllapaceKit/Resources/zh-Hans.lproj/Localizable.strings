@@ -150,7 +150,7 @@
 "Not connected" = "未连接";
 "OK" = "好";
 "Open original" = "打开原始来源";
-"Open timeline" = "打开时间线";
+"Open workspace" = "打开工作区";
 "Or create a course" = "或创建新课程";
 "Other" = "其他";
 "PDF, DOCX, Markdown or text. Files are processed locally; AI extraction is a separate action." = "支持 PDF、DOCX、Markdown 或文本。文件在本机处理；AI 提取需要另行操作。";
@@ -470,10 +470,10 @@
 "Use address" = "使用地址";
 "Use default" = "使用默认设置";
 "Use your school’s Canvas address, not its general website." = "请填写学校的 Canvas 地址，而非学校主页地址。";
-"Workspace" = "Workspace";
+"Workspace" = "工作区";
 "Workspace ID (optional)" = "Workspace ID（选填）";
 "Year: %@" = "年份：%@";
-"Your key stays in macOS Keychain. Documents go directly to the selected provider only when you choose to extract them." = "密钥保存在 macOS Keychain 中。只有在你选择解析时，文档才会直接发送给所选提供商。";
+"Your key stays in macOS Keychain. Materials go directly to your provider during automatic organization or when you explicitly use AI. Local-only imports are excluded from automatic requests." = "密钥保存在 macOS Keychain 中。自动整理或你明确使用 AI 时，资料会直接发送给所选提供商；仅在本地处理的导入资料不会自动上传。";
 "Your timeline changed. Go back and preview again before importing." = "时间线已发生变化。请返回重新预览后再导入。";
 
 "%ld candidate events" = "%ld 项候选日程";
@@ -483,3 +483,41 @@
 "The source cancelled or changed this occurrence. Review the original calendar before keeping this date." = "来源已取消或更改此日程。请核对原始校历，再决定是否保留日期。";
 
 "Model settings changed. Preview the materials again." = "模型设置已改变，请重新预览资料。";
+
+/* Curated workspace */
+"Needs information" = "需要补充";
+"Stop" = "停止";
+"Undo reorganization" = "撤销整理";
+"Organize with AI" = "用 AI 整理";
+"Organize" = "整理";
+"Organize relevant dates with your selected model" = "使用所选模型整理相关日程";
+"Automatically organize course materials" = "自动整理课程资料";
+"Selected course materials are sent directly to this model when they change. Relevant dates are added automatically." = "所选课程资料发生变化时，会直接发送给此模型；相关日程将自动加入。";
+"All organized" = "已整理完毕";
+"Relevant dates are added automatically. Only unresolved details appear here." = "相关日程会自动加入，这里只显示尚缺少的信息。";
+"Retry" = "重试";
+"Resolve" = "处理";
+"A source change overlaps your edit." = "来源更新与你的修改存在冲突。";
+"Organized dates" = "整理结果";
+"Organize & add" = "整理并添加";
+"Organize sends these materials to your selected model. Relevant dates are added automatically; you can undo the import." = "资料将发送给所选模型，相关日程会自动加入；导入后可以撤销。";
+"Local parsing keeps explicit actionable dates. Connect a model for semantic filtering and recurring schedules." = "本地解析保留明确的日程。连接模型后，可进行语义筛选和周期课表整理。";
+"Material saved. AI will organize relevant dates automatically." = "资料已保存，AI 将自动整理相关日程。";
+"Materials are saved. Choose a model in Settings to organize them automatically." = "资料已保存。请在设置中选择模型，以自动整理日程。";
+"Materials are saved. Add your model API key in Settings to organize them." = "资料已保存。请在设置中填写模型 API key，以整理日程。";
+"Organizing course materials…" = "正在整理课程资料…";
+"Organizing material %ld of %ld…" = "正在整理资料 %ld / %ld…";
+"Course dates organized. You can undo this reorganization." = "课程日程已整理，可以撤销本次整理。";
+"Reorganization undone. Later edits were kept." = "已撤销整理，之后的修改已保留。";
+"This task is no longer available in the selected courses." = "当前所选课程中已找不到此任务。";
+"This task changed. The latest version has been loaded; try again." = "任务已发生变化，已载入最新版本，请重试。";
+"Could not save changes. Try again." = "无法保存修改，请重试。";
+"Only dated tasks can have a work plan." = "只有已确定日期的任务才能设置计划。";
+"The planned start must be before the deadline." = "计划开始时间必须早于截止时间。";
+"This event is no longer available." = "此日程已不存在。";
+"No web source is available for this event." = "此日程没有可打开的网页来源。";
+
+"Course settings changed. Organize these materials again." = "课程设置已变化，请重新整理这些资料。";
+
+"Course or model settings changed. Organize these materials again." = "课程或模型设置已变化，请重新整理这些资料。";
+"This event changed while you were editing. Close and reopen it to load the latest version. Your draft has not been saved." = "编辑期间，这项日程已更新。请关闭后重新打开，以载入最新内容；当前草稿尚未保存。";

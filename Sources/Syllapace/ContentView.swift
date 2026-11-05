@@ -4,6 +4,7 @@ import SyllapaceKit
 struct ContentView: View {
     @AppStorage(L10n.preferenceKey) private var languagePreference = AppLanguage.system.rawValue
     @Bindable var model: AppModel
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openSettings) private var openSettings
     @Environment(\.openWindow) private var openWindow
     var body: some View {
@@ -16,19 +17,28 @@ struct ContentView: View {
                 if model.isDemo {
                     HStack { Label(L10n.string("Demo workspace"), systemImage: "sparkle"); Spacer(); Text(L10n.string("Sample courses · accounts disconnected")) }.font(.caption).foregroundStyle(.secondary).padding(.horizontal, 28).padding(.vertical, 8).background(Palette.accent.opacity(0.07))
                 }
-                HStack(spacing: 0) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        heading.gridProbe("heading", area: "content-column")
-                        if model.page == .sources { SourcesView(model: model) }
-                        else { eventList }
-                    }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).gridArea("content-column", inset: 0)
-                    if let event = model.selectedEvent, model.page != .sources {
-                        Divider()
-                        EventInspector(model: model, event: event).frame(width: 292)
-                    }
+                if model.page == .sources {
+                    heading
+                    SourcesView(model: model)
+                } else if model.page == .review {
+                    CurationIssuesView(model: model)
+                } else {
+                    TimelineView(.periodic(from: .now, by: 60)) { _ in
+                        WorkspaceWebView(snapshot: model.workspaceSnapshot(dark: colorScheme == .dark)) { command in
+                            await model.handleWorkspace(command, dark: colorScheme == .dark)
+                        }
+                    }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                if let status = model.curationStatus {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text(status).font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button(L10n.string("Stop")) { model.cancelCuration() }.buttonStyle(.borderless)
+                    }.padding(12)
                 }
                 if let notice = model.notice {
-                    HStack(alignment: .top, spacing: 8) { Image(systemName: "info.circle"); ScrollView { Text(notice).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 80); Spacer(); if model.lastImportUndo != nil { Button(L10n.string("Undo import")) { model.undoImport() }.disabled(model.busy) }; Button { model.notice = nil } label: { Image(systemName: "xmark") }.buttonStyle(.plain).help(L10n.string("Dismiss message")) }.font(.caption).foregroundStyle(.secondary).padding(12).background(.quaternary.opacity(0.35))
+                    HStack(alignment: .top, spacing: 8) { Image(systemName: "info.circle"); ScrollView { Text(notice).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 80); Spacer(); if model.lastCurationUndo != nil { Button(L10n.string("Undo reorganization")) { model.undoCuration() } }; if model.lastImportUndo != nil { Button(L10n.string("Undo import")) { model.undoImport() }.disabled(model.busy) }; Button { model.notice = nil } label: { Image(systemName: "xmark") }.buttonStyle(.plain).help(L10n.string("Dismiss message")) }.font(.caption).foregroundStyle(.secondary).padding(12).background(.quaternary.opacity(0.35))
                 }
             }
             .background(Palette.canvas)
@@ -49,6 +59,7 @@ struct ContentView: View {
         .sheet(isPresented: $model.showImport) { ImportSheet(model: model) }
         .sheet(isPresented: $model.showCourseSelection) { CourseScopeView(model: model) }
         .alert(L10n.string("Something needs attention"), isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button(L10n.string("OK")) { model.error = nil } } message: { Text(model.error ?? "") }
+        .onChange(of: model.showImport) { _, showing in if showing { model.cancelCuration() } else { model.scheduleCuration() } }
         .onChange(of: model.page) { _, _ in if !model.events.contains(where: { $0.id == model.selectedID }) { model.selectedID = nil } }
         .onAppear { model.revealMain = { openWindow(id: "main"); NSApp.activate() } }
         .task { SelfTest.runIfRequested(model: model); model.startRefreshLoop(); Snapshot.runIfRequested(model: model, openSettings: openSettings) }
@@ -78,7 +89,7 @@ struct ContentView: View {
                 .help(L10n.string("Choose the semester and courses shown in your workspace"))
             List(selection: $model.page) {
                 Section {
-                    ForEach(AppPage.allCases) { page in
+                    ForEach(AppPage.allCases.filter { $0 != .review || model.pendingCount > 0 }) { page in
                         HStack { Label { Text(page.localizedName) } icon: { if page == model.page { Image(systemName: page.symbol) } else { Image(systemName: page.symbol).foregroundStyle(Palette.accent) } }; Spacer(); if page == .review && model.pendingCount > 0 { Text("\(model.pendingCount)").font(.caption).foregroundStyle(.secondary) } }.padding(.vertical, 4).tag(page)
                     }
                 }
@@ -107,27 +118,11 @@ struct ContentView: View {
         }
     }
     private var heading: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(model.page == .today ? L10n.string("A little clarity for your day.") : model.page == .timeline ? L10n.string("Your semester, in view.") : model.page == .review ? L10n.string("Make room for certainty.") : L10n.string("Every date has a source.")).font(.system(size: 26, weight: .medium, design: .rounded)).tracking(-0.5)
-                    Text(model.page == .today ? Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day().locale(L10n.locale)) : model.page == .review ? L10n.string("Check the details before they reach your calendar.") : model.page == .sources ? L10n.string("Course documents and the evidence behind your timeline.") : L10n.string("Confirmed dates, across all your courses.")).foregroundStyle(.secondary)
-                }
-                Spacer()
-                if model.busy { ProgressView().controlSize(.small).padding(.top, 8).help(L10n.string("Working…")) }
-            }.gridProbe("page-title", area: "heading")
-            if model.page == .today { WeekRibbon(events: model.events).gridProbe("date-ribbon", area: "heading") }
-            if model.page != .sources {
-                HStack(spacing: 12) {
-                    HStack(spacing: 8) { Image(systemName: "magnifyingglass").foregroundStyle(.secondary); TextField(L10n.string("Find an event or course"), text: $model.search).accessibilityLabel(L10n.string("Find an event or course")).textFieldStyle(.plain); if !model.search.isEmpty { Button { model.search = "" } label: { Image(systemName: "xmark.circle.fill") }.buttonStyle(.plain).foregroundStyle(.secondary) } }.padding(12).background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
-                    Menu {
-                        Button(L10n.string("All types")) { model.kindFilter = nil }
-                        Divider()
-                        ForEach(EventKind.allCases, id: \.self) { kind in Button(kind.localizedName) { model.kindFilter = kind } }
-                    } label: { Label(model.kindFilter?.localizedName ?? L10n.string("All types"), systemImage: "line.3.horizontal.decrease") }
-                        .fixedSize().help(L10n.string("Filter by event type"))
-                }.gridProbe("search", area: "heading")
-            }
+        HStack {
+            Text(L10n.string("Sources")).font(.system(size: 24, weight: .semibold))
+            Spacer()
+            Button { model.scheduleCuration(force: true) } label: { Label(L10n.string("Organize with AI"), systemImage: "sparkles") }
+                .disabled(model.curationTask != nil || model.scopedSources.isEmpty)
         }.padding(28).gridArea("heading", inset: 28)
     }
     private var eventList: some View {

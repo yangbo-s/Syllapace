@@ -11,3 +11,8 @@ Resources/Assets.car
 Resources/AppIcon.icns
 Resources/icon-info.plist
 __pycache__/
+
+Web/node_modules/
+Web/dist/
+Web/test-results/
+Web/playwright-report/

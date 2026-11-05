@@ -23,7 +23,7 @@
 | `appcast.xml` | 版本、build、macOS/arm64 约束、不可变版本下载 URL、长度和 Ed25519 签名 |
 | `SHA256SUMS` | ZIP、DMG、appcast 的 SHA-256 校验值 |
 
-包内包含 `Contents/Resources/THIRD_PARTY_NOTICES.md` 及 Sparkle framework 自带资源。不要将测试资料库、用户资料、凭据、签名私钥或临时诊断文件放入安装包。
+包内包含 `Contents/Resources/THIRD_PARTY_NOTICES.md` 及 Sparkle framework 自带资源。0.4.0 起，离线工作区位于 `Contents/Resources/Workspace/`，其 `THIRD_PARTY_NOTICES.txt` 收录 ReUI 和实际运行依赖的许可证。不要将测试资料库、开发 fixture、用户资料、凭据、签名私钥、source map 或临时诊断文件放入安装包。
 
 ## 更新签名
 
@@ -43,6 +43,10 @@ Sparkle 2.10.1 的工具由 SPM 放在 `.build/artifacts/sparkle/Sparkle/bin/`�
 ./tools/selftest.sh
 ./tools/package_release.sh
 ```
+
+0.4.0 起构建机还需 Node.js 22.12+ 与 npm。`build.sh` 调用 `tools/build_workspace.sh`，按 `Web/package-lock.json` 安装依赖并构建工作区，再将静态产物复制进应用后签名；最终应用不需要 Node.js 或本地服务器。前端行为检查在 `Web/` 执行 `npm test`、`npm run lint`，类型检查随构建执行。不要在测试或构建使用 `node_modules` 时并发运行 `npm ci`。
+
+工作区通过 `file://` 在 WKWebView 加载，产物必须为 classic IIFE + `defer`，本地 JS/CSS 标签不能使用 `crossorigin`。保留严格 CSP，不以允许远程脚本或任意网络连接修复加载失败。postbuild 与发布校验检查离线资源、许可证和开发 fixture；应用自测还需确认实际 React 渲染及原生消息回写，不能用文件存在代替运行验证。
 
 中英文浅深色真实窗口、语言切换和更新流程需另外检查。打包器校验应用签名、arm64、更新配置、版本，生成签名后用 CryptoKit 对照**包内公钥**验证 ZIP，再解压复核 app 签名并检查 DMG 完整性。已有产物可独立重验：
 

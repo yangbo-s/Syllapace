@@ -48,7 +48,8 @@ extension AppModel {
         save()
     }
     func syncAcademicCalendar(_ subscription: AcademicCalendarSubscription) {
-        guard !busy, !isDemo else { return }
+        guard !busy, !isDemo, subscription.enabled,
+              archive.academicCalendars?.first(where: { $0.id == subscription.id }) == subscription else { return }
         let now = Date.now
         var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: subscription.timeZone) ?? .current
         let year = cal.component(.year, from: now)
@@ -60,25 +61,45 @@ extension AppModel {
             defer { busy = false }
             do {
                 let result = try await AcademicCalendarClient().sync(subscription: subscription, window: DateInterval(start: start, end: end))
-                saveAcademicCalendar(result.subscription)
-                if let i = archive.sources.firstIndex(where: { $0.id == result.source.id }) { archive.sources[i] = result.source } else { archive.sources.append(result.source) }
-                archive.events = result.reconcile(existing: archive.events)
-                save()
-                calendarStatus[subscription.id] = ([L10n.format("Calendar dates synced: %ld.", result.events.count)] + result.warnings).joined(separator: "\n")
-            } catch { calendarStatus[subscription.id] = error.localizedDescription }
+                commitAcademicCalendarSync(result, expected: subscription)
+            } catch {
+                guard archive.academicCalendars?.first(where: { $0.id == subscription.id }) == subscription else { return }
+                calendarStatus[subscription.id] = error.localizedDescription
+            }
         }
     }
-    @discardableResult func commitImport(sources: [SourceDocument], candidates: [AcademicEvent]) -> Bool {
+    @discardableResult func commitAcademicCalendarSync(_ result: AcademicCalendarSyncResult, expected: AcademicCalendarSubscription) -> Bool {
+        guard expected.enabled, result.subscription.id == expected.id,
+              let index = archive.academicCalendars?.firstIndex(where: { $0.id == expected.id }),
+              archive.academicCalendars?[index] == expected else { return false }
+        let checkpoint = archive
+        archive.academicCalendars?[index] = result.subscription
+        if let index = archive.sources.firstIndex(where: { $0.id == result.source.id }) { archive.sources[index] = result.source }
+        else { archive.sources.append(result.source) }
+        archive.events = result.reconcile(existing: archive.events)
+        guard save() else { archive = checkpoint; return false }
+        calendarStatus[expected.id] = ([L10n.format("Calendar dates synced: %ld.", result.events.count)] + result.warnings).joined(separator: "\n")
+        return true
+    }
+    @discardableResult func commitImport(sources: [SourceDocument], candidates: [AcademicEvent], records: [String: SourceCurationRecord] = [:]) -> Bool {
         let before = archive
         for source in sources {
             if let index = archive.sources.firstIndex(where: { $0.id == source.id }) { archive.sources[index] = source } else { archive.sources.append(source) }
+        }
+        if !records.isEmpty {
+            if archive.curationRecords == nil { archive.curationRecords = [:] }
+            archive.curationRecords?.merge(records) { _, new in new }
+        }
+        if !records.isEmpty {
+            let completeSources = Set(records.filter { ($0.value.issues ?? []).isEmpty }.keys)
+            archive.events = EventCuration.reorganize(existing: archive.events, incoming: candidates, sourceIDs: completeSources).events
         }
         for event in candidates {
             if let index = archive.events.firstIndex(where: { $0.id == event.id }) { archive.events[index] = event } else { archive.events.append(event) }
         }
         guard save() else { archive = before; return false }
         lastImportUndo = ImportUndo(before: before, after: archive)
-        page = candidates.contains { $0.state != .approved } ? .review : .timeline
+        page = .timeline
         courseFilter = nil; academicCalendarFilter = nil
         notice = L10n.format("Imported %ld events. You can undo this import.", candidates.count)
         return true

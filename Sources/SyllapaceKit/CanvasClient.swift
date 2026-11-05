@@ -222,9 +222,9 @@ public struct CanvasClient: Sendable {
             }
             do {
                 let assignments = try await pages(CanvasAssignmentDTO.self, url: endpoint("courses/\(record.id)/assignments", query: [.init(name: "include[]", value: "submission"), .init(name: "per_page", value: "100")]))
-                result.events.append(contentsOf: assignments.map { item in
+                result.events.append(contentsOf: assignments.filter { $0.published != false && $0.submission_types?.contains("not_graded") != true }.map { item in
                     let date = item.due_at.flatMap(Self.instant)
-                    return AcademicEvent(id: "\(scope):assignment:\(item.id)", courseID: courseID, title: item.name,
+                    return AcademicEvent(id: "\(scope):assignment:\(item.id)", courseID: courseID, title: item.name, kind: CanvasClassification.kind(title: item.name, quiz: item.quiz_id != nil || item.is_quiz_assignment == true),
                                          date: date, dateOnly: false, timeZone: timezone, state: date == nil ? .pending : .approved,
                                          evidence: "Canvas assignment: \(item.name)\n" + (item.due_at.map { "Your effective due date: \($0)" } ?? "No due date supplied."),
                                          sourceURL: origin.appendingPathComponent("courses/\(record.id)/assignments/\(item.id)").absoluteString,
@@ -234,13 +234,13 @@ public struct CanvasClient: Sendable {
             catch { result.warnings.append(L10n.format("%@ assignments: %@", course.code, Self.safeMessage(error))) }
             do {
                 let events = try await pages(CanvasCalendarDTO.self, url: endpoint("calendar_events", query: [.init(name: "context_codes[]", value: "course_\(record.id)"), .init(name: "type", value: "event"), .init(name: "all_events", value: "true"), .init(name: "per_page", value: "100")]))
-                result.events.append(contentsOf: events.filter { $0.workflow_state != "deleted" }.map { item in
+                result.events.append(contentsOf: events.filter { $0.workflow_state != "deleted" && $0.hidden != true }.map { item in
                     let date = item.all_day == true
                         ? item.all_day_date.flatMap { LLMClient.localDate($0, timeZone: timezone) } ?? item.start_at.flatMap(Self.instant)
                         : item.start_at.flatMap(Self.instant)
                     var link = URLComponents(url: origin, resolvingAgainstBaseURL: false)!
                     link.path = "/calendar"; link.queryItems = [.init(name: "event_id", value: String(item.id))]
-                    return AcademicEvent(id: "\(scope):calendar:\(item.id)", courseID: courseID, title: item.title, kind: .other, date: date, dateOnly: item.all_day ?? false, timeZone: timezone, state: date == nil ? .pending : .approved,
+                    return AcademicEvent(id: "\(scope):calendar:\(item.id)", courseID: courseID, title: item.title, kind: CanvasClassification.kind(title: item.title, calendar: true), date: date, dateOnly: item.all_day ?? false, timeZone: timezone, state: date == nil ? .pending : .approved,
                                          evidence: Self.plainText(item.description ?? item.title), sourceURL: link.url?.absoluteString)
                 })
             } catch is CancellationError { throw CancellationError() }
@@ -255,6 +255,7 @@ public struct CanvasClient: Sendable {
             } catch is CancellationError { throw CancellationError() }
             catch { result.warnings.append(L10n.format("%@ files: %@", course.code, Self.safeMessage(error))) }
         }
+        result.events = Self.curatedStructured(result.events)
         return result
     }
 
@@ -354,7 +355,7 @@ public struct CanvasClient: Sendable {
         var assignedQuizIDs = Set<Int64>()
         do {
             let assignments = try await pages(CanvasAssignmentDTO.self, url: endpoint(path + "/assignments", query: [.init(name: "include[]", value: "submission"), .init(name: "per_page", value: "100")]))
-            for item in assignments where item.published != false {
+            for item in assignments where item.published != false && item.submission_types?.contains("not_graded") != true {
                 guard item.id > 0, assignmentIDs.insert(item.id).inserted else { continue }
                 if let quizID = item.quiz_id { assignedQuizIDs.insert(quizID) }
                 let url = courseURL.appendingPathComponent("assignments/\(item.id)")
@@ -399,9 +400,12 @@ public struct CanvasClient: Sendable {
                 parts.path = "/calendar"; parts.queryItems = [.init(name: "event_id", value: String(item.id))]
                 let end = item.end_at.flatMap(Self.instant)
                 let safeEnd = end.flatMap { end in date.map { end > $0 ? end : nil } ?? nil }
+                document("calendar:\(item.id)", title: item.title,
+                         html: "<p>\(item.title)</p><p>\(item.start_at ?? item.all_day_date ?? "")</p>" + (item.description ?? ""),
+                         url: parts.url ?? courseURL, kind: .page)
                 result.events.append(AcademicEvent(id: "\(scope):calendar:\(item.id)", courseID: course.id, title: item.title,
                                                    kind: CanvasClassification.kind(title: item.title, calendar: true), date: date, dateOnly: item.all_day ?? false,
-                                                   timeZone: timeZone, state: date == nil ? .pending : .approved, evidence: Self.plainText(item.description ?? item.title), sourceURL: parts.url?.absoluteString,
+                                                   timeZone: timeZone, state: date == nil ? .pending : .approved, sourceID: "\(course.id):calendar:\(item.id)", evidence: Self.plainText(item.description ?? item.title), sourceURL: parts.url?.absoluteString,
                                                    endsAt: item.all_day == true ? nil : safeEnd, location: item.location_name))
             }
         } catch is CancellationError { throw CancellationError() }
@@ -496,7 +500,21 @@ public struct CanvasClient: Sendable {
         if !directoryAvailable {
             result.warnings.append(L10n.format("%@: Files directory is unavailable. Linked course materials were checked separately.", course.code))
         }
+        result.events = Self.curatedStructured(result.events)
         return result
+    }
+
+    private static func curatedStructured(_ events: [AcademicEvent]) -> [AcademicEvent] {
+        events.compactMap { observation in
+            guard observation.date != nil, observation.category != nil else { return nil }
+            if observation.id.contains(":calendar:"), !EventCuration.supports(observation.kind, evidence: observation.title) { return nil }
+            var event = observation
+            event.state = .approved; event.wasApproved = true
+            event.curationVersion = EventCuration.version
+            event.subtype = EventCuration.subtype(for: event.title, kind: event.kind)
+            event.sourceTitle = event.title
+            return event
+        }
     }
 
     private func contentReference(_ value: String, courseID: Int64) -> CanvasContentReference? {
@@ -609,6 +627,7 @@ private struct CanvasTokenDTO: Decodable, Sendable {
 private struct CanvasAssignmentDTO: Decodable, Sendable {
     var id: Int64; var name: String; var due_at: String?; var submission: Submission?
     var description: String?; var assignment_group_id: Int64?; var quiz_id: Int64?; var is_quiz_assignment: Bool?; var published: Bool?
+    var submission_types: [String]?
     struct Submission: Decodable, Sendable {
         var submitted_at: String?; var excused: Bool?; var workflow_state: String?; var grade: String?; var score: Double?; var late: Bool?; var missing: Bool?
     }

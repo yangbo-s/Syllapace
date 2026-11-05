@@ -18,6 +18,7 @@ struct EventEditor: View {
     @State private var endDate = Date.now
     @State private var location = ""
     @State private var chosenZone = TimeZone.current.identifier
+    @State private var saveError: String?
     var body: some View {
         // Redraw translated content without replacing the view or its draft state.
         let _ = languagePreference
@@ -28,7 +29,7 @@ struct EventEditor: View {
                 // Native menu controls cache their option labels. Rebuild just
                 // the control; all selections and drafts remain in this view.
                 if original.academicCalendarID != nil { LabeledContent(L10n.string("Academic calendar"), value: model.eventOwnerName(original)) } else { Picker(L10n.string("Course"), selection: $courseID) { ForEach(model.scopedCourses) { Text($0.localizedName).tag($0.id) } }.id("event-course-\(languagePreference)") }
-                Picker(L10n.string("Type"), selection: $kind) { ForEach(EventKind.allCases, id: \.self) { Text($0.localizedName).tag($0) } }.id("event-kind-\(languagePreference)")
+                Picker(L10n.string("Type"), selection: $kind) { ForEach(EventKind.allCases.filter { original.academicCalendarID != nil || ![.other, .academic, .holiday].contains($0) }, id: \.self) { Text($0.localizedName).tag($0) } }.id("event-kind-\(languagePreference)")
                 Toggle(L10n.string("Date only"), isOn: $dateOnly)
                 DatePicker(L10n.string("When"), selection: $date, displayedComponents: dateOnly ? [.date] : [.date, .hourAndMinute])
                     .environment(\.locale, L10n.locale).id("import-course-\(languagePreference)")
@@ -52,18 +53,29 @@ struct EventEditor: View {
                 Button(L10n.string("Save & confirm")) {
                     var event = original; event.title = title.trimmingCharacters(in: .whitespacesAndNewlines); event.date = date; event.dateOnly = dateOnly; event.courseID = courseID; event.kind = kind; event.state = .approved; event.wasApproved = true; event.userEdited = true; event.revision += 1; event.proposedDate = nil; event.proposedDateOnly = nil; event.proposedTimeZone = nil; event.timeZone = chosenZone
                     event.endsAt = hasEnd ? endDate : nil; event.location = location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : location.trimmingCharacters(in: .whitespacesAndNewlines); event.proposedEndsAt = nil
-                    if let onSave { onSave(event) } else { model.update(event) }; dismiss()
+                    if let onSave { onSave(event) }
+                    else if !model.saveEditedEvent(event, replacing: original) {
+                        saveError = model.error ?? L10n.string("Could not save changes. Try again."); model.error = nil
+                        return
+                    }
+                    dismiss()
                 }.buttonStyle(.borderedProminent).tint(Palette.actionAccent).keyboardShortcut(.defaultAction).disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (hasEnd && (dateOnly ? endDate <= date : endDate < date)))
             }.gridProbe("editor-actions", area: "event-editor")
         }.padding(28).frame(width: 480).gridArea("event-editor", inset: 28).background(CalmFocus(enabled: !original.title.isEmpty))
         .onAppear { title = original.title; date = original.date ?? .now; dateOnly = original.dateOnly; courseID = original.courseID; kind = original.kind; chosenZone = original.timeZone; hasEnd = original.endsAt != nil; endDate = original.endsAt ?? date; location = original.location ?? ""; titleFocused = original.title.isEmpty }
-        .confirmationDialog(L10n.string("Cancel this event?"), isPresented: $cancelConfirm) { Button(L10n.string("Cancel event"), role: .destructive) { model.reject(original); dismiss() } } message: { Text(L10n.string("It will leave your timeline and be removed from the connected calendar on the next sync, if it has not been edited there.")) }
+        .alert(L10n.string("Could not save changes. Try again."), isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+            Button(L10n.string("OK")) { saveError = nil }
+        } message: { Text(saveError ?? "") }
+        .confirmationDialog(L10n.string("Cancel this event?"), isPresented: $cancelConfirm) { Button(L10n.string("Cancel event"), role: .destructive) {
+            var cancelled = original; cancelled.state = .rejected
+            if model.saveEditedEvent(cancelled, replacing: original) { dismiss() }
+            else { saveError = model.error ?? L10n.string("Could not save changes. Try again."); model.error = nil }
+        } } message: { Text(L10n.string("It will leave your timeline and be removed from the connected calendar on the next sync, if it has not been edited there.")) }
     }
 }
 struct SourcesView: View {
     @AppStorage(L10n.preferenceKey) private var languagePreference = AppLanguage.system.rawValue
     @Bindable var model: AppModel
-    @State private var aiSource: SourceDocument?
     var body: some View {
         // Redraw translated content without replacing the view or its draft state.
         let _ = languagePreference
@@ -78,7 +90,7 @@ struct SourcesView: View {
                                 VStack(alignment: .leading, spacing: 8) { Text(source.title).fontWeight(.medium); Text(model.sourceOwnerName(source)).font(.caption).foregroundStyle(.secondary) }
                                 Spacer()
                                 Button(L10n.string("Read")) { model.readingSource = source }
-                                Button { aiSource = source } label: { Label(L10n.string("Extract"), systemImage: "sparkles") }.disabled(model.busy).help(L10n.string("Extract candidates using your configured AI model"))
+                                Button { model.extractAI(source) } label: { Label(L10n.string("Organize"), systemImage: "sparkles") }.disabled(model.curationTask != nil).help(L10n.string("Organize relevant dates with your selected model"))
                             }.padding(.vertical, 16).gridProbe("source-row-\(source.id)", area: "sources")
                             Divider().gridProbe("source-divider-\(source.id)", area: "sources")
                         }
@@ -96,10 +108,7 @@ struct SourcesView: View {
             model.importCourseID = source.courseID; model.importCalendarID = source.academicCalendarID; model.importURL = link.url
             Task { try? await Task.sleep(for: .milliseconds(300)); model.showImport = true }
         }) }
-        .confirmationDialog(L10n.string("Send this document to your model?"), isPresented: Binding(get: { aiSource != nil }, set: { if !$0 { aiSource = nil } })) {
-            Button(L10n.string("Extract candidates")) { if let source = aiSource { model.extractAI(source) }; aiSource = nil }
-            Button(L10n.string("Cancel"), role: .cancel) { aiSource = nil }
-        } message: { Text(L10n.format("The text of ‘%@’ will be sent directly to %@ using %@. Provider usage charges may apply. Canvas credentials are never included.", aiSource?.title ?? "", model.modelEndpoint, model.modelName.isEmpty ? L10n.string("your configured model") : model.modelName)) }
+
     }
 }
 struct SourceReader: View {

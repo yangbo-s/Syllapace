@@ -94,7 +94,7 @@ private func json(_ string: String, status: Int = 200, headers: [String: String]
         let output = "{\"events\":[{\"title\":\"Midterm\",\"kind\":\"exam\",\"date\":\"2026-11-12\",\"dateOnly\":true,\"timeZone\":\"America/New_York\",\"evidence\":\"Midterm on November 12.\"}]}"
         let events = try LLMClient.parse(content: output, source: source, year: 2026, timeZone: "America/New_York")
         #expect(events.count == 1)
-        #expect(events[0].state == .pending)
+        #expect(events[0].state == .approved)
         #expect(events[0].dateOnly)
         #expect(events[0].date != nil)
         let invented = output.replacingOccurrences(of: "Midterm on November 12.", with: "Final exam December 20.")

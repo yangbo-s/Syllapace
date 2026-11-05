@@ -105,7 +105,7 @@ struct ModelProviderTests {
                                    transport: mock, provider: .anthropic)
         let events = try await client.extract(source: source, year: 2026, timeZone: "UTC", intent: "Only exams")
         #expect(events.count == 1)
-        #expect(events.first?.state == .pending)
+        #expect(events.first?.state == .approved)
         let requests = await mock.requests
         let request = try #require(requests.first)
         #expect(request.url?.path == "/v1/messages")
@@ -168,6 +168,6 @@ struct ModelProviderTests {
         let events = try LLMClient.parse(content: content, source: source, year: 2026, timeZone: "UTC")
         #expect(events.first?.academicCalendarID == "fall-2026")
         #expect(events.first?.kind == .holiday)
-        #expect(events.first?.state == .pending)
+        #expect(events.first?.state == .approved)
     }
 }

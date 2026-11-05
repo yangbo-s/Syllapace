@@ -150,7 +150,7 @@
 "Not connected" = "Not connected";
 "OK" = "OK";
 "Open original" = "Open original";
-"Open timeline" = "Open timeline";
+"Open workspace" = "Open workspace";
 "Or create a course" = "Or create a course";
 "Other" = "Other";
 "PDF, DOCX, Markdown or text. Files are processed locally; AI extraction is a separate action." = "PDF, DOCX, Markdown or text. Files are processed locally; AI extraction is a separate action.";
@@ -473,7 +473,7 @@
 "Workspace" = "Workspace";
 "Workspace ID (optional)" = "Workspace ID (optional)";
 "Year: %@" = "Year: %@";
-"Your key stays in macOS Keychain. Documents go directly to the selected provider only when you choose to extract them." = "Your key stays in macOS Keychain. Documents go directly to the selected provider only when you choose to extract them.";
+"Your key stays in macOS Keychain. Materials go directly to your provider during automatic organization or when you explicitly use AI. Local-only imports are excluded from automatic requests." = "Your key stays in macOS Keychain. Materials go directly to your provider during automatic organization or when you explicitly use AI. Local-only imports are excluded from automatic requests.";
 "Your timeline changed. Go back and preview again before importing." = "Your timeline changed. Go back and preview again before importing.";
 
 "%ld candidate events" = "%ld candidate events";
@@ -483,3 +483,41 @@
 "The source cancelled or changed this occurrence. Review the original calendar before keeping this date." = "The source cancelled or changed this occurrence. Review the original calendar before keeping this date.";
 
 "Model settings changed. Preview the materials again." = "Model settings changed. Preview the materials again.";
+
+/* Curated workspace */
+"Needs information" = "Needs information";
+"Stop" = "Stop";
+"Undo reorganization" = "Undo reorganization";
+"Organize with AI" = "Organize with AI";
+"Organize" = "Organize";
+"Organize relevant dates with your selected model" = "Organize relevant dates with your selected model";
+"Automatically organize course materials" = "Automatically organize course materials";
+"Selected course materials are sent directly to this model when they change. Relevant dates are added automatically." = "Selected course materials are sent directly to this model when they change. Relevant dates are added automatically.";
+"All organized" = "All organized";
+"Relevant dates are added automatically. Only unresolved details appear here." = "Relevant dates are added automatically. Only unresolved details appear here.";
+"Retry" = "Retry";
+"Resolve" = "Resolve";
+"A source change overlaps your edit." = "A source change overlaps your edit.";
+"Organized dates" = "Organized dates";
+"Organize & add" = "Organize & add";
+"Organize sends these materials to your selected model. Relevant dates are added automatically; you can undo the import." = "Organize sends these materials to your selected model. Relevant dates are added automatically; you can undo the import.";
+"Local parsing keeps explicit actionable dates. Connect a model for semantic filtering and recurring schedules." = "Local parsing keeps explicit actionable dates. Connect a model for semantic filtering and recurring schedules.";
+"Material saved. AI will organize relevant dates automatically." = "Material saved. AI will organize relevant dates automatically.";
+"Materials are saved. Choose a model in Settings to organize them automatically." = "Materials are saved. Choose a model in Settings to organize them automatically.";
+"Materials are saved. Add your model API key in Settings to organize them." = "Materials are saved. Add your model API key in Settings to organize them.";
+"Organizing course materials…" = "Organizing course materials…";
+"Organizing material %ld of %ld…" = "Organizing material %ld of %ld…";
+"Course dates organized. You can undo this reorganization." = "Course dates organized. You can undo this reorganization.";
+"Reorganization undone. Later edits were kept." = "Reorganization undone. Later edits were kept.";
+"This task is no longer available in the selected courses." = "This task is no longer available in the selected courses.";
+"This task changed. The latest version has been loaded; try again." = "This task changed. The latest version has been loaded; try again.";
+"Could not save changes. Try again." = "Could not save changes. Try again.";
+"Only dated tasks can have a work plan." = "Only dated tasks can have a work plan.";
+"The planned start must be before the deadline." = "The planned start must be before the deadline.";
+"This event is no longer available." = "This event is no longer available.";
+"No web source is available for this event." = "No web source is available for this event.";
+
+"Course settings changed. Organize these materials again." = "Course settings changed. Organize these materials again.";
+
+"Course or model settings changed. Organize these materials again." = "Course or model settings changed. Organize these materials again.";
+"This event changed while you were editing. Close and reopen it to load the latest version. Your draft has not been saved." = "This event changed while you were editing. Close and reopen it to load the latest version. Your draft has not been saved.";

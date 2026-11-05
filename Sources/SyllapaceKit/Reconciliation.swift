@@ -7,6 +7,7 @@ public enum Reconciler {
         let lookup = MergeIndex(events: existing)
         let incomingKeys = incoming.map { SourceKey($0) }
         let incomingCounts = incomingKeys.reduce(into: [SourceKey: Int]()) { $0[$1, default: 0] += 1 }
+        let legacyEditedSources = Set(existing.filter { $0.userEdited && $0.sourceTitle == nil }.compactMap(\.sourceID))
         for (offset, observation) in incoming.enumerated() {
             let sourceKey = incomingKeys[offset]
             let exact = lookup.exact(observation.id)
@@ -14,15 +15,29 @@ public enum Reconciler {
             // series or occurrences merely because they came from one feed.
             let fallback = observation.sourceSeriesID == nil && incomingCounts[sourceKey] == 1
                 ? lookup.uniqueSource(sourceKey) : nil
-            let match = exact ?? fallback
+            let canRecoverLegacy = observation.sourceID.map { legacyEditedSources.contains($0) } ?? false
+            let legacyMatches = exact == nil && fallback == nil && canRecoverLegacy ? legacyEditedMatches(observation, in: result) : []
+            let match = exact ?? fallback ?? (legacyMatches.count == 1 ? legacyMatches.first : nil)
             if let index = match {
                 var current = result[index]
+                if current.id.hasPrefix("canvas:"), !observation.id.hasPrefix("canvas:"), observation.curationVersion != nil,
+                   current.category != nil, current.date != nil {
+                    let sources = Array(Set((current.relatedSourceIDs ?? []) + [observation.sourceID].compactMap { $0 })).sorted()
+                    if sources != current.relatedSourceIDs { current.relatedSourceIDs = sources; current.revision += 1 }
+                    self.replace(&result, at: index, with: current, index: lookup)
+                    continue
+                }
                 if current.importUndone == true {
+                    // Background curation cannot undo the user's Undo Import.
+                    if observation.curationVersion != nil { continue }
                     var retry = observation; retry.importUndone = nil
                     self.replace(&result, at: index, with: retry, index: lookup)
                     continue
                 }
                 current.sourceSeriesID = observation.sourceSeriesID ?? current.sourceSeriesID
+                current.sourceTitle = observation.sourceTitle ?? current.sourceTitle
+                if observation.id.hasPrefix("canvas:"), !current.id.hasPrefix("canvas:"), !current.userEdited,
+                   observation.curationVersion != nil { current.id = observation.id }
                 if current.state == .approved { current.wasApproved = true }
                 let sourceChanged = current.observedSourceDate != observation.date || (current.observedSourceDateOnly ?? current.dateOnly) != observation.dateOnly || (current.observedSourceTimeZone ?? current.timeZone) != observation.timeZone || current.observedSourceEndsAt != observation.endsAt
                 current.observedSourceDate = observation.date
@@ -30,11 +45,17 @@ public enum Reconciler {
                 current.observedSourceTimeZone = observation.timeZone
                 current.observedSourceEndsAt = observation.endsAt
                 if sourceChanged {
-                    if current.state == .pending && !current.userEdited {
+                    let automatic = observation.curationVersion != nil && observation.state == .approved && observation.date != nil && !current.userEdited && (current.state != .rejected || current.curationExcluded == true)
+                    if (current.state == .pending && !current.userEdited) || automatic {
+                        if automatic { current.previousDate = current.date }
                         current.date = observation.date
                         current.dateOnly = observation.dateOnly
                         current.timeZone = observation.timeZone
                         current.endsAt = observation.endsAt
+                        if automatic {
+                            current.state = .approved; current.wasApproved = true
+                            current.proposedDate = nil; current.proposedDateOnly = nil; current.proposedTimeZone = nil; current.proposedEndsAt = nil
+                        }
                     } else if current.state != .rejected {
                         current.previousDate = current.date
                         current.proposedDate = observation.date
@@ -45,19 +66,56 @@ public enum Reconciler {
                     }
                     current.revision += 1
                 }
-                if !current.userEdited { current.title = observation.title; current.kind = observation.kind; current.location = observation.location }
+                if !current.userEdited {
+                    current.title = observation.title; current.kind = observation.kind; current.location = observation.location
+                    current.subtype = observation.subtype ?? current.subtype
+                    if observation.curationVersion != nil, observation.state == .approved,
+                       current.state == .pending || current.curationExcluded == true {
+                        current.state = .approved; current.wasApproved = true
+                    }
+                }
+                current.curationVersion = observation.curationVersion ?? current.curationVersion
+                if current.state == .approved { current.curationExcluded = nil }
                 if observation.submission != current.submission, observation.submission != nil {
                     current.submission = observation.submission
-                    current.completed = observation.completed
+                    current.completed = observation.completed || current.taskProgress == .done
                 }
                 current.evidence = observation.evidence
                 current.sourceURL = observation.sourceURL
+                if let planned = current.plannedStart, let due = current.date, planned > due {
+                    var calendar = Calendar(identifier: .gregorian)
+                    calendar.timeZone = TimeZone(identifier: current.timeZone) ?? .gmt
+                    if !current.dateOnly || !calendar.isDate(planned, inSameDayAs: due) { current.plannedStart = nil }
+                }
+                if current != result[index], current.revision == result[index].revision { current.revision += 1 }
                 self.replace(&result, at: index, with: current, index: lookup)
             } else {
                 var candidate = observation
-                let duplicate = lookup.duplicate(observation, normalizedTitle: sourceKey.title).map { result[$0] }
-                if let duplicate {
+                if legacyMatches.count > 1 {
+                    candidate.state = .conflict; candidate.wasApproved = false
+                    candidate.proposedDate = observation.date
+                    candidate.evidence = "Several edited occurrences match this source identity.\n\n" + observation.evidence
+                    lookup.insert(candidate, at: result.count); result.append(candidate)
+                    continue
+                }
+                let datedDuplicate = observation.curationVersion != nil ? lookup.datedDuplicate(observation, normalizedTitle: sourceKey.title) : nil
+                let duplicateIndex = datedDuplicate ?? lookup.duplicate(observation, normalizedTitle: sourceKey.title)
+                let duplicate = duplicateIndex.map { result[$0] }
+                if let duplicate, let duplicateIndex, observation.curationVersion != nil,
+                   !duplicate.userEdited, duplicate.sourceID != nil || duplicate.id.hasPrefix("canvas:"),
+                   (datedDuplicate != nil || (duplicate.date == observation.date && duplicate.dateOnly == observation.dateOnly)) ||
+                   (duplicate.id.hasPrefix("canvas:") && observation.category == .deadline) {
+                    var combined = duplicate
+                    combined.relatedSourceIDs = Array(Set((combined.relatedSourceIDs ?? []) + [observation.sourceID].compactMap { $0 })).sorted()
+                    if combined.state == .pending { combined.state = .approved; combined.wasApproved = true }
+                    combined.curationVersion = observation.curationVersion
+                    if combined != duplicate { combined.revision += 1 }
+                    self.replace(&result, at: duplicateIndex, with: combined, index: lookup)
+                    continue
+                }
+                if let duplicate, observation.curationVersion == nil || (observation.category != .meeting && observation.sourceSeriesID == nil) {
                     candidate.state = .conflict
+                    candidate.wasApproved = false
                     candidate.previousDate = duplicate.date
                     candidate.proposedDate = observation.date
                     candidate.evidence = "Possible duplicate: \(duplicate.title). Compare sources before approving.\n\n" + observation.evidence
@@ -74,7 +132,34 @@ public enum Reconciler {
         result[position] = event
     }
     private static func normalized(_ title: String) -> String {
-        title.lowercased().components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }.joined(separator: " ")
+        EventCuration.canonicalTitle(title)
+    }
+
+    /// Old archives did not retain a source title. Recover only when the stored
+    /// ID proves the identity; never infer it from a user's custom display name.
+    private static func legacyEditedMatches(_ observation: AcademicEvent, in events: [AcademicEvent]) -> [Int] {
+        guard observation.curationVersion != nil, let source = observation.sourceID else { return [] }
+        let possible = events.indices.filter { index in
+            let event = events[index]
+            return event.userEdited && event.sourceTitle == nil && event.sourceID == source &&
+                event.courseID == observation.courseID && event.academicCalendarID == observation.academicCalendarID &&
+                (event.id.hasPrefix("model:") || event.id.hasPrefix("document-"))
+        }
+        guard !possible.isEmpty else { return [] }
+        let sourceTitle = observation.sourceTitle ?? observation.title
+        let oldTitle = sourceTitle.split(whereSeparator: \.isWhitespace).joined(separator: " ").lowercased()
+        let oldIdentity = oldTitle + ":" + observation.kind.rawValue
+        var provenIDs = Set<String>()
+        for ordinal in 0..<300 {
+            provenIDs.insert("model:" + CanvasClient.hash(source + ":" + oldIdentity + ":\(ordinal)"))
+            provenIDs.insert("document-" + DocumentReader.fingerprint(source + "|" + oldTitle + "|\(ordinal)"))
+        }
+        for index in possible {
+            if let oldDate = events[index].observedSourceDate {
+                provenIDs.insert("model:" + CanvasClient.hash(source + ":" + normalized(sourceTitle) + ":" + observation.kind.rawValue + ":" + oldDate.ISO8601Format()))
+            }
+        }
+        return possible.filter { provenIDs.contains(events[$0].id) }
     }
 }
 
@@ -89,7 +174,7 @@ private extension Reconciler {
         var sourceID: String?
         var title: String
         init(_ event: AcademicEvent) {
-            owner = OwnerKey(event); sourceID = event.sourceID; title = normalized(event.title)
+            owner = OwnerKey(event); sourceID = event.sourceID; title = normalized(event.sourceTitle ?? event.title)
         }
     }
     struct DuplicateKey: Hashable {
@@ -100,6 +185,20 @@ private extension Reconciler {
             owner = OwnerKey(event); self.title = title; kind = event.kind.rawValue
         }
     }
+    struct DatedDuplicateKey: Hashable {
+        var identity: DuplicateKey
+        var instant: Date?
+        var localDay: String?
+        init(_ event: AcademicEvent, title: String) {
+            identity = DuplicateKey(event, title: title)
+            if event.dateOnly, let date = event.date {
+                var calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(identifier: event.timeZone) ?? .gmt
+                let day = calendar.dateComponents([.year, .month, .day], from: date)
+                localDay = "\(day.year ?? 0)-\(day.month ?? 0)-\(day.day ?? 0)"
+                instant = nil
+            } else { instant = event.date; localDay = nil }
+        }
+    }
     struct SourceIdentity: Hashable { var id: String? }
 
     /// Indexes track the evolving result, including title changes and import undo
@@ -108,6 +207,7 @@ private extension Reconciler {
         var ids: [String: MinimumHeap<Int>] = [:]
         var sources: [SourceKey: Set<Int>] = [:]
         var duplicates: [DuplicateKey: DuplicateBucket] = [:]
+        var datedDuplicates: [DatedDuplicateKey: DuplicateBucket] = [:]
 
         init(events: [AcademicEvent]) {
             for (position, event) in events.enumerated() { insert(event, at: position) }
@@ -121,6 +221,11 @@ private extension Reconciler {
             duplicates[DuplicateKey(event, title: normalizedTitle)]?
                 .first(excluding: SourceIdentity(id: event.sourceID), canvasOnly: event.id.hasPrefix("canvas:"))
         }
+        func datedDuplicate(_ event: AcademicEvent, normalizedTitle: String) -> Int? {
+            guard event.date != nil else { return nil }
+            return datedDuplicates[DatedDuplicateKey(event, title: normalizedTitle)]?
+                .first(excluding: SourceIdentity(id: event.sourceID), canvasOnly: event.id.hasPrefix("canvas:"))
+        }
         func insert(_ event: AcademicEvent, at position: Int) {
             let idsForEvent = ids[event.id] ?? MinimumHeap<Int>()
             idsForEvent.set(position, priority: position); ids[event.id] = idsForEvent
@@ -131,11 +236,17 @@ private extension Reconciler {
                 let bucket = duplicates[duplicateKey] ?? DuplicateBucket()
                 bucket.insert(position, source: SourceIdentity(id: event.sourceID), canvas: event.id.hasPrefix("canvas:"))
                 duplicates[duplicateKey] = bucket
+                if event.date != nil {
+                    let datedKey = DatedDuplicateKey(event, title: key.title)
+                    let datedBucket = datedDuplicates[datedKey] ?? DuplicateBucket()
+                    datedBucket.insert(position, source: SourceIdentity(id: event.sourceID), canvas: event.id.hasPrefix("canvas:"))
+                    datedDuplicates[datedKey] = datedBucket
+                }
             }
         }
         func replace(_ old: AcademicEvent, with new: AcademicEvent, at position: Int) {
             guard old.id != new.id || old.sourceID != new.sourceID || old.courseID != new.courseID ||
-                    old.academicCalendarID != new.academicCalendarID || old.title != new.title || old.kind != new.kind ||
+                    old.academicCalendarID != new.academicCalendarID || old.title != new.title || old.sourceTitle != new.sourceTitle || old.userEdited != new.userEdited || old.kind != new.kind || old.date != new.date || old.dateOnly != new.dateOnly || old.timeZone != new.timeZone ||
                     (old.state == .rejected) != (new.state == .rejected) else { return }
             ids[old.id]?.remove(position)
             if ids[old.id]?.minimum == nil { ids.removeValue(forKey: old.id) }
@@ -148,6 +259,9 @@ private extension Reconciler {
             if old.state != .rejected {
                 duplicates[duplicateKey]?.remove(position, source: SourceIdentity(id: old.sourceID), canvas: old.id.hasPrefix("canvas:"))
                 if duplicates[duplicateKey]?.isEmpty == true { duplicates.removeValue(forKey: duplicateKey) }
+                let datedKey = DatedDuplicateKey(old, title: oldKey.title)
+                datedDuplicates[datedKey]?.remove(position, source: SourceIdentity(id: old.sourceID), canvas: old.id.hasPrefix("canvas:"))
+                if datedDuplicates[datedKey]?.isEmpty == true { datedDuplicates.removeValue(forKey: datedKey) }
             }
             insert(new, at: position)
         }

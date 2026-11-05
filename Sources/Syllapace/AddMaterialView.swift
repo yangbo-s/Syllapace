@@ -22,13 +22,21 @@ import SyllapaceKit
     var hasPreview = false
     var progress = ""
     var errors: [String] = []
+    var records: [String: SourceCurationRecord] = [:]
     var task: Task<Void, Never>?
+    var parsedModelIdentity: String?
+    var parsedSelection: CanvasSelection?
+    var hasParseContext = false
     private static func hash(_ value: String) -> String { SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined() }
     var hasInput: Bool { mode == 0 ? !files.isEmpty : mode == 1 ? !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty : !url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     func addFiles(_ urls: [URL]) { files = Array((files + urls).reduce(into: [URL]()) { if !$0.contains($1) { $0.append($1) } }.prefix(10)) }
-    func parse(model: AppModel) {
+    func parse(model: AppModel, onOrganized: (() -> Void)? = nil) {
         guard !processing, hasInput else { return }
-        processing = true; errors = []; sources = []; candidates = []; selected = []; baseline = model.archive.events; sourceBaseline = model.archive.sources
+        model.cancelCuration()
+        hasParseContext = true; parsedSelection = model.archive.canvasSelection
+        parsedModelIdentity = useAI ? model.curationModelIdentity : nil
+        let mode = self.mode, files = self.files, text = self.text, url = self.url, year = self.year, zone = self.zone, intent = self.intent
+        processing = true; errors = []; records = [:]; sources = []; candidates = []; selected = []; baseline = model.archive.events; sourceBaseline = model.archive.sources
         let courseID = owner.hasPrefix("calendar:") ? "" : owner
         let calendarID = owner.hasPrefix("calendar:") ? String(owner.dropFirst(9)) : nil
         let ai = useAI, endpoint = model.modelEndpoint, name = model.modelName, account = model.modelCredentialAccount
@@ -58,15 +66,24 @@ import SyllapaceKit
                             source.id = "text:" + Self.hash(courseID + "|" + (calendarID ?? "") + "|" + text)
                         } else { source = try await PublicDocumentClient().read(link: SourceLink(url: url.trimmingCharacters(in: .whitespacesAndNewlines), title: ""), courseID: courseID) }
                         source.academicCalendarID = calendarID
+                        source.curationYear = year; source.curationTimeZone = zone; source.curationIntent = intent
+                        source.localOnly = !ai
                         if let calendarID, mode != 1 { source.id += ":calendar:" + calendarID }
                         var events: [AcademicEvent]
+                        var record: SourceCurationRecord?
+                        let fingerprint = model.curationFingerprint(source)
                         if let key {
                             progress = L10n.format("Extracting with %@…", provider.displayName)
-                            events = try await LLMClient(endpoint: endpoint, key: key, model: name, provider: provider, workspaceID: workspace.isEmpty ? nil : workspace).extract(source: source, year: year, timeZone: zone, intent: intent)
+                            let window = model.curationWindow(for: source)
+                            let result = try await LLMClient(endpoint: endpoint, key: key, model: name, provider: provider, workspaceID: workspace.isEmpty ? nil : workspace).curate(source: source, year: year, timeZone: zone, intent: intent, termStart: window.start, termEnd: window.end)
+                            events = result.events
+                            record = SourceCurationRecord(fingerprint: fingerprint, eventCount: result.events.count, issues: result.issues)
                         } else { events = RuleExtractor.extract(source: source, year: year, timeZone: zone) }
                         try Task.checkCancellation()
                         guard !ai || (model.modelEndpoint == endpoint && model.modelName == name && model.modelProvider == provider && model.modelWorkspaceID == workspace) else { throw AppError.message(L10n.string("Model settings changed. Preview the materials again.")) }
                         for i in events.indices { events[i].academicCalendarID = calendarID }
+                        guard !ai || model.curationFingerprint(source) == fingerprint else { throw AppError.message(L10n.string("Course settings changed. Organize these materials again.")) }
+                        if let record { records[source.id] = record }
                         sources.append(source); candidates += events
                     } catch is CancellationError { throw CancellationError() }
                     catch { errors.append((mode == 0 ? files[index].lastPathComponent + ": " : "") + error.localizedDescription) }
@@ -76,18 +93,22 @@ import SyllapaceKit
                 candidates = merged.filter { event in incomingIDs.contains(event.id) || baseline.first { $0.id == event.id }.map { $0 != event } == true }
                 selected = Set(candidates.filter { $0.date != nil && $0.state != .conflict && $0.state != .rejected }.map(\.id))
                 hasPreview = !sources.isEmpty
+                if errors.isEmpty && hasPreview { onOrganized?() }
             } catch is CancellationError { progress = "" }
             catch { errors.append(error.localizedDescription) }
         }
     }
     func commit(model: AppModel) -> Bool {
+        guard !hasParseContext || (parsedSelection == model.archive.canvasSelection && (parsedModelIdentity == nil || parsedModelIdentity == model.curationModelIdentity)) else {
+            errors = [L10n.string("Course or model settings changed. Organize these materials again.")]; return false
+        }
         guard !model.busy, baseline == model.archive.events, sourceBaseline == model.archive.sources else { errors = [L10n.string("Your timeline changed. Go back and preview again before importing.")]; return false }
-        let events = candidates.filter { selected.contains($0.id) }.map { event in
+        let events = candidates.filter { selected.contains($0.id) || $0.state == .conflict }.map { event in
             var result = event
             if result.date != nil && result.state != .conflict { result.state = .approved; result.wasApproved = true }
             return result
         }
-        guard model.commitImport(sources: sources, candidates: events) else { errors = [model.error ?? L10n.string("Could not save import. Try again.")]; model.error = nil; return false }
+        guard model.commitImport(sources: sources, candidates: events, records: records) else { errors = [model.error ?? L10n.string("Could not save import. Try again.")]; model.error = nil; return false }
         return true
     }
 }
@@ -103,7 +124,7 @@ struct ImportSheet: View {
         let _ = languagePreference
         VStack(alignment: .leading, spacing: 20) {
             HStack {
-                Text(L10n.string(draft.hasPreview ? "Review your dates" : "Add material")).font(.title2.weight(.semibold))
+                Text(L10n.string(draft.hasPreview ? "Organized dates" : "Add material")).font(.title2.weight(.semibold))
                 Spacer()
                 if draft.processing { ProgressView().controlSize(.small) }
             }
@@ -120,7 +141,7 @@ struct ImportSheet: View {
                     Button(draft.selected.isEmpty ? L10n.string("Save materials") : L10n.format("Add %ld events", draft.selected.count)) { if draft.commit(model: model) { dismiss() } }
                         .buttonStyle(.borderedProminent).tint(Palette.actionAccent).keyboardShortcut(.defaultAction)
                 } else {
-                    Button(L10n.string("Parse & preview")) { draft.parse(model: model) }.disabled(!draft.hasInput || draft.processing)
+                    Button(L10n.string("Organize & add")) { draft.parse(model: model) { if draft.commit(model: model) { dismiss() } } }.disabled(!draft.hasInput || draft.processing)
                         .buttonStyle(.borderedProminent).tint(Palette.actionAccent).keyboardShortcut(.defaultAction)
                 }
             }
@@ -200,7 +221,7 @@ struct ImportSheet: View {
                 Spacer()
                 TextField(L10n.string("Time zone"), text: $draft.zone).frame(width: 184)
             }
-            Text(L10n.string(draft.useAI ? "Parse sends these materials and instructions to your selected model. Review before anything reaches your calendar." : "Local parsing finds explicit dates. Instructions require AI; ambiguous dates stay unconfirmed.")).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(L10n.string(draft.useAI ? "Organize sends these materials to your selected model. Relevant dates are added automatically; you can undo the import." : "Local parsing keeps explicit actionable dates. Connect a model for semantic filtering and recurring schedules.")).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }.disabled(draft.processing)
     }
     private var preview: some View {

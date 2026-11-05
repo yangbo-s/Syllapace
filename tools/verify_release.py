@@ -81,6 +81,20 @@ def preflight(app: Path) -> dict:
     require(architectures == ["arm64"], f"Unexpected architectures for arm64 release: {architectures}")
     require((app / "Contents/Frameworks/Sparkle.framework").is_dir(), "Sparkle framework is missing")
     require((app / "Contents/Resources/THIRD_PARTY_NOTICES.md").is_file(), "Third-party notices are missing")
+    if tuple(map(int, info["CFBundleShortVersionString"].split("."))) >= (0, 4, 0):
+        workspace = app / "Contents/Resources/Workspace"
+        index = workspace / "index.html"
+        require(index.is_file(), "Bundled workspace index is missing")
+        html = index.read_text()
+        require('script defer src="./assets/' in html and 'crossorigin' not in html, "Workspace must use deferred local classic scripts")
+        require("connect-src 'none'" in html and "script-src 'self'" in html, "Workspace resource policy is missing")
+        assets = re.findall(r'(?:src|href)="([^"]+)"', html)
+        require(len(assets) >= 2, "Workspace script or stylesheet is missing")
+        for asset in assets:
+            require(asset.startswith("./assets/") and ".." not in asset[2:], "Workspace references a non-local asset")
+            require((workspace / asset).is_file(), f"Workspace asset missing: {asset}")
+        require((workspace / "THIRD_PARTY_NOTICES.txt").is_file(), "Workspace dependency notices are missing")
+        require(not list(workspace.rglob("*.map")), "Development source maps must not ship")
     print(f"PASS: signed bundle, Sparkle configuration, arm64 and release version {info['CFBundleShortVersionString']} ({info['CFBundleVersion']})")
     return info
 

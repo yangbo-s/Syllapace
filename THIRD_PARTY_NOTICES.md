@@ -146,3 +146,7 @@ STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 ```
+
+## Bundled workspace
+
+The React workspace reuses MIT-licensed ReUI primitives and examples. Its ReUI and runtime dependency copyright/permission notices are included in `Contents/Resources/Workspace/THIRD_PARTY_NOTICES.txt` in the application bundle and generated offline from installed, locked dependencies by `Web/scripts/notices.mjs`. No Pro block, premium template or Ultimate icon source is redistributed.

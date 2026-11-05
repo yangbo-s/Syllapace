@@ -2,17 +2,17 @@
 
 [English](README.md) | **简体中文**
 
-原生 macOS 学期规划应用，用于整理 Canvas 课程、校历、上课安排和截止日期。导入文档、文本或链接，使用自己的 AI key 解析，再将已确认日程同步到 Apple Calendar。
+在本地运行的 macOS 学期规划应用，将 Canvas 课程和导入材料整理为课程安排、提交截止和考试。使用自己的 AI key，在列表、看板、甘特图和日历中查看同一份日程。
 
-Syllapace 在你的 Mac 上运行。连接自己的 Canvas 账号，选择想看的学期和课程，对照原文审核日期。按需配置自己的模型 API key 进行提取，再将已确认的日程同步到 Apple Calendar。小巧的桌面卡片让近期任务随手可见。
+连接自己的 Canvas 账号，选择想看的学期和课程。AI 过滤无关说明、整理有依据的日期并自动加入工作区，原文证据仍可查看。原生 SwiftUI 外壳通过 WebKit 承载随应用打包的 React/ReUI 界面；存储、凭据、系统集成和桌面卡片继续由 Swift 负责，无需 Syllapace 服务器。
 
-目前是早期版本。自动化检查、真实接口联调结果和待验证项见[验收证据](docs/ACCEPTANCE.md)。
+目前是早期版本。自动化检查、真实接口联调结果和待验证项见[验收证据](docs/ACCEPTANCE-0.4.0.md)。
 
 ## 安装
 
 从 [GitHub Releases](https://github.com/yangbo-s/Syllapace/releases) 下载 **DMG**，将 Syllapace 拖入 Applications，再从那里打开。支持 **Apple Silicon 和 macOS 26+**，同时提供 ZIP 和 SHA-256 校验值。
 
-安装包使用 ad hoc 签名，**尚未经过 Apple 公证**。如果 macOS 阻止首次启动，请核对来源和校验值后，按 [Apple 的单应用打开说明](https://support.apple.com/en-us/102445) 允许此应用启动，详见[发布说明](docs/releases/0.3.0.md)。更新签名可保护后续下载，但不能替代 Apple 公证。
+安装包使用 ad hoc 签名，**尚未经过 Apple 公证**。如果 macOS 阻止首次启动，请核对来源和校验值后，按 [Apple 的单应用打开说明](https://support.apple.com/en-us/102445) 允许此应用启动，详见[发布说明](docs/releases/0.4.0.md)。更新签名可保护后续下载，但不能替代 Apple 公证。
 
 ## 语言与更新
 
@@ -26,7 +26,8 @@ Syllapace 在你的 Mac 上运行。连接自己的 Canvas 账号，选择想看
 
 - macOS 26 或更高版本。
 - Xcode 26 或更高版本，包含 Swift 6.2+ 工具链和 Apple 资源编译工具。仅安装 Command Line Tools 时，可能会选用较旧的 Swift 版本。
-- Swift Package Manager 会下载锁定版本的 Sparkle 2.10.1 依赖。无需托管 Syllapace 服务。
+- Node.js 22.13+ LTS 或 24+，以及 npm，用于构建内嵌工作区。依赖或 lockfile 变化时执行 `npm ci`，再编译 React、TypeScript 和 Tailwind。
+- Swift Package Manager 会下载锁定版本的 Sparkle 2.10.1 依赖。安装后的应用不需要 Node.js 或本地 Web 服务器。
 
 在仓库根目录运行：
 
@@ -34,7 +35,7 @@ Syllapace 在你的 Mac 上运行。连接自己的 Canvas 账号，选择想看
 ./build.sh --open
 ```
 
-脚本会生成 `build/Syllapace.app`，嵌入 Sparkle 和本地化资源，编译图标，并默认使用 ad hoc 签名。开发时可运行 `./build.sh --debug --open` 加快构建。默认使用 `/Applications/Xcode.app` 中的工具链；如 Xcode 安装在其他位置，请设置 `DEVELOPER_DIR`。如需使用本机已有的合适签名身份，可设置 `SIGN_IDENTITY`。此构建不包含公证。更新包签名、打包和发布流程见[发布维护](docs/RELEASING.md)。Fork 维护者需要使用自己的更新源和更新签名密钥。
+脚本会生成 `build/Syllapace.app`，嵌入静态工作区、Sparkle、本地化资源和第三方许可说明，编译图标，并默认使用 ad hoc 签名，不会覆盖已经安装的应用。开发时可运行 `./build.sh --debug --open` 加快构建。默认使用 `/Applications/Xcode.app` 中的工具链；如 Xcode 安装在其他位置，请设置 `DEVELOPER_DIR`。如需使用本机已有的合适签名身份，可设置 `SIGN_IDENTITY`。此构建不包含公证。更新包签名、打包和发布流程见[发布维护](docs/RELEASING.md)。Fork 维护者需要使用自己的更新源和更新签名密钥。
 
 如需使用虚构课程和截止日期查看界面：
 
@@ -44,19 +45,34 @@ Syllapace 在你的 Mac 上运行。连接自己的 Canvas 账号，选择想看
 
 演示日程仅在内存中生成，不会保存到你的真实资料库。演示模式下禁用 Canvas、模型提取、EventKit 访问和更新检查。退出演示后，正常打开应用即可配置自己的工作区。
 
+## 一个工作区，四种视图
+
+默认课程工作区只接收三类事项：**课程安排**、**提交截止**、**考试与测验**。Lecture、Recitation、Lab、每周 Demo、Homework、Project、Midterm、Final 保留各自含义。评分标准、教学目标、成绩发布和一般说明仍然属于来源资料，不会因为提到日期或 presentation 就变成日程。
+
+| 视图 | 用途 |
+| --- | --- |
+| 列表 | 按课程、类型、日期和进度浏览、筛选事项。 |
+| 看板 | 将提交任务在待办、进行中、已完成之间移动；课程和考试仍在其他视图中查看。 |
+| 甘特图 | 围绕提交截止和考试安排工作计划；课程安排可通过类型筛选查看。没有计划或来源时长的事项显示为时间节点。 |
+| 日历 | 按月、周、日查看课程、截止日期和考试。 |
+
+四种视图使用同一份原生资料库。**即将到期** 和 **已逾期** 根据时间计算，与任务进度分开。**开始安排** 设置自己的计划开始时间，调整计划不会移动来源中的截止日期。完成的任务仍可通过已完成筛选查看。校历只有在边栏主动选中时才进入独立显示层。
+
+原来的强制待审核队列改为 **需要补充**：只呈现缺失信息、整理失败或与用户编辑重叠的来源变更。正常的 AI 整理结果会自动进入工作区，不要求逐项点击批准。
+
 ## 添加文档、文本或链接
 
 1. 选择 **文件 → 添加材料…**（`⌘O`），一次添加最多十个文件，也可以粘贴文本或输入公开链接。
 2. 选择所属课程或校历、年份和时区；也可以在同一窗口中创建本地课程。
-3. 开启 **使用 AI**，使用已选择的模型解析，并填写可选要求，例如“只提取 Fall 2026 的截止日期”；关闭时使用本地规则解析。
-4. 点击 **解析并预览**，对照原文检查候选日程、编辑不确定日期，并选择要添加的内容。只有选中且确认的日程进入时间线，也可以只保存材料。
+3. 开启 **使用 AI**，使用已选择的模型整理，并填写可选要求，例如“只整理 Fall 2026 的截止日期”；关闭时使用保守的本地规则，且这些材料不会自动发送给模型，来源刷新后也保留这一选择。
+4. 点击 **整理并添加**，有依据且相关的事项会自动加入工作区，无需逐条审批。若部分材料失败，输入和已得到的结果会保留在窗口中，可以重试或保存成功的部分。
 5. 点击 **撤销导入** 可撤销上一次已提交的导入，同时保留后续编辑。Calendar 中已有的外部修改仍受冲突检查保护。
 
 支持文本型 PDF、DOCX、XLSX、CSV、UTF-8 TXT、Markdown 和 HTML。XLSX 会读取单元格值、共享字符串、工作表、日期序列值和已有的公式结果；不会计算公式，也不会访问表格中的外链。扫描件仍需先在其他工具中进行 OCR。[`fixtures/syllabus.md`](fixtures/syllabus.md) 是虚构示例。
 
-公开网页、PDF 链接和公开 Google Sheets 无需浏览器登录即可读取。私有页面或表格可以粘贴相关文本，或导入导出的文件。本地解析保留仅有日期的日程，将歧义留待审核；来源变更不会静默覆盖已确认日期或用户编辑。
+公开网页、PDF 链接和公开 Google Sheets 无需浏览器登录即可读取。私有页面或表格可以粘贴相关文本，或导入导出的文件。日期缺失会保留为关联来源的问题，不会编造日程。
 
-已保存的来源仍可通过 **来源 → 提取** 单独请求模型解析，结果进入待审核。模型解析始终由你主动发起。
+可通过 **来源 → 整理** 重新处理已保存的课程材料；开启自动整理后，变化的课程材料也会自动处理。整理会保留手动编辑与拒绝操作，协调匹配的记录，并提供当前会话中最近一批的 **撤销整理**。有原文依据的更新可以修改由应用管理的事项；与用户编辑冲突的变更需要解决。
 
 ## 连接 Canvas
 
@@ -65,11 +81,11 @@ Syllapace 在你的 Mac 上运行。连接自己的 Canvas 账号，选择想看
 3. 选择学期，勾选想看的课程，再点击 **保存并同步**。确认选择后才会获取课程正文。Portal 等未归入具名学期的课程空间可按需加入。
 4. 此后可通过侧栏的学期菜单，或 **设置 → Canvas → 管理课程…** 修改选择。
 
-所选课程决定今天、时间线、待审核、来源、搜索和桌面卡片的显示范围，也决定 EventKit 新增写入及 ICS 导出范围。切换学期保留历史资料和此前写入 Calendar 的日程。个人及手动导入的课程仍然可用。旧资料库升级后，需要先确认 Canvas 课程范围，再恢复正文同步。
+所选课程决定工作区、需要补充、来源、搜索和桌面卡片的显示范围，也决定 EventKit 新增写入及 ICS 导出范围。切换学期保留历史资料和此前写入 Calendar 的日程。个人及手动导入的课程仍然可用。旧资料库升级后，需要先确认 Canvas 课程范围，再恢复正文同步。
 
 请保持已保存地址的写法一致：凭据按配置地址存入 macOS Keychain，更改地址后需要为新地址保存 token。token 输入框留空时，会保留当前地址已保存的凭据。Keychain 授权改为异步执行，系统询问访问权限时应用仍可响应。
 
-连接器会读取所选课程的 Assignments 及提交和成绩状态、课程 Calendar 日程、内联 syllabus、Announcements、Modules、首页，以及被引用的 Pages 和附件。Classic Quizzes 与关联的 Assignments 按 Canvas ID 合并，避免重复；New Quizzes 使用 Canvas Assignments 中可见的信息。上课、作业、Project、Quiz、Exam 和 Presentation 分为不同事项类型。有明确数据时保留结束时间和地点，成绩与提交状态附在对应任务上。
+连接器会读取所选课程的 Assignments 及提交和成绩状态、课程 Calendar 日程、内联 syllabus、Announcements、Modules、首页，以及被引用的 Pages 和附件。Classic Quizzes 与关联的 Assignments 按 Canvas ID 合并，避免重复；New Quizzes 使用 Canvas Assignments 中可见的信息。课程事项统一归为课程安排、提交截止和考试测验三类，并保留 Lecture、Recitation、Project、Midterm 等细分含义。有明确数据时保留结束时间和地点，成绩与提交状态附在对应任务上；成绩发布通知不会单独变成日程。
 
 **来源** 会保留课程资料中的文本和链接。明确引用的附件，以及可能属于 syllabus 或 schedule 的文件，需要主动导入。Files 目录被隐藏或无权列举时，其他可访问来源仍可同步；具体附件依然需要通过权限检查。
 
@@ -89,17 +105,19 @@ Canvas 设置中的 **自动续期 token** 默认开启。应用运行时会检�
 
 Anthropic 使用原生 Messages API 和 JSON schema；需要指定 Workspace 的 key 可填写 Workspace ID。OpenAI、DeepSeek 和自定义服务使用支持 JSON 输出的 chat completions 接口。已知的非文本模型类型会从列表中排除。列表中的模型仍可能受账号权限或 API 兼容性限制；获取列表不会发起收费生成。旧版自定义配置升级时保留原端点和 Keychain 账户。
 
-模型不会获得工具，返回的字段、日期及证据会经过校验。只有主动请求解析时，选定材料和可选解析要求才会直接发给提供商，请求不包含 Canvas token。证据匹配不等于日期理解正确，确认前仍应检查。模型调用可能产生费用，由自己的提供商账号承担。
+模型设置中的 **自动整理课程资料** 默认开启。配置模型和 key 后，应用可在启动、同步或导入后，将所选课程中符合条件的已保存材料直接发送给该提供商。导入时关闭 **使用 AI** 的材料会被排除；主动整理该来源只授权这一次操作，不会开启后续自动上传。关闭自动整理设置会停止后台整理；仍可主动点击 **整理** 或在导入时选择 **使用 AI**。模型调用可能产生费用，由自己的提供商账号承担。
+
+模型没有工具权限；返回的字段、日期和原文证据会经过校验。AI 先过滤无关内容并规范标题，再合并可加入的事项。来源、模型配置、时间范围和整理版本共同组成缓存指纹，已成功处理且未变化的材料会跳过。缺失日期或无法解决的冲突留在 **需要补充**，并保留来源。证据校验不能保证语义理解完全正确，事项仍可编辑，最近一批整理可撤销。模型请求不包含 Canvas token。
 
 兼容 chat 接口中，已识别的推理模型使用 `max_completion_tokens` 并省略 `temperature`；明确的“不支持参数”错误允许一次兼容重试。鉴权、限流、网络错误和不完整生成不会自动重试。不支持普通 HTTP 端点或要求其他协议的服务。
 
 ## 校历
 
-在 **设置 → 校历** 中添加 ICS 订阅，或基于导入文档创建校历。设置名称、学期、时区和日期范围后保存；点击 **同步日期** 可主动读取已保存的 ICS 订阅。也可以选择 **导入校历文档…**，通过同样的证据审核流程解析 PDF、表格、文本或公开链接。
+在 **设置 → 校历** 中添加 ICS 订阅，或基于导入文档创建校历。设置名称、学期、时区和日期范围后保存；点击 **同步日期** 可主动读取已保存的 ICS 订阅。也可以选择 **导入校历文档…**，通过同样的材料流程整理 PDF、表格、文本或公开链接。
 
 内置 **CMU Academic Calendar** 提供官方 feed 和 2026–2027 PDF 的入口。feed 可能仅包含未来日期，可用全年文档补足；使用前请确认来源覆盖的校区和项目。
 
-学术节点与假期拥有独立类型和边栏分组，与课程、作业、Project 分开。假期不会自动取消上课安排。支持的 ICS 重复规则仅在所选范围内展开，不支持的规则或有歧义的时间会给出提示，不猜测日期。缺失或被来源取消的日程仍保留历史供审核。ICS 订阅由 Syllapace 读取，不会作为订阅 URL 安装到 Apple Calendar。
+学术节点与假期拥有独立边栏分组。默认课程工作区不混入校历事项，主动选择某个校历后才显示这个独立层。假期不会自动取消上课安排。支持的 ICS 重复规则仅在所选范围内展开，不支持的规则或有歧义的时间会给出提示，不猜测日期。缺失或被来源取消的日程仍保留历史供审核。ICS 订阅由 Syllapace 读取，不会作为订阅 URL 安装到 Apple Calendar。
 
 ## 自定义课程名称
 
@@ -121,7 +139,7 @@ Anthropic 使用原生 Messages API 和 JSON schema；需要指定 Workspace 的
 
 ## 桌面卡片与快捷键
 
-使用 `⇧⌘D` 或菜单栏项目显示桌面卡片。紧凑视图分别显示下一节课和下一项截止任务，展开后可查看未来七天。拖动背景可移动卡片，菜单可设置置顶、锁定位置和贴近屏幕边缘；点击日程可打开时间线。卡片遵循所选学期和课程范围。本版交付 AppKit 桌面面板，macOS 小组件库中的 WidgetKit 扩展延后。
+使用 `⇧⌘D` 或菜单栏项目显示桌面卡片。紧凑视图分别显示下一节课和下一项截止任务，展开后可查看未来七天。拖动背景可移动卡片，菜单可设置置顶、锁定位置和贴近屏幕边缘；点击日程可打开工作区。卡片遵循所选学期和课程范围。本版交付 AppKit 桌面面板，macOS 小组件库中的 WidgetKit 扩展延后。
 
 | 操作 | 快捷键 |
 | --- | --- |
@@ -134,9 +152,9 @@ Anthropic 使用原生 Messages API 和 JSON schema；需要指定 Workspace 的
 
 ## 数据与隐私
 
-资料库以 JSON 归档保存在 `~/Library/Application Support/Syllapace/archive.json`，采用原子写入。`archive.json.backup` 保留上一份可读取的归档。0.3.0 可读取 schema 1 和 schema 2 资料库，并在下一次成功保存时写入 schema 3，额外保留一次性的 `archive.json.schema-<旧版本>.backup`，不会被后续滚动备份覆盖。旧版无法读取 schema 3，降级前请保留备份。EventKit 绑定单独存储在同目录的 `calendar-mapping.json` 中。凭据存入 Keychain；连接地址和非敏感偏好存入 UserDefaults。
+资料库以 JSON 归档保存在 `~/Library/Application Support/Syllapace/archive.json`，采用原子写入。`archive.json.backup` 保留上一份可读取的归档。0.4.0 可读取 schema 1 至 schema 3 资料库，并在下一次成功保存时写入 schema 4，额外保留一次性的 `archive.json.schema-<旧版本>.backup`，不会被后续滚动备份覆盖。原有完成标记会保留，并新增任务进度、计划开始时间和整理记录。旧版无法读取 schema 4，降级前请保留备份。EventKit 绑定单独存储在同目录的 `calendar-mapping.json` 中。凭据存入 Keychain；连接地址和非敏感偏好存入 UserDefaults。
 
-导入文本和证据保存在本地，未额外进行应用层加密。本地原始文档仍保留在你选择的位置，下载的临时文件在导入后清理。无需 Syllapace 账号、遥测服务或后端。发起模型请求时，会将选中来源的文本和解析要求发送给所选服务。学校搜索向 Instructure 发送学校名称，模型列表查询仅向配置的提供商发送 key；公开文档和校历请求不包含 Canvas 或模型凭据。
+导入文本和证据保存在本地，未额外进行应用层加密。本地原始文档仍保留在你选择的位置，下载的临时文件在导入后清理。无需 Syllapace 账号、遥测服务或后端。自动整理或主动使用 AI 导入时，会将对应来源的文本和解析要求直接发送给所选服务。WebKit 工作区只接收显示数据并发送有限的原生命令，不持有 Canvas token 或模型 key，只加载随包资源，也不维护第二份数据库。学校搜索向 Instructure 发送学校名称，模型列表查询仅向配置的提供商发送 key；公开文档和校历请求不包含 Canvas 或模型凭据。
 
 开发时可用 `APP_STORE` 指定另一个归档路径，隔离数据。如果归档损坏或使用未知结构版本，应用会提示并拒绝覆盖。手动恢复文件前，请备份应用支持目录；不要随意丢弃日历映射文件，它用于保留日程归属关系并防止重复创建。
 
@@ -146,25 +164,28 @@ Anthropic 使用原生 Messages API 和 JSON schema；需要指定 Workspace 的
 
 ```sh
 ./tools/test.sh        # Swift Testing：领域模型、文档、连接器、日历同步规划器
-./tools/selftest.sh    # 在临时存储中验证应用的导入、审核、变更和持久化流程
-./tools/snap.sh        # 使用虚构数据捕获应用的浅色和深色界面
+./tools/selftest.sh    # 在临时存储中验证整理、命令、撤销和持久化
+npm --prefix Web test # 工作区视图、筛选、进度和计划
+python3 tools/snap-review.py build/verification/visual-review # 中英文、浅深色
+# 仅工作区检查矩阵；输出目录须为新目录：
+APP_SNAPSHOT_WORKSPACE=1 python3 tools/snap-review.py build/verification/workspace-review
 ./tools/grid-lint.sh   # SwiftUI 间距检查
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift tools/check-layout.swift .impeccable/review/*-layout.json
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift tools/check-layout.swift build/verification/visual-review/*/*-layout.json
 ```
 
-截图和实际窗口布局测量数据写入 `.impeccable/review/`。运行 `tools/snap.sh` 时设置 `APP_LAYOUT_ONLY=1`，可仅刷新测量数据，不覆盖截图。原生设置表单使用系统布局，不进行布局探测；检查器测量自定义内容、检查器面板、导入与编辑表单，以及桌面卡片。截图脚本捕获应用自身的窗口。准确捕获窗口可能需要屏幕录制权限；日志中的 `view-render fallback` 不代表已验证原生材质或活动窗口外观。
+检查脚本使用隔离的应用副本和临时资料库，不替换本机正式安装。完整模式每种语言预期 51 张截图；仅工作区模式为 22 张，涵盖四视图、两种尺寸、浅深色、空状态、课程筛选和独立校历层。脚本等待对应 WebKit 数据渲染完成，加载失败会直接报错，不把占位界面当作验收截图。原生设置使用系统布局；网格探针检查自定义原生界面，WebKit 布局通过真实窗口截图检查。将输出的 `*-layout.json` 路径传给布局检查器即可。截图仅捕获应用自身的窗口。准确捕获窗口可能需要屏幕录制权限；日志中的 `view-render fallback` 不代表已验证原生材质或活动窗口外观。
 
-测试使用合成的 PDF/DOCX 文档、模拟网络响应和日历快照，不会索取真实凭据或写入你的实际日历。参见[工程需求](docs/ENGINEERING.md)、[EventKit 决策](docs/decisions/0001-apple-calendar-eventkit.md)和[验收证据](docs/ACCEPTANCE.md)。
+测试使用合成的 PDF/DOCX 文档、模拟网络响应和日历快照，不会索取真实凭据或写入你的实际日历。参见[工程需求](docs/ENGINEERING.md)、[EventKit 决策](docs/decisions/0001-apple-calendar-eventkit.md)和[验收证据](docs/ACCEPTANCE-0.4.0.md)。
 
 ## 当前限制
 
 - 导入上限：每份文档 20 MB、PDF 最多 150 页、提取文本最多 2 MB。扫描件或纯图片 PDF 需先在其他工具中进行 OCR。复杂 PDF 排版可能导致阅读顺序丢失；DOCX 解析保留基本的行列关联，不复现视觉排版。
-- 每次模型解析最多接受 64,000 个 Swift 字符串字符的原文、2,000 字符的要求，返回最多 300 项候选日程，需要兼容的 HTTPS 服务。较大的材料可保存在本地，但需缩短后再交给模型。
-- 文件发现会跟随可访问的课程引用，并识别课程大纲或日程安排类文件名。文件和公开外链需要主动导入，已下载的文档不会在每次 Canvas 刷新时自动重新下载；请重新导入修订后的来源来审核变更。
+- 每次模型解析最多接受 64,000 个 Swift 字符串字符的原文、2,000 字符的要求，返回最多 300 项结构化记录，再按限制展开重复课程，需要兼容的 HTTPS 服务。较大的材料可保存在本地，但需缩短后再交给模型。
+- 文件发现会跟随可访问的课程引用，并识别课程大纲或日程安排类文件名。文件和公开外链需要主动导入，已下载的文档不会在每次 Canvas 刷新时自动重新下载；请重新导入修订后的来源来处理变更。
 - Canvas 访问能力取决于课程配置和账户权限。私有 Google Sheets、Piazza 帖子、完整 Gradescope 内容及 New Quizzes 题目内容不在当前连接器覆盖范围内。
-- 结构化 ICS 重复规则只在所选日期范围内展开，不支持的规则会提示。文本中的重复课表不会自动展开，假期也不会自动移除课程安排。
+- 结构化 ICS 重复规则只在所选日期范围内展开。AI 可以识别文本中的每周课表，原生代码仅在有明确星期、时间及课程或来源起止日期时展开；单凭 Fall 2026 这样的学期名称不会推测边界。缺失范围、不支持的规则及有歧义的夏令时会形成问题提示，假期不会自动取消课程。
 - 规则提取较为保守，主要处理英文教学日程表述和明确日期，并非完整的多语言日期解析器。
-- 来自不同来源的相似标题会标记为待审核；应用无法证明名称不同的两个教学节点是同一项日程。
+- 变更协调会合并匹配的记录并保护用户编辑，但无法证明名称不同的两项教学活动是同一事项。AI 理解不是百分之百可靠；无法确定的日期留在问题中，不会猜测后塞进日程。
 - 应用没有独立后台代理、OAuth 配置、OCR、Windows 构建或其他 LMS 集成。
 - 运行时权限流程、具体账号的 Canvas 权限、模型服务兼容性和真实 Calendar 同步，仍需用户配置后进行实际验证。
 
@@ -174,6 +195,6 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift tools/check
 
 ## 项目结构
 
-`Sources/SyllapaceKit/` 包含领域模型、持久化、解析、变更协调、连接器、ICS 导出和不执行外部写入的日历同步规划器。`Sources/Syllapace/` 包含 SwiftUI 视图、应用状态、桌面面板和 EventKit 适配器。`Tests/SyllapaceKitTests/` 使用合成测试样例验证核心模块边界。
+`Sources/SyllapaceKit/` 包含领域模型、持久化、解析、变更协调、连接器、ICS 导出和不执行外部写入的日历同步规划器。`Sources/Syllapace/` 包含 SwiftUI 外壳、WebKit 桥接、应用状态、桌面面板和 EventKit 适配器。`Web/` 包含随应用打包的 React/Tailwind 工作区及复用的 ReUI/shadcn 组件。`Tests/SyllapaceKitTests/` 使用合成测试样例验证核心模块边界。
 
-桌面交互借鉴了 [Still Today](https://github.com/OyangDer/still-today)。这是全新的原生 Swift 实现，未嵌入上游的 Svelte/Tauri 界面。
+桌面交互借鉴了 [Still Today](https://github.com/OyangDer/still-today)。桌面面板使用 Swift/AppKit 实现，未嵌入上游的 Svelte/Tauri 界面。主工作区复用 MIT 许可的 [ReUI](https://reui.io/) 组件，第三方许可说明随应用打包。

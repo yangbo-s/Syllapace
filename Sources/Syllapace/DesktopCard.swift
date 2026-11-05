@@ -25,7 +25,7 @@ struct DesktopCard: View {
 
     private func upcoming(at date: Date) -> [AcademicEvent] {
         let start = Calendar.current.startOfDay(for: date)
-        return model.scopedEvents.filter { event in
+        return model.presentationEvents.filter { event in
             guard event.state == .approved, !event.completed, let when = event.presentationDate else { return false }
             return event.dateOnly ? when >= start : (event.endsAt ?? when) >= date
         }.sorted { ($0.presentationDate ?? .distantFuture) < ($1.presentationDate ?? .distantFuture) }
@@ -165,7 +165,7 @@ struct DesktopCard: View {
             if preferences.pinned { Image(systemName: "pin.fill").help(L10n.string("Keep above windows")) }
             Text(model.isDemo ? L10n.string("Demo workspace") : "Syllapace")
             Spacer(minLength: 0)
-            Button(L10n.string("Open timeline")) { model.page = .timeline; model.revealMain() }
+            Button(L10n.string("Open workspace")) { model.page = .timeline; model.revealMain() }
                 .buttonStyle(.plain).foregroundStyle(Palette.accent)
         }
         .font(.caption).foregroundStyle(.secondary)
@@ -175,6 +175,7 @@ struct DesktopCard: View {
     private func reveal(_ event: AcademicEvent) {
         model.page = .timeline
         model.selectedID = event.id
+        model.editor = event
         model.revealMain()
     }
 }

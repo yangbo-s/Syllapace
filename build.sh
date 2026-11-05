@@ -22,6 +22,9 @@ if len(key) != 32:
 PY
 fi
 
+# ReUI runs from signed, bundled static resources. No runtime server is required.
+./tools/build_workspace.sh
+
 mkdir -p .build/config .build/security .build/cache build
 xcrun swift build --config-path "$PWD/.build/config" --security-path "$PWD/.build/security" --cache-path "$PWD/.build/cache" -c "$config" --disable-sandbox
 ./tools/make_icon.sh
@@ -42,6 +45,8 @@ for bundle in .build/$config/*.bundle(N); do
   ditto "$bundle" "$staged_app/Contents/Resources/${bundle:t}"
 done
 [[ -d "$staged_app/Contents/Resources/Syllapace_SyllapaceKit.bundle" ]] || { echo "Missing SyllapaceKit localization bundle" >&2; exit 1; }
+ditto Web/dist "$staged_app/Contents/Resources/Workspace"
+[[ -f "$staged_app/Contents/Resources/Workspace/index.html" ]] || { echo "Missing workspace assets" >&2; exit 1; }
 [[ ! -f THIRD_PARTY_NOTICES.md ]] || cp THIRD_PARTY_NOTICES.md "$staged_app/Contents/Resources/"
 
 sparkle_artifact="$PWD/.build/artifacts/sparkle/Sparkle"

@@ -1,20 +1,20 @@
 # Syllapace
 <!-- impeccable:product-schema 1 -->
 ## Platform
-Native macOS, SwiftUI and AppKit. No Windows target.
+Local macOS application with native SwiftUI/AppKit chrome and a bundled WebKit workspace. No Windows target.
 ## Stack
-User-confirmed Swift native application; EventKit for Apple Calendar. Swift Package build, macOS 26+.
+User-confirmed SwiftUI shell + WKWebView hosting React, Tailwind, shadcn, and MIT ReUI components. Swift services own persistence, files, Keychain, Canvas, model calls, EventKit, and Sparkle. Swift Package plus Vite build, Apple Silicon, macOS 26+. Node is a build dependency, not an application runtime.
 ## Users
 Canvas-using students running their own local open-source client.
 ## Product Purpose
-Turn assignments and syllabus documents into a trustworthy academic timeline with evidence, review and change tracking.
+Turn selected-semester materials into an orderly set of class meetings, submission deadlines, and assessments. AI does the filtering and organization; routine valid results do not require manual approval.
 ## Operating Context
-Users configure their Canvas token and BYOK model directly. Local storage and Keychain; no Syllapace backend. Main window for review, compact desktop card for daily use.
+Users configure their Canvas token and BYOK model directly. Local storage and Keychain; no Syllapace backend. The main window offers List, Board, Gantt, and Calendar over one library; a native desktop card shows upcoming classes and deadlines. Automatic course-material organization is enabled by default once a model and key are configured, can incur provider charges, and can be disabled in Models settings. Importing with Use AI off persists a local-only choice that survives source refreshes; explicitly organizing that material does not opt it into future automatic uploads.
 ## Capabilities and Constraints
-Canvas courses/assignments/syllabus/file discovery; PDF/DOCX/text import; optional BYOK structured extraction; manual review/edit; stable event identity; source changes preserve user decisions; EventKit dedicated local calendar and ICS export.
+Canvas course/term selection and native source discovery; file/text/public-link import including PDF, DOCX, XLSX, and CSV; evidence-validated BYOK curation; bounded weekly class expansion; source-linked unresolved information; reversible reorganization; separate progress and urgency; personal work plans that do not move source deadlines. Academic calendars are an explicitly selected layer, not default course clutter. Manual edits/rejections, local EventKit ownership, and ICS export remain protected. Private Google authorization, OCR, complete Gradescope/Piazza ingestion, and WidgetKit rollout remain outside this release.
 ## Brand Commitments
-Refined, spacious, beautiful native Mac interface. Borrow Still Today's desktop card interaction. Direct code-first design and real light/dark screenshots approved by user. The user references Codex, Slack and Linear for precision and simplicity, while asking for a recognizable course-and-schedule meaning. The current course-stack direction combines layered syllabus pages, an aligned date grid and a turning corner; geometry uses explicit shared dimensions and spacing. The application interface retains its study-desk direction.
+Refined, clear, spacious Mac experience. Keep native window, sidebar, toolbar, menus, settings, and desktop interactions. Reuse ReUI components and their design system in the workspace; adapt real data and semantic tokens instead of redrawing the components. Borrow Still Today's desktop card interaction. Direct implementation and real bilingual light/dark window review are user-approved. The Codex, Slack, and Linear references guide the precise course-page/date logo; its explicit alignment and spacing geometry remains unchanged.
 ## Evidence on Hand
-Proposal ZIP and conversation; docs/decisions/0001-apple-calendar-eventkit.md. No real credentials or course documents supplied. Demo data must be synthetic and clearly labeled.
+Proposal ZIP and conversation; docs/decisions/0001-apple-calendar-eventkit.md; docs/PLAN-0.4.0.md and docs/DESIGN-0.4.0.md. Demo data is synthetic and clearly labeled. Actual test results and live-integration limits belong in docs/ACCEPTANCE-0.4.0.md; a mock test or screenshot does not establish account-specific provider or Calendar behavior.
 ## Product Principles
-Traceable evidence, explicit uncertainty, user control, offline resilience.
+Relevant events before volume; AI handles routine organization; explicit uncertainty without fabricated dates; one library across views; traceable evidence, reversible changes, user control, and offline resilience.
