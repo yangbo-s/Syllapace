@@ -54,6 +54,23 @@ struct CourseScheduleProjectionTests {
         let result = CourseScheduleProjection.project(events: [official, edited], sources: [source([official]), notice], courses: [course])
         #expect(result.map(\.id) == ["edited"])
     }
+    @Test func syllabusRoleAndCancellationSurviveRemovalOfRedundantModelRecurrences() {
+        var official = event("official-event", source: "official", series: "official-series")
+        official.title = "Class"; official.subtype = .classMeeting
+        official.endsAt = official.date!.addingTimeInterval(50 * 60)
+        var verified = source([official])
+        verified.teachingStartsAt = ISO8601DateFormatter().date(from: "2026-08-24T04:00:00Z")
+        verified.teachingEndsAt = ISO8601DateFormatter().date(from: "2026-12-05T05:00:00Z")
+        var owner = course; owner.term = AcademicTerm(id: "term", name: "Fall 2026")
+        let syllabus = SourceDocument(id: "syllabus", courseID: course.id, title: "Syllabus", text: "Recitation: Fridays 10:00–10:50 AM", kind: .syllabus)
+        let sources = [verified, syllabus]
+        let labeled = CourseScheduleProjection.project(events: [official], sources: sources, courses: [owner])
+        #expect(labeled.first?.subtype == .recitation && labeled.first?.relatedSourceIDs == [syllabus.id])
+        let notice = SourceDocument(id: "notice", courseID: course.id, title: "Notice", text: "No recitation on November 6, 2026.", kind: .announcement)
+        #expect(CourseScheduleProjection.project(events: [official], sources: sources + [notice], courses: [owner]).isEmpty)
+        var ambiguous = syllabus; ambiguous.id = "ambiguous"; ambiguous.text = "Lecture: Fridays 10:00–10:50 AM"
+        #expect(CourseScheduleProjection.project(events: [official], sources: sources + [ambiguous], courses: [owner]).first?.subtype == .classMeeting)
+    }
     @Test func editedAndCancelledCanonicalKeepTheirExactAliasesSuppressed() throws {
         let canonical = event("official-event", source: "official", series: "official-series")
         let notice = event("notice", source: "announcement")

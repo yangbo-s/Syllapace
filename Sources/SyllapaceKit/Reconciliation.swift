@@ -80,6 +80,20 @@ public enum Reconciler {
                     }
                 }
                 current.curationVersion = observation.curationVersion ?? current.curationVersion
+                // Old imports can retain a proposal that is already the saved
+                // date. A fresh validated result confirms this exact value;
+                // there is no date decision left for an unedited record.
+                if current.id.hasPrefix("model:"), current.state == .conflict, !current.userEdited,
+                   observation.state == .approved, observation.curationVersion != nil,
+                   current.sourceID != nil, current.sourceID == observation.sourceID,
+                   current.date != nil, current.date == observation.date, current.date == current.proposedDate,
+                   current.dateOnly == observation.dateOnly, current.dateOnly == (current.proposedDateOnly ?? current.dateOnly),
+                   current.timeZone == observation.timeZone, current.timeZone == (current.proposedTimeZone ?? current.timeZone),
+                   current.endsAt == observation.endsAt, current.endsAt == current.proposedEndsAt {
+                    current.state = .approved; current.wasApproved = true
+                    current.proposedDate = nil; current.proposedDateOnly = nil; current.proposedTimeZone = nil; current.proposedEndsAt = nil
+                    current.revision += 1
+                }
                 if current.state == .approved { current.curationExcluded = nil }
                 if observation.submission != current.submission, observation.submission != nil {
                     current.submission = observation.submission

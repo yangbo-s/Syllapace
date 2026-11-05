@@ -83,6 +83,14 @@ struct CurationContextTests {
         #expect(prepared.text.contains("Source: proposal (Project Proposal)"))
         #expect(!prepared.text.contains("Source: report"))
     }
+    @Test func gradeNoticesDoNotAcquireUnrelatedDeadlineContext() {
+        let notice = document("notice", "Homework 2 Grades", "Grades have been released. No lecture today.")
+        var assignment = document("assignment", "Homework 2", "Task", kind: .assignment)
+        assignment.effectiveDueAt = instant("2026-11-20T04:59:00Z")
+        #expect(CurationContext.prepare(source: notice, course: course, relatedSources: [assignment]).text == notice.text)
+        var extensionNotice = notice; extensionNotice.text = "Grades have been released. The resubmission deadline is extended."
+        #expect(CurationContext.prepare(source: extensionNotice, course: course, relatedSources: [assignment]).text.contains("Related Canvas assignment"))
+    }
 
     @Test func relatedRecitationMustHaveSameCourseAndResolvedDateAndUniqueTime() throws {
         var notice = document("notice", "Recitation", "Recitation today covers transformers.")

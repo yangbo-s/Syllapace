@@ -1393,6 +1393,38 @@ function GanttView({
     window.addEventListener("pointercancel", finish)
   }
 
+  // A native horizontal scrollbar shortens only the timeline's viewport.
+  // Give the tree the same trailing space, otherwise its scrollTop clamps
+  // early (including when the rows fit exactly) and the two tracks separate.
+  useLayoutEffect(() => {
+    const tree = getPaneViewport(treePaneRef.current)
+    const timeline = getPaneViewport(timelinePaneRef.current)
+    const content = tree?.firstElementChild as HTMLElement | null
+    if (!tree?.hasAttribute("data-gantt-native-scroll") || !timeline || !content)
+      return
+    const update = () => {
+      const gutter = Math.max(
+        0,
+        timeline.offsetHeight - timeline.clientHeight -
+          (tree.offsetHeight - tree.clientHeight)
+      )
+      const padding = `${gutter}px`
+      if (content.style.paddingBottom !== padding)
+        content.style.paddingBottom = padding
+      tree.scrollTop = timeline.scrollTop
+    }
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(tree)
+    observer.observe(timeline)
+    observer.observe(content)
+    if (timeline.firstElementChild) observer.observe(timeline.firstElementChild)
+    return () => {
+      observer.disconnect()
+      content.style.removeProperty("padding-bottom")
+    }
+  }, [scale, viewConfig.scrollbars])
+
   // Both panes scroll vertically; whichever moves drives the other.
   useEffect(() => {
     const treeViewport = getPaneViewport(treePaneRef.current)

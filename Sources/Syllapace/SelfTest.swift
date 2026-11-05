@@ -110,6 +110,28 @@ enum SelfTest {
             }
         } catch { fail("Verified schedule cache could not reload") }
         model.archive = pipelineCheckpoint
+        let deadlineCheckpoint = model.archive
+        let html = SourceDocument(id: "deadline-html", courseID: courseID, title: "Web syllabus", text: "Blog post due December 24", kind: .syllabus)
+        let pdf = SourceDocument(id: "deadline-pdf", courseID: courseID, title: "PDF syllabus", text: "Blog post due December 3", kind: .syllabus)
+        var first = AcademicEvent(id: "model:deadline-html", courseID: courseID, title: "Project · Blog post", kind: .project,
+                                  date: ISO8601DateFormatter().date(from: "2026-12-24T17:00:00Z"), dateOnly: true,
+                                  timeZone: "America/New_York", state: .approved, sourceID: html.id)
+        first.curationVersion = EventCuration.version
+        var second = first; second.id = "model:deadline-pdf"; second.sourceID = pdf.id
+        second.date = ISO8601DateFormatter().date(from: "2026-12-03T17:00:00Z")
+        model.archive.sources += [html, pdf]; model.archive.events += [first, second]
+        let conflict = model.unresolvedEvents.first { $0.id == first.id }
+        check(conflict?.proposedDate == second.date && conflict?.relatedSourceIDs == [pdf.id], "Conflicting syllabus dates appear once with both sources")
+        check(!model.workspaceEvents.contains { $0.id == first.id || $0.id == second.id }
+              && !model.publishableEvents.contains { ($0.id == first.id || $0.id == second.id) && $0.state == .approved }, "Unresolved source dates do not enter the schedule or calendar export")
+        var decided = first; decided.date = second.date; decided.userEdited = true
+        check(model.saveEditedEvent(decided, replacing: first), "Source conflict resolution uses the stored editing baseline")
+        check(model.workspaceEvents.filter { $0.id == first.id || $0.id == second.id }.count == 1 && !model.unresolvedEvents.contains { $0.id == first.id }, "Confirmed deadline retains its aliases and clears the source conflict")
+        if let stored = model.archive.events.first(where: { $0.id == first.id }) {
+            var cancelled = stored; cancelled.state = .rejected
+            check(model.saveEditedEvent(cancelled, replacing: stored) && !model.workspaceEvents.contains { $0.id == first.id || $0.id == second.id }, "Cancelling a merged deadline cannot restore its duplicate")
+        }
+        model.archive = deadlineCheckpoint
         let stable = model.archive.events
         check(model.commitCuration(CurationResult(issues: ["Date evidence is incomplete"]), source: source, fingerprint: model.curationFingerprint(source)) && model.archive.events == stable && model.curationIssues.count == 1, "Incomplete curation preserves existing dates and exposes the issue")
         let beforeFirst = model.archive
@@ -314,6 +336,20 @@ enum SelfTest {
                 let selected = try await webView.callAsyncJavaScript("return document.querySelector('main')?.dataset.view === view && !document.querySelector('[role=tab]')", arguments: ["view": view.rawValue], in: nil, contentWorld: .page)
                 check(selected as? Bool == true, "Workspace renders \(view.rawValue) without duplicate navigation")
                 if view == .gantt {
+                    let alignment = try await webView.callAsyncJavaScript("""
+                        const rows = [...document.querySelectorAll('[data-gantt-row]')];
+                        const deltas = rows.map(row => {
+                          const tree = document.querySelector(`[data-slot=gantt-row-group][data-gantt-row-id="${CSS.escape(row.dataset.ganttRowId)}"]`);
+                          const label = tree?.querySelector('[data-slot=gantt-tree-cell] > div');
+                          const bar = row.querySelector('[data-slot=gantt-bar]');
+                          const r = row.getBoundingClientRect(), t = tree?.getBoundingClientRect();
+                          const l = label?.getBoundingClientRect(), b = bar?.getBoundingClientRect();
+                          return {row: t ? r.top-t.top : null, bar: l && b ? b.top+b.height/2-l.top-l.height/2 : null};
+                        });
+                        return rows.length && deltas.some(d => d.bar !== null) && deltas.every(d => d.row !== null && Math.abs(d.row) <= 1 && (d.bar === null || Math.abs(d.bar) <= 1)) ? true : JSON.stringify(deltas);
+                        """, arguments: [:], in: nil, contentWorld: .page)
+                    if let geometry = alignment as? String { Snapshot.log("Row geometry: \(geometry)") }
+                    check(alignment as? Bool == true, "Timeline labels and marks share a row center")
                     for width in [940, 1120, 1320, 940] {
                         webView.window?.setContentSize(NSSize(width: width, height: 620))
                         try await Task.sleep(for: .milliseconds(150))
@@ -389,7 +425,53 @@ enum SelfTest {
                   getComputedStyle(pane).overflowY === 'auto' && document.querySelectorAll('tbody tr').length === 20;
                 """, arguments: [:], in: nil, contentWorld: .page)
             check(scrolling as? Bool == true, "List uses native scrolling with 20 rows and a visible pagination footer")
+            model.page = AppPage(view: .gantt)
+            check(await waitForWorkspace(model, until: { WorkspaceWebViewState.shared.renderedView == .gantt }), "Dense timeline reaches the workspace")
+            let denseAlignment = try await webView.callAsyncJavaScript("""
+                const pane = document.querySelector('[data-slot=gantt-timeline-pane] [data-slot=scroll-area-viewport]');
+                const treePane = document.querySelector('[data-slot=gantt-tree-pane] [data-slot=scroll-area-viewport]');
+                const results = [];
+                for (const position of [0, 120, 1e6, 0]) {
+                  pane.scrollTop = position;
+                  await new Promise(resolve => setTimeout(resolve, 100));
+                  const rows = [...document.querySelectorAll('[data-gantt-row]')];
+                  const deltas = rows.map(row => {
+                    const tree = document.querySelector(`[data-slot=gantt-row-group][data-gantt-row-id="${CSS.escape(row.dataset.ganttRowId)}"]`);
+                    const label = tree?.querySelector('[data-slot=gantt-tree-cell] > div');
+                    const bar = row.querySelector('[data-slot=gantt-bar]');
+                    const r = row.getBoundingClientRect(), t = tree?.getBoundingClientRect();
+                    const l = label?.getBoundingClientRect(), b = bar?.getBoundingClientRect();
+                    return {row: t ? r.top-t.top : null, bar: l && b ? b.top+b.height/2-l.top-l.height/2 : null};
+                  });
+                  results.push({position, scroll: pane.scrollTop, treeScroll: treePane.scrollTop, timelineHeight: pane.scrollHeight, treeHeight: treePane.scrollHeight, deltas});
+                }
+                return results.every(r => r.deltas.length > 10 && r.deltas.every(d => d.row !== null && Math.abs(d.row) <= 1 && (d.bar === null || Math.abs(d.bar) <= 1))) ? true : JSON.stringify(results);
+                """, arguments: [:], in: nil, contentWorld: .page)
+            if let geometry = denseAlignment as? String { Snapshot.log("Dense row geometry: \(geometry)") }
+            check(denseAlignment as? Bool == true, "Dense timeline keeps labels and marks aligned at the top, middle and bottom")
+            model.archive.events = Array(density.prefix(12)); model.save()
+            check(await waitForWorkspace(model, until: { WorkspaceWebViewState.shared.renderedSnapshot?.events.count == 12 }), "Boundary-height timeline reaches the workspace")
+            let heightDelta = try await webView.callAsyncJavaScript("const tree = document.querySelector('[data-slot=gantt-tree-pane] [data-slot=scroll-area-viewport]'); return tree.scrollHeight-tree.clientHeight", arguments: [:], in: nil, contentWorld: .page)
+            if let delta = heightDelta as? Double, let window = webView.window, let content = window.contentView {
+                window.setContentSize(NSSize(width: content.frame.width, height: content.frame.height + delta * AppAppearance.shared.scale))
+            }
+            try await Task.sleep(for: .milliseconds(150))
+            let boundaryAlignment = try await webView.callAsyncJavaScript("""
+                const pane = document.querySelector('[data-slot=gantt-timeline-pane] [data-slot=scroll-area-viewport]');
+                const tree = document.querySelector('[data-slot=gantt-tree-pane] [data-slot=scroll-area-viewport]');
+                pane.scrollTop = 1e6;
+                await new Promise(resolve => setTimeout(resolve, 150));
+                const row = document.querySelector('[data-gantt-row]');
+                const label = document.querySelector('[data-slot=gantt-row-group]');
+                const delta = row.getBoundingClientRect().top-label.getBoundingClientRect().top;
+                return Math.abs(delta) <= 1 && pane.scrollTop >= pane.scrollHeight-pane.clientHeight-1 ? true :
+                  JSON.stringify({delta, scroll: pane.scrollTop, treeScroll: tree.scrollTop, height: pane.scrollHeight, client: pane.clientHeight, treeHeight: tree.scrollHeight, treeClient: tree.clientHeight});
+                """, arguments: [:], in: nil, contentWorld: .page)
+            if let geometry = boundaryAlignment as? String { Snapshot.log("Boundary row geometry: \(geometry)") }
+            check(boundaryAlignment as? Bool == true, "Timeline stays aligned when only the horizontal scrollbar causes vertical overflow")
+            webView.window?.setContentSize(NSSize(width: 940, height: 620))
             model.archive.events = savedEvents; model.save()
+            model.page = .list
             let previousNotice = model.notice
             model.notice = nil
             try await Task.sleep(for: .milliseconds(350))

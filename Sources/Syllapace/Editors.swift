@@ -27,7 +27,7 @@ struct EventEditor: View {
         // Redraw translated content without replacing the view or its draft state.
         let _ = languagePreference
         VStack(alignment: .leading, spacing: 24) {
-            Text(original.state == .conflict ? L10n.string("Review schedule change") : original.title.isEmpty ? L10n.string("New event") : L10n.string("Edit event")).font(.title2.weight(.semibold)).gridProbe("editor-title", area: "event-editor")
+            Text(initialDraft.state == .conflict ? L10n.string("Review schedule change") : original.title.isEmpty ? L10n.string("New event") : L10n.string("Edit event")).font(.title2.weight(.semibold)).gridProbe("editor-title", area: "event-editor")
             Form {
                 TextField(L10n.string("Title"), text: $title).focused($titleFocused)
                 // Native menu controls cache their option labels. Rebuild just
@@ -64,8 +64,8 @@ struct EventEditor: View {
                     }
                 }.menuStyle(.borderlessButton).fixedSize()
             }
-            if let proposed = original.proposedDate {
-                HStack { Text(L10n.format("New source date: %@", L10n.date(proposed))).font(.caption); Spacer(); Button(L10n.string("Use new date")) { date = proposed; dateOnly = original.proposedDateOnly ?? dateOnly; chosenZone = original.proposedTimeZone ?? chosenZone; hasEnd = original.proposedEndsAt != nil; endDate = original.proposedEndsAt ?? date } }.gridProbe("editor-proposal", area: "event-editor")
+            if let proposed = evidence.proposedDate {
+                HStack { Text(L10n.format("New source date: %@", L10n.date(proposed, dateOnly: evidence.proposedDateOnly ?? evidence.dateOnly))).font(.caption); Spacer(); Button(L10n.string("Use new date")) { date = proposed; dateOnly = evidence.proposedDateOnly ?? dateOnly; chosenZone = evidence.proposedTimeZone ?? chosenZone; hasEnd = evidence.proposedEndsAt != nil; endDate = evidence.proposedEndsAt ?? date } }.gridProbe("editor-proposal", area: "event-editor")
             }
             HStack {
                 if !original.title.isEmpty && onSave == nil { Button(L10n.string("Cancel event"), role: .destructive) { cancelConfirm = true }.buttonStyle(.borderless) }
@@ -86,7 +86,7 @@ struct EventEditor: View {
             }.gridProbe("editor-actions", area: "event-editor")
         }.padding(28).frame(width: 480).gridArea("event-editor", inset: 28).background(CalmFocus(enabled: !original.title.isEmpty))
         .onAppear { let draft = initialDraft; title = draft.title; date = draft.date ?? .now; dateOnly = draft.dateOnly; courseID = draft.courseID; kind = draft.kind; chosenZone = draft.timeZone; hasEnd = draft.endsAt != nil; endDate = draft.endsAt ?? date; location = draft.location ?? ""; titleFocused = original.title.isEmpty }
-        .onAppear { hasRelease = original.releasedAt != nil; releaseDate = original.releasedAt ?? min(.now, original.date ?? .now); releaseDateOnly = original.releaseDateOnly ?? true }
+        .onAppear { let draft = initialDraft; hasRelease = draft.releasedAt != nil; releaseDate = draft.releasedAt ?? min(.now, draft.date ?? .now); releaseDateOnly = draft.releaseDateOnly ?? true }
         .sheet(item: $model.readingSource) { SourceReader(source: $0) }
         .alert(L10n.string("Could not save changes. Try again."), isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
             Button(L10n.string("OK")) { saveError = nil }

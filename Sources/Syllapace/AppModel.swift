@@ -106,12 +106,13 @@ import UniformTypeIdentifiers
     }
     var needsCourseSelection: Bool { archive.canvasSelection == nil && (!canvasHost.isEmpty || archive.courses.contains(where: \.isCanvas)) }
     var events: [AcademicEvent] {
-        scopedEvents.filter { e in
+        let unresolvedIDs = page == .review ? Set(unresolvedEvents.map(\.id)) : []
+        return scopedEvents.filter { e in
             (courseFilter == nil || e.courseID == courseFilter) &&
             (academicCalendarFilter == nil || e.academicCalendarID == academicCalendarFilter) &&
             (kindFilter == nil || e.kind == kindFilter) &&
             (search.isEmpty || e.title.localizedCaseInsensitiveContains(search) || eventSearchText(e).localizedCaseInsensitiveContains(search)) &&
-            (page == .review ? unresolvedEvents.contains(where: { $0.id == e.id }) : (e.state == .approved || (e.state == .conflict && e.wasApproved == true))) &&
+            (page == .review ? unresolvedIDs.contains(e.id) : (e.state == .approved || (e.state == .conflict && e.wasApproved == true))) &&
             (page != .today || ((e.presentationDate.map { $0 >= Calendar.current.startOfDay(for: .now) && $0 < Calendar.current.date(byAdding: .day, value: 8, to: .now)! } ?? false)))
         }.sorted { ($0.presentationDate ?? .distantFuture) < ($1.presentationDate ?? .distantFuture) }
     }

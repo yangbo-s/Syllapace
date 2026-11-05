@@ -26,9 +26,12 @@ struct CurationIssuesView: View {
                         }
                         ForEach(model.unresolvedEvents) { event in
                             HStack {
-                                VStack(alignment: .leading, spacing: 8) { Text(event.title).fontWeight(.semibold); Text(L10n.string(event.userEdited ? "A source change overlaps your edit." : "The source changed this event’s time.")).font(.callout).foregroundStyle(.secondary) }
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(event.title).fontWeight(.semibold)
+                                    Text(L10n.string(event.userEdited ? "A source change overlaps your edit." : model.scopedEvents.first(where: { $0.id == event.id })?.state != .conflict ? "The sources give different dates for this event." : "The source changed this event’s time.")).font(.callout).foregroundStyle(.secondary)
+                                }
                                 Spacer()
-                                Button(L10n.string("Resolve")) { model.editor = event }
+                                Button(L10n.string("Resolve")) { model.editor = model.scopedEvents.first { $0.id == event.id } ?? event }
                             }
                         }
                         if !model.officialScheduleErrors.isEmpty {

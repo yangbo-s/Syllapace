@@ -92,6 +92,7 @@ with tempfile.TemporaryDirectory(prefix='syllapace-window-review-', dir='/tmp') 
             process = subprocess.Popen(command)
             deadline = time.monotonic() + 600
             last_capture = time.monotonic()
+            completed_at = None
             while process.poll() is None:
                 if time.monotonic() > deadline:
                     raise RuntimeError('Preview timed out')
@@ -108,6 +109,18 @@ with tempfile.TemporaryDirectory(prefix='syllapace-window-review-', dir='/tmp') 
                 if time.monotonic() - last_capture > 10 and 'SNAPSHOT done' not in (log.read_text() if log.exists() else ''):
                     subprocess.run(['open', '-a', str(app)], check=True)
                     last_capture = time.monotonic()
+                # macOS can defer termination while a sheet finishes closing.
+                # Once every requested capture and the terminal marker exist,
+                # close only this owned preview instead of waiting ten minutes.
+                if log.exists() and 'SNAPSHOT done' in log.read_text() and {path.name for path in shots.glob('*.png')} == expected:
+                    completed_at = completed_at or time.monotonic()
+                    if time.monotonic() - completed_at > 5:
+                        owned = subprocess.run(['pgrep', '-f', re.escape(str(app / 'Contents/MacOS/Syllapace'))], capture_output=True, text=True)
+                        for pid in owned.stdout.split():
+                            try: os.kill(int(pid), signal.SIGTERM)
+                            except ProcessLookupError: pass
+                        process.wait(timeout=10)
+                        print(f'{language}: closed completed isolated preview after sheet dismissal', flush=True)
                 time.sleep(0.05)
             report = log.read_text()
             if process.returncode or 'SNAPSHOT done' not in report or 'Capture failed' in report or 'fallback' in report:

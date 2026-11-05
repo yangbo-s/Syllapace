@@ -20,7 +20,9 @@ with tempfile.TemporaryDirectory(prefix='syllapace-selftest-', dir='/tmp') as fo
     try:
         subprocess.run(['open', '-W', '-n', '-a', str(app), '--stderr', str(log), '--stdout', str(log),
                         '--env', f'APP_STORE={root / "archive.json"}', '--env', 'APP_SELFTEST=1',
-                        '--env', f'APP_LANGUAGE={language}', '--args', '-appLanguage', language], check=True, timeout=180)
+                        '--env', f'APP_LANGUAGE={language}', '--args', '-appLanguage', language,
+                        '-AppleShowScrollBars', 'Always',
+                        '-interfaceScale', os.environ.get('APP_TEST_SCALE', '1')], check=True, timeout=180)
         report = log.read_text()
         if 'SELFTEST complete' not in report or 'FAIL' in report:
             raise RuntimeError('Isolated self-test did not pass')

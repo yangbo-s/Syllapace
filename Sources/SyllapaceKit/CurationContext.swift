@@ -15,6 +15,7 @@ public enum CurationContext {
         guard source.courseID == course.id else { return source }
         let zone = (course.timeZone ?? source.curationTimeZone).flatMap(TimeZone.init(identifier:))
         var additions: [String] = []
+        if let table = SyllabusTableContext.evidence(source: source, course: course, relatedSources: relatedSources) { additions.append(table) }
         if let due = source.effectiveDueAt {
             additions.append(metadataEvidence(source: source, due: due))
         } else if let available = source.availableAt {
@@ -33,7 +34,9 @@ public enum CurationContext {
             }
         }
         if let timetable = weeklyReference(source: source, relatedSources: relatedSources) { additions.append(timetable) }
-        if source.effectiveDueAt == nil, let identity = assignmentIdentity(source) {
+        let gradesOnly = source.kind == .announcement && EventCuration.matches(#"\b(grades?|scores?)\b"#, source.title) &&
+            !EventCuration.matches(#"\b(due|deadline|submit|extension|extended)\b"#, source.text)
+        if !gradesOnly, source.effectiveDueAt == nil, let identity = assignmentIdentity(source) {
             let matches = relatedSources.filter {
                 $0.id != source.id && $0.courseID == source.courseID && $0.kind == .assignment &&
                     $0.effectiveDueAt != nil && assignmentIdentity($0) == identity
@@ -166,7 +169,7 @@ public enum CurationContext {
         return "[Related \(meeting) notice for the same course and resolved date; use its stated time]\n\(reference(match.0))\n\(match.1.text)"
     }
 
-    private static func assignmentIdentity(_ source: SourceDocument) -> String? {
+    static func assignmentIdentity(_ source: SourceDocument) -> String? {
         let heading = source.title
         let text = source.kind == .assignment ? heading + "\n" + source.text.prefix(1_000) : heading
         let numbered = #"\b(homework|hw|problem\s*set|pset|project)\s*[-#:]?\s*0*(\d+)\b"#

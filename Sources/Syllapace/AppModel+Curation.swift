@@ -3,7 +3,7 @@ import SyllapaceKit
 
 extension AppModel {
     var unresolvedEvents: [AcademicEvent] {
-        scopedEvents.filter { $0.state == .conflict && ($0.userEdited || $0.curationVersion != nil) }
+        projectedEvents.filter { $0.state == .conflict && ($0.userEdited || $0.curationVersion != nil) }
     }
     var curationSources: [SourceDocument] {
         archive.sources.filter { $0.academicCalendarID == nil && isInScope(courseID: $0.courseID, calendarID: nil) && !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }

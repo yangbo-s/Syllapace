@@ -24,7 +24,9 @@ public enum CourseScheduleProjection {
         }
         // Corroborating syllabus occurrences first enrich the verified meeting's
         // subtype and evidence; only unmatched inferred expansions are retired.
-        let joined = MeetingReconciliation.project(events: consolidateCanvasObservations(observations), canonicalSourceIDs: officialIDs)
+        let labeled = withSyllabusRoles(observations, verified: verified, sources: sources, courses: courses)
+        let tasks = DeadlineReconciliation.project(events: consolidateCanvasObservations(labeled), sources: sources)
+        let joined = MeetingReconciliation.project(events: tasks, canonicalSourceIDs: officialIDs)
         return joined.filter { event in
             guard !event.userEdited, event.importUndone != true, event.curationExcluded != true,
                   event.state == .approved, event.kind == .session else { return true }
@@ -32,6 +34,36 @@ public enum CourseScheduleProjection {
             let generatedSeries = event.sourceSeriesID.map { $0.hasPrefix("model-series:") || $0.hasPrefix("schedule:") } ?? false
             if !official, generatedSeries, coveredCourses.contains(event.courseID) { return false }
             return !cancellations.contains(where: { $0.matches(event: event) })
+        }
+    }
+
+    /// Meeting labels remain grounded in the written weekly schedule even when
+    /// the model correctly omits already-scheduled recurring meetings.
+    private static func withSyllabusRoles(_ events: [AcademicEvent], verified: [SourceDocument], sources: [SourceDocument], courses: [Course]) -> [AcademicEvent] {
+        struct Slot: Hashable { let course: String; let date: Date; let end: Date?; let zone: String }
+        var roles: [Slot: [(EventSubtype, String)]] = [:]
+        for source in sources where source.kind == .syllabus {
+            guard let course = courses.first(where: { $0.id == source.courseID }), let year = source.curationYear ?? course.term?.academicYear,
+                  let timetable = verified.first(where: { $0.courseID == course.id && $0.teachingStartsAt != nil && $0.teachingEndsAt != nil }) else { continue }
+            let meetings = WeeklySchedule.extract(source: source, year: year, timeZone: source.curationTimeZone ?? course.timeZone ?? "America/New_York",
+                                                  termStart: timetable.teachingStartsAt, termEnd: timetable.teachingEndsAt)
+            for event in meetings {
+                guard let date = event.date, let subtype = event.subtype,
+                      EventCuration.matches(#"^(?:Lectures?|Recitations?|Labs?)\s*[:：]"#, event.evidence) else { continue }
+                roles[Slot(course: course.id, date: date, end: event.endsAt, zone: event.timeZone), default: []].append((subtype, source.id))
+            }
+        }
+        let official = Set(verified.map(\.id))
+        return events.map { event in
+            guard !event.userEdited, event.kind == .session, let date = event.date,
+                  event.sourceID.map(official.contains) == true,
+                  (event.subtype ?? EventCuration.subtype(for: event.title, kind: .session)) == .classMeeting,
+                  let evidence = roles[Slot(course: event.courseID, date: date, end: event.endsAt, zone: event.timeZone)],
+                  Set(evidence.map { $0.0 }).count == 1, let subtype = evidence.first?.0 else { return event }
+            var result = event; result.subtype = subtype
+            result.title = (courses.first { $0.id == event.courseID }?.code ?? "") + " " + subtype.rawValue.capitalized
+            result.relatedSourceIDs = Array(Set((event.relatedSourceIDs ?? []) + evidence.map { $0.1 })).sorted()
+            return result
         }
     }
 

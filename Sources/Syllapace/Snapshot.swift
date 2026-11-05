@@ -41,10 +41,12 @@ enum Snapshot {
                     model.courseFilter = nil; model.page = .review
                     try? await Task.sleep(for: .milliseconds(600))
                     await captureActive(main, path: "\(dir)/courses-review-\(mode).png")
-                    model.editor = model.archive.events.first { $0.sourceID?.hasPrefix("official:") == true }
+                    let conflictID = model.unresolvedEvents.first?.id
+                    model.editor = model.archive.events.first { $0.id == conflictID } ?? model.archive.events.first { $0.sourceID?.hasPrefix("official:") == true }
                     try? await Task.sleep(for: .milliseconds(600))
                     if let sheet = main.attachedSheet { await captureActive(sheet, path: "\(dir)/courses-editor-\(mode).png") }
                     model.editor = nil
+                    try? await Task.sleep(for: .milliseconds(300))
                 }
                 log("SNAPSHOT done \(dir)"); NSApp.terminate(nil); return
             }

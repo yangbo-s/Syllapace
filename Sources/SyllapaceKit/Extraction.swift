@@ -195,8 +195,8 @@ public enum RuleExtractor {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = zone
         var components = DateComponents(timeZone: zone, year: dateYear, month: month, day: day, hour: 12)
-        if let time = EvidenceClock.values(in: text).first {
-            components.hour = time.0; components.minute = time.1
+        if let time = EvidenceClock.components(in: text).first {
+            components.hour = time.0; components.minute = time.1; components.second = time.2
             result.dateOnly = false
         } else if EventCuration.matches(#"\d{1,2}[:：]\d{2}|\d{1,2}[点时]|\d{1,2}\s*(?:AM|PM)"#, text) {
             return result
@@ -205,13 +205,13 @@ public enum RuleExtractor {
             result.dateOnly = true
         }
         guard let date = calendar.date(from: components) else { return result }
-        let check = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        let check = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
         guard check.year == dateYear, check.month == month, check.day == day,
-              check.hour == components.hour, check.minute == (components.minute ?? 0) else { return result }
+              check.hour == components.hour, check.minute == (components.minute ?? 0), check.second == (components.second ?? 0) else { return result }
         // A repeated DST wall-clock time has two possible instants; keep it unresolved.
         if !result.dateOnly {
             let start = calendar.startOfDay(for: date).addingTimeInterval(-1)
-            let wallTime = DateComponents(hour: components.hour, minute: components.minute)
+            let wallTime = DateComponents(hour: components.hour, minute: components.minute, second: components.second)
             let first = calendar.nextDate(after: start, matching: wallTime, matchingPolicy: .strict, repeatedTimePolicy: .first)
             let last = calendar.nextDate(after: start, matching: wallTime, matchingPolicy: .strict, repeatedTimePolicy: .last)
             if first != last { return result }

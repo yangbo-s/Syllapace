@@ -86,4 +86,20 @@ struct ReconciliationRepairTests {
         #expect(Array(result.dropFirst()) == protected)
         #expect(Reconciler.repairUneditedConflicts(existing: result) == result)
     }
+    @Test func validatedModelObservationClearsOnlyAnIdenticalLegacyProposal() throws {
+        var saved = AcademicEvent(id: "model:legacy", courseID: "course", title: "Final report", kind: .project,
+                                  date: Date(timeIntervalSince1970: 1_795_800_000), dateOnly: true,
+                                  timeZone: "America/New_York", state: .conflict, sourceID: "syllabus")
+        saved.proposedDate = saved.date; saved.proposedDateOnly = true; saved.proposedTimeZone = saved.timeZone
+        saved.observedSourceDate = saved.date; saved.observedSourceDateOnly = true; saved.observedSourceTimeZone = saved.timeZone
+        var incoming = saved; incoming.state = .approved; incoming.curationVersion = EventCuration.version
+        incoming.proposedDate = nil; incoming.proposedDateOnly = nil; incoming.proposedTimeZone = nil
+        let fixed = try #require(Reconciler.merge(existing: [saved], incoming: [incoming]).first)
+        #expect(fixed.state == .approved && fixed.proposedDate == nil && fixed.date == saved.date)
+        #expect(Reconciler.merge(existing: [fixed], incoming: [incoming]) == [fixed])
+        saved.userEdited = true
+        #expect(Reconciler.merge(existing: [saved], incoming: [incoming]).first?.state == .conflict)
+        saved.userEdited = false; saved.proposedDate = saved.date!.addingTimeInterval(86400)
+        #expect(Reconciler.merge(existing: [saved], incoming: [incoming]).first?.state == .conflict)
+    }
 }
