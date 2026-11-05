@@ -43,4 +43,4 @@ No Windows, WidgetKit signing rollout, remote backend, arbitrary AI tools, or re
 
 ## Evidence score
 
-Release-gate evidence is recorded in [ACCEPTANCE-0.4.0.md](ACCEPTANCE-0.4.0.md): 197 Swift tests, 22 Web tests, 63 isolated app checks, a live synthetic model call, and real bilingual light/dark window review. The pre-publication score is 93/100. Public asset re-download and installed-app preservation are recorded there after publishing; compilation alone does not establish completion.
+Release evidence is recorded in [ACCEPTANCE-0.4.0.md](ACCEPTANCE-0.4.0.md): 197 Swift tests, 22 Web tests, 63 isolated app checks, a live synthetic model call, and real bilingual light/dark window review. Public asset re-download, signatures, the latest feed, and unchanged installed-app fingerprints passed. The final evidence score is 94/100; the record distinguishes these checks from the user's still-unperformed local upgrade.
