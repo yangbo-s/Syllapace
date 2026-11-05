@@ -12,6 +12,38 @@ enum SelfTest {
     private static func run(model: AppModel) async {
         guard let path = ProcessInfo.processInfo.environment["APP_STORE"], path.hasPrefix("/tmp/") || path.hasPrefix("/private/tmp/") else { fail("Self-test requires isolated APP_STORE"); return }
         func check(_ condition: Bool, _ text: String) { if condition { Snapshot.log("PASS \(text)") } else { fail(text) } }
+        // Exercise the public facade with synthetic values in APP_STORE only.
+        do {
+            await model.loadCredentialStorage()
+            check(model.credentialStorageLoaded && model.credentialStorage == .local, "Default credential storage is Local")
+            check(CredentialStore.localURL.deletingLastPathComponent().deletingLastPathComponent().path == URL(fileURLWithPath: path).deletingLastPathComponent().path, "Credential file stays in the isolated store")
+            try await CredentialStore.saveAsync("selftest-synthetic-token", account: model.canvasCredentialAccount)
+            try await CredentialStore.saveAsync("selftest-synthetic-key", account: model.modelCredentialAccount)
+            let token = try await CredentialStore.readAsync(model.canvasCredentialAccount)
+            let key = try await CredentialStore.readAsync(model.modelCredentialAccount)
+            check(token == "selftest-synthetic-token" && key == "selftest-synthetic-key", "Canvas and model accounts round-trip in local storage")
+            let archive = String(decoding: try JSONEncoder().encode(model.archive), as: UTF8.self)
+            let snapshot = String(decoding: try JSONEncoder().encode(model.workspaceSnapshot(dark: false)), as: UTF8.self)
+            check(!archive.contains("selftest-synthetic-") && !snapshot.contains("selftest-synthetic-"), "Credentials stay outside the archive and WebKit snapshot")
+            try await CredentialStore.deleteAsync(model.canvasCredentialAccount)
+            try await CredentialStore.deleteAsync(model.modelCredentialAccount)
+            // Empty selection changes need no Security.framework access.
+            model.updateCredentialStorage(.keychain)
+            for _ in 0..<100 where model.credentialsChanging { try await Task.sleep(for: .milliseconds(10)) }
+            check(!model.busy && model.credentialStorage == .keychain && model.credentialStorageError == nil, "Settings commits optional Keychain mode")
+            model.updateCredentialStorage(.local)
+            for _ in 0..<100 where model.credentialsChanging { try await Task.sleep(for: .milliseconds(10)) }
+            check(!model.busy && model.credentialStorage == .local && model.credentialStorageError == nil, "Settings returns to Local without reading Keychain")
+            check(try await CredentialStore.readAsync(model.canvasCredentialAccount) == nil, "Deleted local credentials stay absent")
+        } catch { fail("Isolated credential self-test failed"); return }
+        model.notice = nil; model.error = nil
+        model.syncCanvas(promptForSelection: false)
+        for _ in 0..<100 where model.busy { try? await Task.sleep(for: .milliseconds(10)) }
+        check(!model.busy && model.notice != nil && model.error == nil, "Background sync reports a missing local token without an alert")
+        model.syncCanvas()
+        for _ in 0..<100 where model.busy { try? await Task.sleep(for: .milliseconds(10)) }
+        check(!model.busy && model.error != nil, "Explicit sync explains how to configure a missing token")
+        model.notice = nil; model.error = nil
         let courseID = model.addCourse(name: "Integration fixture")
         let source = SourceDocument(id: "selftest-source", courseID: courseID, title: "Synthetic syllabus", text: "Final project due November 20, 2026", hash: "v1")
         model.importYear = 2026

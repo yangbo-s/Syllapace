@@ -17,6 +17,11 @@ import UniformTypeIdentifiers
     var modelWorkspaceID = UserDefaults.standard.string(forKey: "modelWorkspaceID") ?? ""
     var search = ""
     var busy = false
+    var credentialStorage = CredentialStorage.local
+    var credentialStorageLoaded = false
+    var credentialStorageError: String?
+    var credentialStorageStatus: String?
+    var credentialsChanging = false
     var workspaceView: WorkspaceViewMode = .list
     var workspaceRevision = 0
     var curationStatus: String?
@@ -136,7 +141,7 @@ import UniformTypeIdentifiers
         }
     }
     func checkCanvasToken(force: Bool = false) {
-        guard !isDemo, ProcessInfo.processInfo.environment["APP_SELFTEST"] != "1",
+        guard !isDemo, !credentialsChanging, ProcessInfo.processInfo.environment["APP_SELFTEST"] != "1",
               canvasHost == UserDefaults.standard.string(forKey: "canvasHost") else { return }
         tokenRenewal.start(host: canvasHost, account: canvasCredentialAccount, force: force)
     }
@@ -233,7 +238,12 @@ import UniformTypeIdentifiers
         syncTask = Task {
             defer { if canvasGeneration == generation { busy = false; syncTask = nil } }
             do {
-                guard let token = try await CredentialStore.readAsync(account), !token.isEmpty else { throw AppError.message(L10n.string("Add your Canvas address and token in Settings first.")) }
+                guard let token = try await CredentialStore.readAsync(account), !token.isEmpty else {
+                    let message = L10n.string("Add your Canvas token in Settings, or import existing keys in General → Credential storage.")
+                    if promptForSelection { throw AppError.message(message) }
+                    notice = message
+                    return
+                }
                 try Task.checkCancellation()
                 let client = try CanvasClient(host: host, token: token)
                 let discovered = try await client.discoverCourses()

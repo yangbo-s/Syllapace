@@ -7,7 +7,7 @@ enum Snapshot {
     static var started = false
     static func runIfRequested(model: AppModel, openSettings: OpenSettingsAction) {
         guard !started, let dir = ProcessInfo.processInfo.environment["APP_SNAPSHOT"], ProcessInfo.processInfo.environment["APP_STORE"] != nil else { return }
-        let modes = ["APP_SNAPSHOT_CONTROLS", "APP_SNAPSHOT_EMPTY", "APP_SNAPSHOT_WORKSPACE", "APP_SNAPSHOT_COPY"]
+        let modes = ["APP_SNAPSHOT_CONTROLS", "APP_SNAPSHOT_EMPTY", "APP_SNAPSHOT_WORKSPACE", "APP_SNAPSHOT_COPY", "APP_SNAPSHOT_CREDENTIALS"]
         guard modes.filter({ ProcessInfo.processInfo.environment[$0] == "1" }).count <= 1 else {
             log("Capture failed: choose only one snapshot mode"); exit(1)
         }
@@ -21,6 +21,10 @@ enum Snapshot {
             guard let main = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) else { return }
             let originalFrame = main.frame
             defer { main.setFrame(originalFrame, display: false) }
+            if ProcessInfo.processInfo.environment["APP_SNAPSHOT_CREDENTIALS"] == "1" {
+                await captureCredentialSettings(model: model, window: main, directory: dir, openSettings: openSettings)
+                log("SNAPSHOT done \(dir)"); NSApp.terminate(nil); return
+            }
             if ProcessInfo.processInfo.environment["APP_SNAPSHOT_COPY"] == "1" {
                 await captureCopyStates(model: model, window: main, directory: dir, openSettings: openSettings)
                 log("SNAPSHOT done \(dir)"); NSApp.terminate(nil); return
@@ -162,6 +166,42 @@ enum Snapshot {
             main.setFrame(originalFrame, display: true)
             NSApp.terminate(nil)
         }
+    }
+
+    /// Settings fixtures only: never reads real credentials or calls Keychain.
+    private static func captureCredentialSettings(model: AppModel, window: NSWindow, directory: String, openSettings: OpenSettingsAction) async {
+        func scrollView(in view: NSView) -> NSScrollView? {
+            if let scroll = view as? NSScrollView, let document = scroll.documentView,
+               document.bounds.height > scroll.contentView.bounds.height { return scroll }
+            return view.subviews.lazy.compactMap { scrollView(in: $0) }.first
+        }
+        func scroll(_ settings: NSWindow, bottom: Bool) {
+            guard let content = settings.contentView, let view = scrollView(in: content), let document = view.documentView else { return }
+            let end = max(0, document.bounds.height - view.contentView.bounds.height)
+            view.contentView.scroll(to: NSPoint(x: 0, y: bottom == document.isFlipped ? end : 0))
+            view.reflectScrolledClipView(view.contentView)
+        }
+        model.settingsTab = 3; openSettings()
+        try? await Task.sleep(for: .milliseconds(1600))
+        guard let settings = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain && $0 !== window && !($0 is NSPanel) }) else {
+            log("Capture failed: credential settings unavailable"); exit(1)
+        }
+        for dark in [false, true] {
+            let mode = dark ? "dark" : "light"
+            NSApp.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+            for state in ["local", "keychain", "error", "updates", "canvas", "models"] {
+                model.settingsTab = state == "canvas" ? 0 : (state == "models" ? 1 : 3)
+                model.credentialStorage = state == "keychain" ? .keychain : .local
+                model.credentialStorageError = state == "error" ? L10n.string("Keychain access was cancelled. Your storage selection was not changed.") : nil
+                model.credentialStorageStatus = nil
+                settings.makeKeyAndOrderFront(nil)
+                try? await Task.sleep(for: .milliseconds(500))
+                scroll(settings, bottom: ["updates", "canvas", "models"].contains(state))
+                try? await Task.sleep(for: .milliseconds(250))
+                await captureActive(settings, path: "\(directory)/credentials-\(state)-\(mode).png")
+            }
+        }
+        settings.orderOut(nil)
     }
 
     /// Six captures per language for model privacy copy and both desktop sizes.

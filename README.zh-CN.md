@@ -6,13 +6,13 @@
 
 连接自己的 Canvas 账号，选择想看的学期和课程。AI 过滤无关说明、整理有依据的日期并自动加入工作区，原文证据仍可查看。原生 SwiftUI 外壳通过 WebKit 承载随应用打包的 React/ReUI 界面；存储、凭据、系统集成和桌面卡片继续由 Swift 负责，无需 Syllapace 服务器。
 
-目前是早期版本。自动化检查、真实接口联调结果和待验证项见[验收证据](docs/ACCEPTANCE-0.4.0.md)。
+目前是早期版本。自动化检查、真实接口联调结果和待验证项见[验收证据](docs/ACCEPTANCE-0.4.1.md)。
 
 ## 安装
 
 从 [GitHub Releases](https://github.com/yangbo-s/Syllapace/releases) 下载 **DMG**，将 Syllapace 拖入 Applications，再从那里打开。支持 **Apple Silicon 和 macOS 26+**，同时提供 ZIP 和 SHA-256 校验值。
 
-安装包使用 ad hoc 签名，**尚未经过 Apple 公证**。如果 macOS 阻止首次启动，请核对来源和校验值后，按 [Apple 的单应用打开说明](https://support.apple.com/en-us/102445) 允许此应用启动，详见[发布说明](docs/releases/0.4.0.md)。更新签名可保护后续下载，但不能替代 Apple 公证。
+安装包使用 ad hoc 签名，**尚未经过 Apple 公证**。如果 macOS 阻止首次启动，请核对来源和校验值后，按 [Apple 的单应用打开说明](https://support.apple.com/en-us/102445) 允许此应用启动，详见[发布说明](docs/releases/0.4.1.md)。更新签名可保护后续下载，但不能替代 Apple 公证。
 
 ## 语言与更新
 
@@ -83,7 +83,7 @@
 
 所选课程决定工作区、需要补充、来源、搜索和桌面卡片的显示范围，也决定 EventKit 新增写入及 ICS 导出范围。切换学期保留历史资料和此前写入 Calendar 的日程。个人及手动导入的课程仍然可用。旧资料库升级后，需要先确认 Canvas 课程范围，再恢复正文同步。
 
-请保持已保存地址的写法一致：凭据按配置地址存入 macOS Keychain，更改地址后需要为新地址保存 token。token 输入框留空时，会保留当前地址已保存的凭据。Keychain 授权改为异步执行，系统询问访问权限时应用仍可响应。
+请保持已保存地址的写法一致：凭据按配置地址区分，更改地址后需要为新地址保存 token。token 输入框留空时，会保留当前地址已保存的凭据。默认保存在本机文件中；可在 **通用 → 凭据存储** 选择 Keychain。
 
 连接器会读取所选课程的 Assignments 及提交和成绩状态、课程 Calendar 日程、内联 syllabus、Announcements、Modules、首页，以及被引用的 Pages 和附件。Classic Quizzes 与关联的 Assignments 按 Canvas ID 合并，避免重复；New Quizzes 使用 Canvas Assignments 中可见的信息。课程事项统一归为课程安排、提交截止和考试测验三类，并保留 Lecture、Recitation、Project、Midterm 等细分含义。有明确数据时保留结束时间和地点，成绩与提交状态附在对应任务上；成绩发布通知不会单独变成日程。
 
@@ -100,10 +100,10 @@ Canvas 设置中的 **自动续期 token** 默认开启。应用运行时会检�
 打开 **设置 → 模型**：
 
 1. 选择 **OpenAI**、**Anthropic · Claude**、**DeepSeek** 或 **自定义服务**。官方提供商会自动填入 API 地址，自定义服务可填写 HTTPS base URL。
-2. 输入 API key，点击 **获取模型**。应用会查询该提供商的模型 API，将成功使用的 key 存入 macOS Keychain，并显示可搜索的模型列表。
+2. 输入 API key，点击 **获取模型**。应用会查询该提供商的模型 API，将成功使用的 key 保存到所选的凭据存储，并显示可搜索的模型列表。
 3. 选择模型后点击 **保存模型**，之后可刷新列表。如果兼容服务不提供模型列表，可启用 **手动输入模型名称**。
 
-Anthropic 使用原生 Messages API 和 JSON schema；需要指定 Workspace 的 key 可填写 Workspace ID。OpenAI、DeepSeek 和自定义服务使用支持 JSON 输出的 chat completions 接口。已知的非文本模型类型会从列表中排除。列表中的模型仍可能受账号权限或 API 兼容性限制；获取列表不会发起收费生成。旧版自定义配置升级时保留原端点和 Keychain 账户。
+Anthropic 使用原生 Messages API 和 JSON schema；需要指定 Workspace 的 key 可填写 Workspace ID。OpenAI、DeepSeek 和自定义服务使用支持 JSON 输出的 chat completions 接口。已知的非文本模型类型会从列表中排除。列表中的模型仍可能受账号权限或 API 兼容性限制；获取列表不会发起收费生成。旧版自定义配置升级时保留原端点和凭据账户标识；凭据迁移方法见下文。
 
 模型设置中的 **自动整理课程资料** 默认开启。配置模型和 key 后，应用可在启动、同步或导入后，将所选课程中符合条件的已保存材料直接发送给该提供商。导入时关闭 **使用 AI** 的材料会被排除；主动整理该来源只授权这一次操作，不会开启后续自动上传。关闭自动整理设置会停止后台整理；仍可主动点击 **整理** 或在导入时选择 **使用 AI**。模型调用可能产生费用，由自己的提供商账号承担。
 
@@ -152,11 +152,17 @@ Anthropic 使用原生 Messages API 和 JSON schema；需要指定 Workspace 的
 
 ## 数据与隐私
 
-资料库以 JSON 归档保存在 `~/Library/Application Support/Syllapace/archive.json`，采用原子写入。`archive.json.backup` 保留上一份可读取的归档。0.4.0 可读取 schema 1 至 schema 3 资料库，并在下一次成功保存时写入 schema 4，额外保留一次性的 `archive.json.schema-<旧版本>.backup`，不会被后续滚动备份覆盖。原有完成标记会保留，并新增任务进度、计划开始时间和整理记录。旧版无法读取 schema 4，降级前请保留备份。EventKit 绑定单独存储在同目录的 `calendar-mapping.json` 中。凭据存入 Keychain；连接地址和非敏感偏好存入 UserDefaults。
+资料库以 JSON 归档保存在 `~/Library/Application Support/Syllapace/archive.json`，采用原子写入。`archive.json.backup` 保留上一份可读取的归档。0.4.0 可读取 schema 1 至 schema 3 资料库，并在下一次成功保存时写入 schema 4，额外保留一次性的 `archive.json.schema-<旧版本>.backup`，不会被后续滚动备份覆盖。原有完成标记会保留，并新增任务进度、计划开始时间和整理记录。旧版无法读取 schema 4，降级前请保留备份。EventKit 绑定单独存储在同目录的 `calendar-mapping.json` 中。连接地址和非敏感偏好存入 UserDefaults。
+
+**Token 和 API key 默认保存在本机文件** `~/Library/Application Support/Syllapace/Credentials/credentials.json`，与课程归档、归档备份、导出和 WebKit 数据分开。目录权限为 `0700`，文件权限为 `0600`，仅允许当前系统账户访问并采用原子写入。它是明文文件，不是加密保险库；同一 macOS 账户下的其他程序可能读取它。请只把此目录纳入可信备份。
+
+在 **设置 → 通用 → 凭据存储 → macOS Keychain** 可选择系统保护的存储。应用先复制所有本地凭据，全部写入和保存位置切换成功后才移除本地副本。授权被拒或操作失败时保留本地模式和凭据；已经写入 Keychain 的副本可能保留。Keychain 模式仍可能弹出系统授权框，包括 ad hoc 签名更新之后。
+
+**从 0.4.0 或更早版本升级：** 默认选择本地文件，不在启动时读取旧 Keychain。可点击 **从 Keychain 导入…**，或重新填写 Canvas token 和模型 API key。主动导入时可能需要系统授权；不会覆盖已有本地凭据、恢复主动删除的本地凭据或删除 Keychain 原记录，失败或取消不会提交部分结果。从 Keychain 切回本地同样不会读取 Keychain，之后请主动导入或重新填写。这些选项只影响应用凭据，不改变维护者用于发布的 Sparkle 签名密钥。
 
 导入文本和证据保存在本地，未额外进行应用层加密。本地原始文档仍保留在你选择的位置，下载的临时文件在导入后清理。无需 Syllapace 账号、遥测服务或后端。自动整理或主动使用 AI 导入时，会将对应来源的文本和解析要求直接发送给所选服务。WebKit 工作区只接收显示数据并发送有限的原生命令，不持有 Canvas token 或模型 key，只加载随包资源，也不维护第二份数据库。学校搜索向 Instructure 发送学校名称，模型列表查询仅向配置的提供商发送 key；公开文档和校历请求不包含 Canvas 或模型凭据。
 
-开发时可用 `APP_STORE` 指定另一个归档路径，隔离数据。如果归档损坏或使用未知结构版本，应用会提示并拒绝覆盖。手动恢复文件前，请备份应用支持目录；不要随意丢弃日历映射文件，它用于保留日程归属关系并防止重复创建。
+开发时可用 `APP_STORE` 指定另一个归档路径；本地凭据使用同级 `Credentials/` 目录。它只隔离本地文件，不隔离可选的系统 Keychain 服务。自动验证使用虚构凭据，不导入真实 Keychain 记录。如果归档损坏或使用未知结构版本，应用会提示并拒绝覆盖。手动恢复文件前，请备份应用支持目录；不要随意丢弃日历映射文件，它用于保留日程归属关系并防止重复创建。
 
 ## 验证
 
@@ -175,7 +181,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift tools/check
 
 检查脚本使用隔离的应用副本和临时资料库，不替换本机正式安装。完整模式每种语言预期 51 张截图；仅工作区模式为 22 张，涵盖四视图、两种尺寸、浅深色、空状态、课程筛选和独立校历层。脚本等待对应 WebKit 数据渲染完成，加载失败会直接报错，不把占位界面当作验收截图。原生设置使用系统布局；网格探针检查自定义原生界面，WebKit 布局通过真实窗口截图检查。将输出的 `*-layout.json` 路径传给布局检查器即可。截图仅捕获应用自身的窗口。准确捕获窗口可能需要屏幕录制权限；日志中的 `view-render fallback` 不代表已验证原生材质或活动窗口外观。
 
-测试使用合成的 PDF/DOCX 文档、模拟网络响应和日历快照，不会索取真实凭据或写入你的实际日历。参见[工程需求](docs/ENGINEERING.md)、[EventKit 决策](docs/decisions/0001-apple-calendar-eventkit.md)和[验收证据](docs/ACCEPTANCE-0.4.0.md)。
+测试使用合成的 PDF/DOCX 文档、模拟网络响应和日历快照，不会索取真实凭据或写入你的实际日历。参见[工程需求](docs/ENGINEERING.md)、[EventKit 决策](docs/decisions/0001-apple-calendar-eventkit.md)和[验收证据](docs/ACCEPTANCE-0.4.1.md)。
 
 ## 当前限制
 

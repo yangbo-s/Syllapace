@@ -16,14 +16,16 @@ output = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else root / '.impeccab
 output.mkdir(parents=True, exist_ok=False)
 languages = [os.environ['APP_LANGUAGE']] if os.environ.get('APP_LANGUAGE') else ['en', 'zh-Hans']
 capture_flags = {key: os.environ.get(key, '0') for key in
-                 ('APP_SNAPSHOT_CONTROLS', 'APP_SNAPSHOT_EMPTY', 'APP_SNAPSHOT_WORKSPACE', 'APP_SNAPSHOT_COPY')}
+                 ('APP_SNAPSHOT_CONTROLS', 'APP_SNAPSHOT_EMPTY', 'APP_SNAPSHOT_WORKSPACE', 'APP_SNAPSHOT_COPY', 'APP_SNAPSHOT_CREDENTIALS')}
 if sum(value == '1' for value in capture_flags.values()) > 1:
-    raise ValueError('Choose only one snapshot mode: CONTROLS, EMPTY, WORKSPACE, or COPY')
+    raise ValueError('Choose only one snapshot mode: CONTROLS, EMPTY, WORKSPACE, COPY, or CREDENTIALS')
 
 
 def expected_names():
     appearances = ('light', 'dark')
     views = ('list', 'kanban', 'gantt', 'calendar')
+    if capture_flags['APP_SNAPSHOT_CREDENTIALS'] == '1':
+        return {f'credentials-{name}-{mode}.png' for name in ('local', 'keychain', 'error', 'updates', 'canvas', 'models') for mode in appearances}
     if capture_flags['APP_SNAPSHOT_COPY'] == '1':
         return {f'{name}-{mode}.png' for name in ('settings-1', 'desktop', 'desktop-expanded') for mode in appearances}
     if capture_flags['APP_SNAPSHOT_CONTROLS'] == '1':

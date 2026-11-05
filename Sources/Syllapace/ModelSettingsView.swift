@@ -95,7 +95,7 @@ struct ModelSettingsView: View {
                 }
             }
             Section {
-                Text(L10n.string("Your key stays in macOS Keychain. Materials go directly to your provider during automatic organization or when you explicitly use AI. Local-only imports are excluded from automatic requests."))
+                Text(L10n.string("Choose where to save your API key in General → Credential storage. Materials go directly to your provider during automatic organization or when you explicitly use AI. Local-only imports are excluded from automatic requests."))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

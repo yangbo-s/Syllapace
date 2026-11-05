@@ -6,13 +6,13 @@ A local macOS semester planner that turns Canvas courses and your materials into
 
 Connect your own Canvas account and choose the semester and courses you want. AI filters irrelevant prose, organizes supported dates, and adds them automatically; source evidence stays available. A native SwiftUI shell hosts a bundled React/ReUI workspace in WebKit, while Swift handles storage, credentials, integrations, and the desktop card. There is no Syllapace server.
 
-This is an early release. See [acceptance evidence](docs/ACCEPTANCE-0.4.0.md) for automated checks, live integration results, and remaining verification limits.
+This is an early release. See [acceptance evidence](docs/ACCEPTANCE-0.4.1.md) for automated checks, live integration results, and remaining verification limits.
 
 ## Install
 
 Download the **DMG** from [GitHub Releases](https://github.com/yangbo-s/Syllapace/releases), drag Syllapace to Applications, and open it there. Syllapace supports **Apple Silicon and macOS 26+**. A ZIP and SHA-256 checksums are also provided.
 
-The package is ad hoc signed and **not notarized by Apple**. If macOS blocks the first launch, use [Apple's per-app opening instructions](https://support.apple.com/en-us/102445) after checking the source and checksum; see the [release notes](docs/releases/0.4.0.md). An update signature protects subsequent downloads, but does not replace Apple notarization.
+The package is ad hoc signed and **not notarized by Apple**. If macOS blocks the first launch, use [Apple's per-app opening instructions](https://support.apple.com/en-us/102445) after checking the source and checksum; see the [release notes](docs/releases/0.4.1.md). An update signature protects subsequent downloads, but does not replace Apple notarization.
 
 ## Language and updates
 
@@ -83,7 +83,7 @@ Use **Sources → Organize** to run the selected model again on a saved course s
 
 The selected courses determine what appears in the workspace, Needs information, Sources, search, and the desktop card, as well as new EventKit writes and ICS exports. Switching semesters keeps historical data and previously exported Calendar events. Personal and manually imported courses remain available. Upgrading an existing library asks you to choose a Canvas scope before resuming content sync.
 
-Keep the saved address spelling consistent: credentials are stored in macOS Keychain under the configured address. Changing the address requires saving a token for that address. Leave the token field blank to retain the saved credential for the current address. Keychain authorization runs asynchronously so the app can remain responsive while macOS asks for access.
+Keep the saved address spelling consistent: credentials are scoped to the configured address. Changing the address requires saving a token for that address. Leave the token field blank to retain the saved credential for the current address. Tokens are saved locally by default; Keychain is optional in **General → Credential storage**.
 
 For selected courses, the connector reads Assignments and submission/grade state, course Calendar events, inline syllabus HTML, Announcements, Modules, the front page, and referenced Pages and attachments. Classic Quizzes and quiz-linked Assignments are associated by Canvas IDs to avoid duplicate items; New Quizzes coverage uses the information available through Canvas Assignments. Course events are organized into class meetings, submission deadlines, and exams/quizzes, retaining subtypes such as Lecture, Recitation, Project, and Midterm. Timed events retain an explicit end time and location when supplied. Grades and submission states remain attached to the task; grade-release notices do not become separate schedule entries.
 
@@ -100,10 +100,10 @@ For an external schedule link, use **Add Material → Link** or the source’s *
 Open **Settings → Models**:
 
 1. Choose **OpenAI**, **Anthropic · Claude**, **DeepSeek**, or **Custom service**. Official providers supply their API address; a custom service accepts an HTTPS base URL.
-2. Enter your API key and choose **Load models**. Syllapace queries that provider’s model API, saves a successfully used key in macOS Keychain, and offers a searchable model list.
+2. Enter your API key and choose **Load models**. Syllapace queries that provider’s model API, saves a successfully used key in your selected credential storage, and offers a searchable model list.
 3. Select a model and choose **Save model**. Refresh the list when needed. If a compatible service does not list models, enable **Enter a model identifier manually**.
 
-Anthropic uses its native Messages API with a JSON schema; an optional Workspace ID is available for keys that require it. OpenAI, DeepSeek, and custom services use chat completions with JSON response format. Known non-text model families are excluded from the list. A listed model can still have account-specific access or API compatibility restrictions; list retrieval does not run a paid generation. The existing endpoint and Keychain account are retained when upgrading an older custom configuration.
+Anthropic uses its native Messages API with a JSON schema; an optional Workspace ID is available for keys that require it. OpenAI, DeepSeek, and custom services use chat completions with JSON response format. Known non-text model families are excluded from the list. A listed model can still have account-specific access or API compatibility restrictions; list retrieval does not run a paid generation. The existing endpoint and credential account identifier are retained when upgrading an older custom configuration; see the credential migration instructions below.
 
 **Automatically organize course materials** is enabled by default in Models settings. Once a model and key are configured, eligible saved materials for the selected courses can be sent directly to that provider after launch, sync, or import. Material imported with **Use AI** off is excluded. Explicitly organizing that source permits that operation without enabling later automatic uploads. Turn the setting off to stop background organization; explicit **Organize** and **Use AI** imports remain available. Provider usage may incur charges under your own account.
 
@@ -152,11 +152,17 @@ Show the desktop card with `⇧⌘D` or the menu bar item. Its compact view sepa
 
 ## Data and privacy
 
-The library is an atomically written JSON archive at `~/Library/Application Support/Syllapace/archive.json`. `archive.json.backup` retains the previous readable archive. Version 0.4.0 reads schema-1 through schema-3 libraries and writes schema 4 on the next successful save, keeping a one-time `archive.json.schema-<old-version>.backup` as well as the rolling backup. Existing completion flags are retained, with added task progress, planned starts, and curation records. Older versions cannot read schema 4; preserve the backup before attempting a downgrade. EventKit bindings are stored separately in `calendar-mapping.json` alongside it. Credentials are in Keychain; connection addresses and nonsecret preferences use UserDefaults.
+The library is an atomically written JSON archive at `~/Library/Application Support/Syllapace/archive.json`. `archive.json.backup` retains the previous readable archive. Version 0.4.0 reads schema-1 through schema-3 libraries and writes schema 4 on the next successful save, keeping a one-time `archive.json.schema-<old-version>.backup` as well as the rolling backup. Existing completion flags are retained, with added task progress, planned starts, and curation records. Older versions cannot read schema 4; preserve the backup before attempting a downgrade. EventKit bindings are stored separately in `calendar-mapping.json` alongside it. Connection addresses and nonsecret preferences use UserDefaults.
+
+**Tokens and API keys default to a local file** at `~/Library/Application Support/Syllapace/Credentials/credentials.json`, separate from the course archive, its backups, exports, and WebKit data. The directory is owner-only (`0700`) and the file is owner read/write (`0600`), with atomic writes. It is plaintext, not an encrypted vault: other programs running as your macOS account may read it. Include this folder only in backups you trust.
+
+Choose **Settings → General → Credential storage → macOS Keychain** for system-protected storage. Existing local keys are copied first, and the local copies are removed only after all writes and the mode change succeed. Denial or failure leaves Local selected and its values intact; copies already written to Keychain can remain. Keychain mode may show macOS authorization prompts, including after an ad hoc-signed update.
+
+**Upgrading from 0.4.0 or earlier:** Local is selected without reading old Keychain entries. Choose **Import from Keychain…** to copy them explicitly, or enter your Canvas token and model API key again. Import may require system permission; it never overwrites existing local keys, restores explicitly deleted local keys, or deletes the originals. A failed or cancelled import commits nothing. Switching from Keychain back to Local also does not read Keychain; import or re-enter your keys afterwards. These settings affect application credentials, not the maintainer’s Sparkle release-signing key.
 
 Imported text and evidence are stored locally without additional application-level encryption. Original local documents remain where you selected them. Downloaded temporary files are cleaned up after ingestion. No Syllapace account, telemetry service, or backend is required. Automatic organization and explicit AI imports send the applicable source text and any extraction instructions directly to the provider you configured. The WebKit workspace receives display data and sends finite native commands; it has no Canvas token or model key, loads only bundled UI resources, and does not run a second database. School search sends a school-name query to Instructure; model discovery sends your key only to the configured provider. Public document and academic-calendar requests use no Canvas or model credentials.
 
-Set `APP_STORE` to an alternate archive path for isolated development runs. If the archive is corrupt or has an unknown schema, the app reports it and refuses to overwrite it. Back up the application-support directory before manually restoring files; a calendar mapping should not be discarded casually, because it preserves event ownership and duplicate prevention.
+Set `APP_STORE` to an alternate archive path for isolated development runs; local credentials use a sibling `Credentials/` directory. This isolates local files, not the optional system Keychain service. Automated verification uses synthetic credentials and never imports real Keychain entries. If the archive is corrupt or has an unknown schema, the app reports it and refuses to overwrite it. Back up the application-support directory before manually restoring files; a calendar mapping should not be discarded casually, because it preserves event ownership and duplicate prevention.
 
 ## Verification
 
@@ -169,13 +175,14 @@ npm --prefix Web test # Workspace views, filters, progress, and planning
 python3 tools/snap-review.py build/verification/visual-review # Both languages, light/dark
 # Focused workspace matrix (use a fresh output directory):
 APP_SNAPSHOT_WORKSPACE=1 python3 tools/snap-review.py build/verification/workspace-review
+APP_SNAPSHOT_CREDENTIALS=1 python3 tools/snap-review.py build/verification/credential-review
 ./tools/grid-lint.sh   # SwiftUI spacing checks
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift tools/check-layout.swift build/verification/visual-review/*/*-layout.json
 ```
 
 The review runner uses an isolated app copy and temporary data, leaving the installed version untouched. Full review expects 51 screenshots per language; workspace-only review expects 22, covering four views, two sizes, both appearances, empty data, a course filter, and the academic-calendar layer. It waits for the matching WebKit snapshot and fails on loading errors rather than capturing a placeholder. Native Settings forms use system layout; grid probes cover custom native surfaces, while WebKit layout is reviewed from real window captures. Use the emitted `*-layout.json` paths with the layout checker. The runner captures only the app's own windows. Screen Recording permission may be required for faithful window captures; a logged `view-render fallback` does not verify native materials or active window chrome.
 
-The tests use synthetic PDFs/DOCX documents, mocked network responses, and calendar snapshots. They do not request real credentials or write to your actual calendars. See [engineering requirements](docs/ENGINEERING.md), [EventKit decision](docs/decisions/0001-apple-calendar-eventkit.md), and [acceptance evidence](docs/ACCEPTANCE-0.4.0.md).
+The tests use synthetic PDFs/DOCX documents, mocked network responses, and calendar snapshots. They do not request real credentials or write to your actual calendars. See [engineering requirements](docs/ENGINEERING.md), [EventKit decision](docs/decisions/0001-apple-calendar-eventkit.md), and [acceptance evidence](docs/ACCEPTANCE-0.4.1.md).
 
 ## Current limits
 

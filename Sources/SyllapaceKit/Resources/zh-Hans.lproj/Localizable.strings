@@ -521,3 +521,27 @@
 
 "Course or model settings changed. Organize these materials again." = "课程或模型设置已变化，请重新整理这些资料。";
 "This event changed while you were editing. Close and reopen it to load the latest version. Your draft has not been saved." = "编辑期间，这项日程已更新。请关闭后重新打开，以载入最新内容；当前草稿尚未保存。";
+
+"Credential storage" = "凭据存储";
+"Save tokens and API keys in" = "Token 和 API key 保存位置";
+"Local file" = "本地文件";
+"macOS Keychain" = "macOS Keychain";
+"Saved on this Mac without Keychain prompts. The file is not encrypted; other apps running as you may read it." = "保存在这台 Mac 上，不触发 Keychain 提示。文件未加密，同一系统账户下的其他应用可能读取它。";
+"Import from Keychain…" = "从 Keychain 导入…";
+"Upgrading? Import your existing keys or enter them again in Canvas and Models. Import may ask for macOS permission; originals stay in Keychain." = "升级后，请导入已有凭据，或在 Canvas 和模型设置中重新填写。导入时 macOS 可能要求授权；原记录会保留在 Keychain。";
+"macOS protects your keys and may ask for access. Switching to Local file requires importing or re-entering your keys." = "凭据由 macOS 保护，读取时可能要求授权。改为本地文件后，需要导入或重新填写凭据。";
+"Local storage selected. Import your existing keys or enter them again." = "已选择本地存储。请导入已有凭据或重新填写。";
+"Keychain selected. Any saved local keys were moved successfully." = "已选择 Keychain，已有本地凭据已成功迁入。";
+"No additional keys to import. Existing local keys were kept." = "没有可新增导入的凭据，已有本地凭据保持不变。";
+"Imported %ld credentials. Existing local keys were kept." = "已导入 %ld 项凭据，已有本地凭据保持不变。";
+"Requests go directly to your Canvas instance. Choose where to save your token in General → Credential storage." = "请求直接发送至你的 Canvas。可在「通用 → 凭据存储」中选择 token 的保存位置。";
+"Choose where to save your API key in General → Credential storage. Materials go directly to your provider during automatic organization or when you explicitly use AI. Local-only imports are excluded from automatic requests." = "可在「通用 → 凭据存储」中选择 API key 的保存位置。自动整理或主动使用 AI 时，资料直接发送至你的提供商。仅本地导入的资料不参与自动请求。";
+"Add your Canvas token in Settings, or import existing keys in General → Credential storage." = "请在设置中填写 Canvas token，或前往「通用 → 凭据存储」导入已有凭据。";
+"The local credential file is invalid or unsupported. It has not been replaced." = "本地凭据文件损坏或版本不受支持，未覆盖原文件。";
+"The local credential file has unsafe ownership or links. It has not been read or replaced." = "本地凭据文件的所有者或链接不安全，未读取或覆盖原文件。";
+"Could not access local credential storage. Check folder permissions and try again." = "无法访问本地凭据存储，请检查文件夹权限后重试。";
+"The credential is empty or too large to save." = "凭据为空或过大，无法保存。";
+"Select local storage before importing from Keychain." = "请先选择本地存储，再从 Keychain 导入。";
+"Try again" = "重试";
+
+"Keychain access was cancelled. Your storage selection was not changed." = "已取消 Keychain 授权，保存位置未改变。";

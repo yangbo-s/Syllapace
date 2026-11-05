@@ -521,3 +521,27 @@
 
 "Course or model settings changed. Organize these materials again." = "Course or model settings changed. Organize these materials again.";
 "This event changed while you were editing. Close and reopen it to load the latest version. Your draft has not been saved." = "This event changed while you were editing. Close and reopen it to load the latest version. Your draft has not been saved.";
+
+"Credential storage" = "Credential storage";
+"Save tokens and API keys in" = "Save tokens and API keys in";
+"Local file" = "Local file";
+"macOS Keychain" = "macOS Keychain";
+"Saved on this Mac without Keychain prompts. The file is not encrypted; other apps running as you may read it." = "Saved on this Mac without Keychain prompts. The file is not encrypted; other apps running as you may read it.";
+"Import from Keychain…" = "Import from Keychain…";
+"Upgrading? Import your existing keys or enter them again in Canvas and Models. Import may ask for macOS permission; originals stay in Keychain." = "Upgrading? Import your existing keys or enter them again in Canvas and Models. Import may ask for macOS permission; originals stay in Keychain.";
+"macOS protects your keys and may ask for access. Switching to Local file requires importing or re-entering your keys." = "macOS protects your keys and may ask for access. Switching to Local file requires importing or re-entering your keys.";
+"Local storage selected. Import your existing keys or enter them again." = "Local storage selected. Import your existing keys or enter them again.";
+"Keychain selected. Any saved local keys were moved successfully." = "Keychain selected. Any saved local keys were moved successfully.";
+"No additional keys to import. Existing local keys were kept." = "No additional keys to import. Existing local keys were kept.";
+"Imported %ld credentials. Existing local keys were kept." = "Imported %ld credentials. Existing local keys were kept.";
+"Requests go directly to your Canvas instance. Choose where to save your token in General → Credential storage." = "Requests go directly to your Canvas instance. Choose where to save your token in General → Credential storage.";
+"Choose where to save your API key in General → Credential storage. Materials go directly to your provider during automatic organization or when you explicitly use AI. Local-only imports are excluded from automatic requests." = "Choose where to save your API key in General → Credential storage. Materials go directly to your provider during automatic organization or when you explicitly use AI. Local-only imports are excluded from automatic requests.";
+"Add your Canvas token in Settings, or import existing keys in General → Credential storage." = "Add your Canvas token in Settings, or import existing keys in General → Credential storage.";
+"The local credential file is invalid or unsupported. It has not been replaced." = "The local credential file is invalid or unsupported. It has not been replaced.";
+"The local credential file has unsafe ownership or links. It has not been read or replaced." = "The local credential file has unsafe ownership or links. It has not been read or replaced.";
+"Could not access local credential storage. Check folder permissions and try again." = "Could not access local credential storage. Check folder permissions and try again.";
+"The credential is empty or too large to save." = "The credential is empty or too large to save.";
+"Select local storage before importing from Keychain." = "Select local storage before importing from Keychain.";
+"Try again" = "Try again";
+
+"Keychain access was cancelled. Your storage selection was not changed." = "Keychain access was cancelled. Your storage selection was not changed.";

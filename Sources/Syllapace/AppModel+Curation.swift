@@ -38,7 +38,7 @@ extension AppModel {
         }
     }
     func scheduleCuration(sourceIDs: Set<String>? = nil, force: Bool = false) {
-        guard !isDemo, !showImport, ProcessInfo.processInfo.environment["APP_SELFTEST"] != "1", automaticCuration || force else { return }
+        guard !isDemo, !credentialsChanging, !showImport, ProcessInfo.processInfo.environment["APP_SELFTEST"] != "1", automaticCuration || force else { return }
         if curationTask != nil {
             if force { cancelCuration() } else { curationQueued = true; return }
         }

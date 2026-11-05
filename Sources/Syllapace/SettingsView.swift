@@ -25,7 +25,7 @@ struct SettingsView: View {
                 Section(L10n.string("Courses")) {
                     HStack { Text(model.selectedSemesterName); Spacer(); Button(L10n.string("Manage courses…")) { model.revealMain(); model.manageCanvasCourses() }.disabled(model.busy) }
                 }
-                Section { Toggle(L10n.string("Refresh every 10 minutes while running"), isOn: $model.canvasAutoSync).onChange(of: model.canvasAutoSync) { _, value in UserDefaults.standard.set(value, forKey: "canvasAutoSync") }; Text(L10n.string("Your token is stored in macOS Keychain. Requests go directly to your Canvas instance.")).font(.caption).foregroundStyle(.secondary) }
+                Section { Toggle(L10n.string("Refresh every 10 minutes while running"), isOn: $model.canvasAutoSync).onChange(of: model.canvasAutoSync) { _, value in UserDefaults.standard.set(value, forKey: "canvasAutoSync") }; Text(L10n.string("Requests go directly to your Canvas instance. Choose where to save your token in General → Credential storage.")).font(.caption).foregroundStyle(.secondary) }
                 Section {
                     Toggle(L10n.string("Renew token automatically"), isOn: Binding(get: { model.tokenRenewal.enabled }, set: { value in
                         model.tokenRenewal.setEnabled(value)
@@ -61,11 +61,14 @@ struct SettingsView: View {
                 if let notice = model.notice { Text(notice).font(.caption).textSelection(.enabled) }
             }.formStyle(.grouped).tabItem { Label(L10n.string("Calendar"), systemImage: "calendar") }.tag(2)
         }.padding(16).frame(width: 640, height: 560).background(CalmFocus()).tint(Palette.accent)
+        .task { await model.loadCredentialStorage() }
+        .disabled(model.credentialsChanging)
         .onChange(of: languagePreference) { _, value in
             // This preference is scoped to Syllapace, not the macOS language.
             if value == AppLanguage.system.rawValue { UserDefaults.standard.removeObject(forKey: "AppleLanguages") }
             else { UserDefaults.standard.set([value], forKey: "AppleLanguages") }
             result = nil
+            model.credentialStorageError = nil; model.credentialStorageStatus = nil
             model.notice = nil
             model.error = nil
         }
@@ -86,6 +89,7 @@ struct SettingsView: View {
                 Text(L10n.string("System menus and update windows use the new language after reopening Syllapace."))
                     .font(.caption).foregroundStyle(.secondary)
             }
+            CredentialSettingsSection(model: model, savingConnection: saving)
             Section(L10n.string("Course display")) {
                 Picker(L10n.string("Default display"), selection: Binding(get: { model.archive.courseDisplayMode ?? .code }, set: { model.archive.courseDisplayMode = $0; model.save() })) {
                     ForEach(CourseDisplayMode.allCases, id: \.self) { Text(L10n.string($0.label)).tag($0) }
